@@ -8,7 +8,8 @@ import {
 import { nutritionAPI, mealAPI } from "../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-import * as FileSystem from "expo-file-system";
+import { StorageCleanupService } from "@/src/utils/storageCleanup";
+import { File } from "expo-file-system";
 
 interface MealState {
   meals: Meal[];
@@ -160,22 +161,23 @@ export const processImage = async (imageUri: string): Promise<string> => {
       );
     }
   } else {
-    // Native processing (React Native)
+    // Native processing (React Native) - Updated for new Expo FileSystem API
     try {
       console.log("Processing native image:", imageUri);
 
-      // For native, use FileSystem to read the image
-      const imageInfo = await FileSystem.getInfoAsync(imageUri);
-      if (!imageInfo.exists) {
+      // Using the new File API
+      const file = new File(imageUri);
+
+      // Check if file exists using the new API
+      const fileInfo = file.info();
+      if (!fileInfo.exists) {
         throw new Error("Image file does not exist");
       }
 
-      console.log("Image file size:", imageInfo.size);
+      console.log("Image file size:", fileInfo.size);
 
-      // Read as base64 directly
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Read as base64 using the new API
+      const base64 = file.base64();
 
       console.log("Native image processed, base64 length:", base64.length);
       return base64;
@@ -264,6 +266,14 @@ export const analyzeMeal = createAsyncThunk(
         // Save to storage with improved error handling
         try {
           const serializedMeal = JSON.stringify(pendingMeal);
+
+          // Check storage availability before saving
+          const hasSpace = await StorageCleanupService.checkAvailableStorage();
+          if (!hasSpace) {
+            console.warn("⚠️ Storage full, running cleanup before saving");
+            await StorageCleanupService.emergencyCleanup();
+          }
+
           await AsyncStorage.setItem(PENDING_MEAL_KEY, serializedMeal);
           console.log("Pending meal saved to storage successfully");
         } catch (storageError: any) {
@@ -273,30 +283,40 @@ export const analyzeMeal = createAsyncThunk(
           if (
             storageError?.message?.includes("disk is full") ||
             storageError?.message?.includes("SQLITE_FULL") ||
-            storageError?.code === 13
+            storageError?.code === 13 ||
+            storageError?.message?.includes("database or disk is full")
           ) {
             try {
-              const { StorageCleanupService } = await import(
-                "@/src/utils/storageCleanup"
-              );
               await StorageCleanupService.emergencyCleanup();
 
               // Retry saving after emergency cleanup
-              const compactMeal = JSON.stringify({
+              const compactMeal = {
                 analysis: pendingMeal.analysis,
                 timestamp: pendingMeal.timestamp,
                 // Skip image_base_64 if storage is critically full
-              });
-              await AsyncStorage.setItem(PENDING_MEAL_KEY, compactMeal);
+              };
+
+              const compactSerialized = JSON.stringify(compactMeal);
+              await AsyncStorage.setItem(PENDING_MEAL_KEY, compactSerialized);
               console.log(
                 "Pending meal saved after emergency cleanup (without image)"
               );
+
+              // Update the pending meal to reflect what was actually saved
+              const updatedPendingMeal = {
+                ...pendingMeal,
+                image_base_64: "", // Clear image to match what was saved
+              };
+
+              return updatedPendingMeal;
             } catch (retryError) {
               console.error(
                 "Failed to save even after emergency cleanup:",
                 retryError
               );
               // Continue without saving to storage, analysis is still in memory
+              // Return the meal without storage persistence
+              return pendingMeal;
             }
           }
         }
@@ -602,6 +622,14 @@ export const loadPendingMeal = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log("Loading pending meal from storage...");
+
+      // Check storage health before loading
+      const hasSpace = await StorageCleanupService.checkAvailableStorage();
+      if (!hasSpace) {
+        console.warn("⚠️ Storage issues detected, skipping pending meal load");
+        return null;
+      }
+
       const stored = await AsyncStorage.getItem(PENDING_MEAL_KEY);
 
       if (stored && stored.trim() !== "") {
@@ -615,6 +643,16 @@ export const loadPendingMeal = createAsyncThunk(
             typeof pendingMeal === "object" &&
             pendingMeal.timestamp
           ) {
+            // Check if the pending meal is too old (more than 24 hours)
+            const now = Date.now();
+            const ageHours = (now - pendingMeal.timestamp) / (1000 * 60 * 60);
+
+            if (ageHours > 24) {
+              console.log("⏰ Pending meal is too old, clearing it");
+              await AsyncStorage.removeItem(PENDING_MEAL_KEY);
+              return null;
+            }
+
             return pendingMeal;
           } else {
             console.warn("Invalid pending meal structure, clearing storage");
@@ -636,7 +674,15 @@ export const loadPendingMeal = createAsyncThunk(
       }
     } catch (error) {
       console.error("Load pending meal error:", error);
-      // Don't reject, just return null for storage errors
+
+      // If it's a storage error, try to clear corrupted data
+      try {
+        await AsyncStorage.removeItem(PENDING_MEAL_KEY);
+        console.log("🗑️ Cleared corrupted pending meal data");
+      } catch (clearError) {
+        console.warn("Failed to clear corrupted data:", clearError);
+      }
+
       return null;
     }
   }

@@ -32,6 +32,7 @@ import { ErrorHandler } from "@/src/utils/errorHandler";
 import { useTranslation } from "react-i18next";
 import Toast from "react-native-toast-message";
 import ToastWrapper from "@/components/ToastWrapper";
+import { StorageCleanupService } from "@/src/utils/storageCleanup";
 
 // Enable RTL support globally
 if (Platform.OS !== "web") {
@@ -347,12 +348,29 @@ const AppContent = React.memo(() => {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+
+      // Initialize storage monitoring
+      StorageCleanupService.checkAndCleanupIfNeeded().catch((error) => {
+        console.warn("Initial storage cleanup failed:", error);
+      });
+
+      // Set up periodic storage monitoring (every 30 minutes)
+      const storageMonitorInterval = setInterval(() => {
+        StorageCleanupService.monitorStorageUsage().catch((error) => {
+          console.warn("Storage monitoring failed:", error);
+        });
+      }, 30 * 60 * 1000); // 30 minutes
+
       // Only initialize notifications in production builds to avoid Expo Go warnings
       if (!__DEV__) {
         NotificationService.requestPermissions().catch((error) => {
           console.warn("Failed to request notification permissions:", error);
         });
       }
+
+      return () => {
+        clearInterval(storageMonitorInterval);
+      };
     }
   }, [loaded]);
 

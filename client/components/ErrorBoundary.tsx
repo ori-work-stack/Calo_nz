@@ -37,6 +37,24 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("🚨 Error Boundary caught an error:", error);
     console.error("📍 Error Info:", errorInfo);
 
+    // Check if this is a storage-related error
+    if (
+      error.message?.includes("database or disk is full") ||
+      error.message?.includes("SQLITE_FULL") ||
+      error.message?.includes("No space left")
+    ) {
+      console.log("🚨 Storage error detected, triggering emergency cleanup");
+
+      // Trigger emergency cleanup
+      import("../src/utils/storageCleanup").then(
+        ({ StorageCleanupService }) => {
+          StorageCleanupService.emergencyCleanup().catch((cleanupError) => {
+            console.error("Emergency cleanup failed:", cleanupError);
+          });
+        }
+      );
+    }
+
     this.setState({
       error,
       errorInfo,
@@ -88,6 +106,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.message}>
               We encountered an unexpected error. Don't worry, your data is
               safe.
+              {this.state.error?.message?.includes("storage") ||
+              this.state.error?.message?.includes("disk")
+                ? " We're clearing some cached data to free up space."
+                : ""}
             </Text>
 
             {__DEV__ && this.state.error && (

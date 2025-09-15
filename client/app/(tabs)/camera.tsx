@@ -27,7 +27,7 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 import {
   CreditCard as Edit3,
   TriangleAlert as AlertTriangle,
@@ -48,7 +48,6 @@ import {
 import {
   MealTypeSelector,
   MealType,
-  MEAL_TYPES,
 } from "@/components/camera/MealTypeSelector";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -824,7 +823,7 @@ export default function CameraScreen() {
 
           <ScrollView
             style={styles.modalBody}
-            showsVerticalIndicator={false}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.inputGroup}>
@@ -1119,11 +1118,6 @@ export default function CameraScreen() {
       {/* Show meal type selector first, before any camera interaction */}
       {!selectedMealType ? (
         <View style={styles.mealTypeSelectionScreen}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {t("camera.selectMealType")}
-            </Text>
-          </View>
           <MealTypeSelector onSelect={setSelectedMealType} />
         </View>
       ) : !selectedImage ? (
@@ -1218,7 +1212,6 @@ export default function CameraScreen() {
   );
 }
 
-// Process image with optimization and validation
 const processImage = async (imageUri: string): Promise<string | null> => {
   try {
     console.log("Processing native image:", imageUri);
@@ -1228,31 +1221,33 @@ const processImage = async (imageUri: string): Promise<string | null> => {
       return null;
     }
 
-    // Get file info first
-    const fileInfo = await FileSystem.getInfoAsync(imageUri);
-    if (!fileInfo.exists) {
+    // Create File instance
+    const file = new File(imageUri);
+
+    // Check if file exists (property, not method)
+    if (!file.exists) {
       console.error("Image file does not exist");
       return null;
     }
 
-    console.log("Image file size:", fileInfo.size);
+    // Get file size (property, not method)
+    const fileSize = file.size;
+    console.log("Image file size:", fileSize);
 
     // Check if file is too small or too large
-    if (fileInfo.size && fileInfo.size < 1000) {
+    if (fileSize && fileSize < 1000) {
       console.error("Image file is too small");
       return null;
     }
 
-    if (fileInfo.size && fileInfo.size > 10 * 1024 * 1024) {
+    if (fileSize && fileSize > 10 * 1024 * 1024) {
       // 10MB limit
       console.error("Image file is too large");
       return null;
     }
 
-    // Read as base64
-    const base64 = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    // Read as base64 (this is still a method)
+    const base64 = file.base64();
 
     if (!base64 || base64.length < 100) {
       console.error("Failed to read image or image too small");

@@ -45,6 +45,12 @@ const defaultSettings: NotificationSettings = {
 export class NotificationService {
   static async requestPermissions(): Promise<boolean> {
     try {
+      // Skip notifications in Expo Go to avoid warnings
+      if (__DEV__ && !Device.isDevice) {
+        console.log("⚠️ Skipping notifications in Expo Go development mode");
+        return false;
+      }
+
       console.log("🔔 Requesting notification permissions...");
 
       if (!Device.isDevice) {
@@ -159,6 +165,14 @@ export class NotificationService {
 
   static async registerForPushNotifications(): Promise<string | null> {
     try {
+      // Skip push notifications in Expo Go
+      if (__DEV__ && !Device.isDevice) {
+        console.log(
+          "⚠️ Skipping push notifications in Expo Go development mode"
+        );
+        return null;
+      }
+
       console.log("🚀 Registering for push notifications...");
 
       if (!Device.isDevice) {
@@ -179,18 +193,31 @@ export class NotificationService {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ||
         Constants?.easConfig?.projectId ||
-        process.env.EXPO_PUBLIC_PROJECT_ID;
+        process.env.EXPO_PUBLIC_PROJECT_ID ||
+        "calo-nutrition-app-2025"; // Fallback from app.json
 
       if (!projectId) {
-        console.warn(
-          "⚠️ No project ID found - push notifications may not work properly"
-        );
-        return null;
+        console.warn("⚠️ Using fallback project ID for push notifications");
       }
 
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
+      let tokenData;
+      try {
+        tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId,
+        });
+      } catch (tokenError: any) {
+        console.warn("⚠️ Failed to get Expo push token:", tokenError);
+
+        // In development, this is expected in Expo Go
+        if (__DEV__) {
+          console.log(
+            "📱 Push tokens not available in Expo Go - this is normal"
+          );
+          return null;
+        }
+
+        throw tokenError;
+      }
 
       const token = tokenData.data;
       console.log("✅ Push token obtained:", token.substring(0, 20) + "...");
@@ -674,6 +701,12 @@ export class NotificationService {
 
   static async initializeNotifications(userQuestionnaire?: any): Promise<void> {
     try {
+      // Skip initialization in Expo Go
+      if (__DEV__ && !Device.isDevice) {
+        console.log("⚠️ Skipping notification initialization in Expo Go");
+        return;
+      }
+
       console.log("🚀 Initializing notification system...");
 
       // Setup notification handlers
@@ -767,6 +800,12 @@ export class NotificationService {
     userQuestionnaire?: any
   ): Promise<void> {
     try {
+      // Skip initialization in Expo Go
+      if (__DEV__ && !Device.isDevice) {
+        console.log("⚠️ Skipping notification sync in Expo Go");
+        return;
+      }
+
       console.log(
         "🚀 Initializing notification system with questionnaire sync..."
       );
@@ -814,4 +853,3 @@ export class NotificationService {
     }
   }
 }
-

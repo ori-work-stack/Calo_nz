@@ -67,22 +67,28 @@ export default function ResetPasswordVerifyScreen() {
         inputRefs.current[index + 1]?.focus();
       }
 
-      // Auto-submit when all fields are filled
-      if (digit && index === 5 && newCode.every((c) => c !== "")) {
-        // Use the newCode array directly instead of relying on state
-        handleVerifyCode(newCode.join(""));
+      // Check if all fields are filled after this change
+      if (newCode.every((c) => c !== "")) {
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          handleVerifyCode(newCode.join(""));
+        }, 100);
       }
     }
   };
 
   const handleKeyPress = (key: string, index: number) => {
     if (key === "Backspace" && !code[index] && index > 0) {
+      // Clear the previous field and focus it
+      const newCode = [...code];
+      newCode[index - 1] = "";
+      setCode(newCode);
       inputRefs.current[index - 1]?.focus();
     }
   };
 
   const handleVerifyCode = async (verificationCode?: string) => {
-    // Fix: Use the passed code or current state, and ensure we have a valid code
+    // Use the passed code or current state
     const codeToVerify = verificationCode || code.join("");
 
     console.log("🔒 Verification code received:", verificationCode);
@@ -147,7 +153,9 @@ export default function ResetPasswordVerifyScreen() {
 
       // Clear the code inputs
       setCode(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
+      setTimeout(() => {
+        inputRefs.current[0]?.focus();
+      }, 100);
     } finally {
       setIsLoading(false);
     }
@@ -385,7 +393,7 @@ export default function ResetPasswordVerifyScreen() {
   });
 
   return (
-    <View style={[styles.container, isRTL && styles.containerRTL]}>
+    <View style={[styles.container]}>
       <View style={styles.backgroundAccent} />
 
       <View style={styles.header}>
@@ -431,6 +439,8 @@ export default function ResetPasswordVerifyScreen() {
                   maxLength={1}
                   textAlign="center"
                   editable={!isLoading}
+                  selectTextOnFocus={true}
+                  autoFocus={index === 0}
                 />
               ))}
             </View>
@@ -442,7 +452,12 @@ export default function ResetPasswordVerifyScreen() {
               (!code.every((c) => c !== "") || isLoading) &&
                 styles.verifyButtonDisabled,
             ]}
-            onPress={() => handleVerifyCode()}
+            onPress={() => {
+              const fullCode = code.join("");
+              if (fullCode.length === 6) {
+                handleVerifyCode(fullCode);
+              }
+            }}
             disabled={!code.every((c) => c !== "") || isLoading}
           >
             <View style={styles.verifyButtonContent}>

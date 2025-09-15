@@ -1,6 +1,25 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  Dimensions,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+  runOnJS,
+  FadeIn,
+  FadeOut,
+} from "react-native-reanimated";
 import {
   Sunrise,
   Sun,
@@ -8,15 +27,20 @@ import {
   Cookie,
   Clock,
   MoreHorizontal,
+  AlertCircle,
 } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+
+const { width } = Dimensions.get("window");
 
 export interface MealType {
   id: string;
   label: string;
   period: string;
   icon: React.ReactNode;
-  color: string;
-  backgroundColor: string;
+  colors: string[];
+  lightColor: string;
+  darkColor: string;
 }
 
 interface MealTypeSelectorProps {
@@ -24,103 +48,103 @@ interface MealTypeSelectorProps {
   selectedType?: MealType;
 }
 
-// Updated MEAL_TYPES with new time ranges and icons
-export const MEAL_TYPES: MealType[] = [
+// Function to create meal types with theme colors
+const getMealTypesWithTheme = (
+  colors: any,
+  emeraldSpectrum: any
+): MealType[] => [
   {
     id: "breakfast",
     label: "Breakfast",
-    period: "morning",
-    icon: <Sunrise size={24} color="#ffffff" />, // Changed to lucide-react-native icon
-    color: "#F39C12",
-    backgroundColor: "#Fef3c7", // Kept original background color for consistency
+    period: "breakfast",
+    icon: <Sunrise size={24} color="#ffffff" />,
+    colors: [colors.warning, "#F59E0B", "#D97706"], // Keep warm orange for breakfast
+    lightColor: "#FEF3C7",
+    darkColor: "#D97706",
   },
   {
     id: "lunch",
     label: "Lunch",
-    period: "afternoon",
-    icon: <Sun size={24} color="#ffffff" />, // Changed to lucide-react-native icon
-    color: "#E67E22",
-    backgroundColor: "#d1fae5", // Kept original background color
+    period: "lunch",
+    icon: <Sun size={24} color="#ffffff" />,
+    colors: [colors.info, "#3B82F6", "#1D4ED8"], // Keep blue for lunch
+    lightColor: "#DBEAFE",
+    darkColor: "#1D4ED8",
   },
   {
     id: "dinner",
     label: "Dinner",
-    period: "evening",
-    icon: <Moon size={24} color="#ffffff" />, // Changed to lucide-react-native icon
-    color: "#8E44AD",
-    backgroundColor: "#ede9fe", // Kept original background color
+    period: "dinner",
+    icon: <Moon size={24} color="#ffffff" />,
+    colors: ["#E0E7FF", "#6366F1", "#4338CA"], // Keep purple for dinner
+    lightColor: "#E0E7FF",
+    darkColor: "#4338CA",
   },
   {
     id: "snack",
     label: "Snack",
-    period: "anytime",
-    icon: <Cookie size={24} color="#ffffff" />, // Changed to lucide-react-native icon
-    color: "#16A085",
-    backgroundColor: "#fee2e2", // Kept original background color
-  },
-  {
-    id: "morning_snack",
-    label: "Morning Snack",
-    period: "morning_snack",
+    period: "snack",
     icon: <Cookie size={24} color="#ffffff" />,
-    color: "#f97316",
-    backgroundColor: "#fed7aa",
-  },
-  {
-    id: "afternoon_snack",
-    label: "Afternoon Snack",
-    period: "afternoon_snack",
-    icon: <Cookie size={24} color="#ffffff" />,
-    color: "#ec4899",
-    backgroundColor: "#fce7f3",
+    colors: [
+      emeraldSpectrum.emerald100,
+      emeraldSpectrum.emerald500,
+      emeraldSpectrum.emerald700,
+    ], // Use theme emerald
+    lightColor: emeraldSpectrum.emerald50,
+    darkColor: emeraldSpectrum.emerald700,
   },
   {
     id: "late_night",
     label: "Late Night",
     period: "late_night",
     icon: <Clock size={24} color="#ffffff" />,
-    color: "#6366f1",
-    backgroundColor: "#e0e7ff",
+    colors: [
+      colors.primary,
+      emeraldSpectrum.emerald600,
+      emeraldSpectrum.emerald800,
+    ], // Use theme primary
+    lightColor: emeraldSpectrum.emerald100,
+    darkColor: emeraldSpectrum.emerald800,
   },
   {
     id: "other",
     label: "Other",
     period: "other",
     icon: <MoreHorizontal size={24} color="#ffffff" />,
-    color: "#64748b",
-    backgroundColor: "#f1f5f9",
+    colors: [colors.surfaceVariant, colors.textSecondary, colors.textTertiary], // Use theme neutral colors
+    lightColor: colors.surfaceVariant,
+    darkColor: colors.textSecondary,
   },
 ];
 
-// Proper time ranges for meal types, adjusted for 24-hour format and midnight crossing
-const MEAL_TIME_RANGES = {
-  breakfast: { start: 5, end: 24 }, // 5:00 AM to 11:59 PM
-  morning_snack: { start: 9, end: 12 }, // 9:00 AM - 11:59 AM
-  lunch: { start: 12, end: 24 }, // 12:00 PM to 11:59 PM
-  afternoon_snack: { start: 14, end: 18 }, // 2:00 PM - 5:59 PM
-  dinner: { start: 18, end: 24 }, // 6:00 PM to 11:59 PM
-  late_night: { start: 22, end: 24 }, // 10:00 PM to 11:59 PM
-  snack: { start: 0, end: 24 }, // Available all day
-  other: { start: 0, end: 24 }, // Available all day
-};
-
-// Proper meal type ID to display name mapping
-const MEAL_TYPE_DISPLAY_MAP = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snack",
-  morning_snack: "Morning Snack",
-  afternoon_snack: "Afternoon Snack",
-  late_night: "Late Night",
-  other: "Other",
+const TIME_RESTRICTIONS = {
+  breakfast: { start: 5, end: 11.59 },
+  lunch: { start: 12, end: 17.59 },
+  dinner: { start: 18, end: 21.59 },
+  late_night: { start: 22, end: 4.59 },
+  snack: { start: 0, end: 23.59 },
+  other: { start: 0, end: 23.59 },
 };
 
 const formatTimeString = (hour: number): string => {
-  if (hour === 0) return "12:00 AM";
-  if (hour < 12) return `${hour}:00 AM`;
-  if (hour === 12) return "12:00 PM";
-  return `${hour - 12}:00 PM`;
+  const wholeHour = Math.floor(hour);
+  const minutes = Math.floor((hour - wholeHour) * 60);
+
+  if (wholeHour === 0)
+    return minutes > 0
+      ? `12:${minutes.toString().padStart(2, "0")} AM`
+      : "12:00 AM";
+  if (wholeHour < 12)
+    return minutes > 0
+      ? `${wholeHour}:${minutes.toString().padStart(2, "0")} AM`
+      : `${wholeHour}:00 AM`;
+  if (wholeHour === 12)
+    return minutes > 0
+      ? `12:${minutes.toString().padStart(2, "0")} PM`
+      : "12:00 PM";
+  return minutes > 0
+    ? `${wholeHour - 12}:${minutes.toString().padStart(2, "0")} PM`
+    : `${wholeHour - 12}:00 PM`;
 };
 
 const getCurrentHour = (): number => {
@@ -128,212 +152,393 @@ const getCurrentHour = (): number => {
   return now.getHours() + now.getMinutes() / 60;
 };
 
-const isMealTypeAvailable = (mealType: MealType) => {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const ranges = MEAL_TIME_RANGES[mealType.id as keyof typeof MEAL_TIME_RANGES];
+const isMealTypeAvailable = (mealTypeId: string): boolean => {
+  if (mealTypeId === "snack" || mealTypeId === "other") return true;
 
-  if (!ranges) return true;
+  const currentHour = getCurrentHour();
+  const restriction =
+    TIME_RESTRICTIONS[mealTypeId as keyof typeof TIME_RESTRICTIONS];
 
-  // Check if the current hour falls within the defined range
-  return currentHour >= ranges.start && currentHour < ranges.end;
-};
+  if (!restriction) return true;
 
-const getNextAvailableTime = (mealTypeId: string) => {
-  const ranges = MEAL_TIME_RANGES[mealTypeId as keyof typeof MEAL_TIME_RANGES];
-  if (!ranges) return "now";
-
-  const formatHour = (hour: number) => {
-    if (hour === 0) return "12:00 AM";
-    if (hour === 24) return "11:59 PM"; // Handle end of day
-    if (hour < 12) return `${hour}:00 AM`;
-    if (hour === 12) return "12:00 PM";
-    return `${hour - 12}:00 PM`;
-  };
-
-  const currentHour = new Date().getHours();
-
-  if (currentHour < ranges.start) {
-    return formatHour(ranges.start);
-  } else if (currentHour >= ranges.end) {
-    // If current hour is beyond the end time, the next availability is the start time of the next day
-    return `tomorrow at ${formatHour(ranges.start)}`;
+  if (restriction.start > restriction.end) {
+    return currentHour >= restriction.start || currentHour <= restriction.end;
   }
 
-  return formatHour(ranges.start); // Fallback, should ideally not be reached if logic is sound
+  return currentHour >= restriction.start && currentHour <= restriction.end;
 };
 
-// Removed getAutoMealType as it was not used in the provided snippet.
+const getTimeRangeString = (mealTypeId: string): string => {
+  const restriction =
+    TIME_RESTRICTIONS[mealTypeId as keyof typeof TIME_RESTRICTIONS];
+  if (!restriction || mealTypeId === "snack" || mealTypeId === "other")
+    return "Available anytime";
+
+  const startTime = formatTimeString(restriction.start);
+  const endTime = formatTimeString(restriction.end);
+
+  return `${startTime} - ${endTime}`;
+};
+
+const getNextAvailableTime = (mealTypeId: string): string => {
+  const restriction =
+    TIME_RESTRICTIONS[mealTypeId as keyof typeof TIME_RESTRICTIONS];
+  if (!restriction) return "";
+
+  return formatTimeString(restriction.start);
+};
+
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
+
+const MealCard: React.FC<{
+  mealType: MealType;
+  isSelected: boolean;
+  isAvailable: boolean;
+  onPress: () => void;
+  index: number;
+  colors: any;
+}> = ({ mealType, isSelected, isAvailable, onPress, index, colors }) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const rotateY = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { rotateY: `${rotateY.value}deg` }],
+    opacity: opacity.value,
+  }));
+
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(scale.value, [1, 0.95], [1, 1.1]) }],
+  }));
+
+  const handlePress = () => {
+    if (!isAvailable) {
+      // Shake animation for unavailable items
+      scale.value = withSpring(0.95, { duration: 100 });
+      rotateY.value = withTiming(5, { duration: 100 }, () => {
+        rotateY.value = withTiming(-5, { duration: 100 }, () => {
+          rotateY.value = withTiming(0, { duration: 100 });
+          scale.value = withSpring(1);
+        });
+      });
+
+      if (Platform.OS !== "web") {
+        runOnJS(Haptics.notificationAsync)(
+          Haptics.NotificationFeedbackType.Warning
+        );
+      }
+      return;
+    }
+
+    // Success animation
+    scale.value = withSpring(0.95, { duration: 150 }, () => {
+      scale.value = withSpring(1, { duration: 200 });
+    });
+
+    if (Platform.OS !== "web") {
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    onPress();
+  };
+
+  const cardStyle = [
+    styles.mealTypeCard,
+    {
+      backgroundColor: isSelected ? mealType.lightColor : colors.surface,
+      borderColor: isSelected
+        ? mealType.darkColor
+        : isAvailable
+        ? colors.border
+        : colors.outline,
+      shadowColor: isSelected ? mealType.darkColor : colors.shadow,
+      shadowOpacity: isSelected ? 0.15 : 0.05,
+      shadowOffset: { width: 0, height: isSelected ? 6 : 2 },
+      shadowRadius: isSelected ? 12 : 4,
+      elevation: isSelected ? 8 : 2,
+    },
+    !isAvailable && styles.unavailableCard,
+  ];
+
+  return (
+    <AnimatedTouchableOpacity
+      entering={FadeIn.delay(index * 100).springify()}
+      style={[animatedStyle, cardStyle]}
+      onPress={handlePress}
+      activeOpacity={1}
+    >
+      <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
+        <LinearGradient
+          colors={
+            (isAvailable
+              ? mealType.colors.slice(1)
+              : [colors.textTertiary, colors.muted]) as [
+              string,
+              string,
+              ...string[]
+            ]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconGradient}
+        >
+          {React.cloneElement(
+            mealType.icon as React.ReactElement<{
+              color?: string;
+              size?: number;
+            }>,
+            {
+              color: "#FFFFFF",
+              size: 28,
+            }
+          )}
+        </LinearGradient>
+      </Animated.View>
+
+      <Text
+        style={[
+          styles.label,
+          {
+            color: isAvailable ? mealType.darkColor : colors.textTertiary,
+            fontWeight: isSelected ? "700" : "600",
+          },
+        ]}
+      >
+        {mealType.label}
+      </Text>
+
+      <Text
+        style={[
+          styles.timeRange,
+          {
+            color: isAvailable ? mealType.colors[1] : colors.textTertiary,
+          },
+        ]}
+      >
+        {getTimeRangeString(mealType.id)}
+      </Text>
+
+      {!isAvailable && (
+        <Animated.View
+          entering={FadeIn}
+          exiting={FadeOut}
+          style={styles.unavailableContainer}
+        >
+          <AlertCircle size={14} color={colors.error} />
+          <Text style={[styles.unavailableText, { color: colors.error }]}>
+            Available at {getNextAvailableTime(mealType.id)}
+          </Text>
+        </Animated.View>
+      )}
+
+      {isSelected && (
+        <Animated.View
+          entering={FadeIn.springify()}
+          style={[
+            styles.selectedIndicator,
+            { backgroundColor: mealType.darkColor },
+          ]}
+        />
+      )}
+    </AnimatedTouchableOpacity>
+  );
+};
 
 export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
   onSelect,
   selectedType,
 }) => {
+  const { colors, emeraldSpectrum } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Update time every minute
+  // Get meal types with theme colors
+  const MEAL_TYPES = useMemo(
+    () => getMealTypesWithTheme(colors, emeraldSpectrum),
+    [colors, emeraldSpectrum]
+  );
+
+  const mealAvailability = useMemo(() => {
+    return MEAL_TYPES.reduce((acc, mealType) => {
+      acc[mealType.id] = isMealTypeAvailable(mealType.id);
+      return acc;
+    }, {} as Record<string, boolean>);
+  }, [currentTime, MEAL_TYPES]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
 
   const handleMealTypeSelect = (mealType: MealType) => {
-    const isAvailable = isMealTypeAvailable(mealType);
-
-    if (!isAvailable) {
-      const nextAvailableTime = getNextAvailableTime(mealType.id);
-      Alert.alert(
-        "Too Early",
-        `The time is a bit too early for ${mealType.label.toLowerCase()}. You can upload ${mealType.label.toLowerCase()} at ${nextAvailableTime}.`,
-        [{ text: "OK", style: "default" }]
-      );
-      return;
+    if (mealAvailability[mealType.id]) {
+      onSelect(mealType);
     }
-
-    onSelect(mealType);
   };
 
+  const currentTimeString = useMemo(() => {
+    return currentTime.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }, [currentTime]);
+
+  const themedStyles = StyleSheet.create({
+    container: {
+      minHeight: "100%",
+      backgroundColor: colors.background,
+    },
+    header: {
+      marginBottom: 32,
+      alignItems: "center",
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: "800",
+      color: colors.text,
+      marginBottom: 8,
+      textAlign: "center",
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 18,
+      color: colors.textSecondary,
+      marginBottom: 16,
+      textAlign: "center",
+      lineHeight: 24,
+    },
+    timeContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    currentTime: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginLeft: 8,
+      fontWeight: "600",
+    },
+  });
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Select Meal Type</Text>
-      <Text style={styles.subtitle}>
-        Choose the type of meal you're about to capture
-      </Text>
+    <ScrollView style={themedStyles.container}>
+      <Animated.View entering={FadeIn.delay(50)} style={themedStyles.header}>
+        <Text style={themedStyles.title}>Select Meal Type</Text>
+        <Text style={themedStyles.subtitle}>
+          Choose the type of meal you're capturing
+        </Text>
+        <View style={themedStyles.timeContainer}>
+          <Clock size={16} color={colors.textSecondary} />
+          <Text style={themedStyles.currentTime}>
+            Current time: {currentTimeString}
+          </Text>
+        </View>
+      </Animated.View>
 
-      <View style={styles.grid}>
-        {MEAL_TYPES.map((mealType) => {
-          const isAvailable = isMealTypeAvailable(mealType);
-          const isSelected = selectedType?.id === mealType.id;
-
-          return (
-            <TouchableOpacity
-              key={mealType.id}
-              style={[
-                styles.mealTypeCard,
-                { backgroundColor: mealType.backgroundColor },
-                isSelected && styles.selected,
-                !isAvailable && styles.unavailable,
-              ]}
-              onPress={() => handleMealTypeSelect(mealType)}
-              activeOpacity={isAvailable ? 0.8 : 1}
-            >
-              <LinearGradient
-                colors={[
-                  isAvailable ? mealType.color : "#9CA3AF",
-                  isAvailable ? `${mealType.color}CC` : "#9CA3AFCC",
-                ]}
-                style={[
-                  styles.iconContainer,
-                  !isAvailable && styles.unavailableIcon,
-                ]}
-              >
-                {mealType.icon}
-              </LinearGradient>
-              <Text
-                style={[
-                  styles.label,
-                  { color: isAvailable ? mealType.color : "#9CA3AF" },
-                ]}
-              >
-                {mealType.label}
-              </Text>
-              {!isAvailable && (
-                <Text style={styles.unavailableText}>
-                  Available at {getNextAvailableTime(mealType.id)}
-                </Text>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+      <View>
+        {MEAL_TYPES.map((mealType, index) => (
+          <MealCard
+            key={mealType.id}
+            mealType={mealType}
+            isSelected={selectedType?.id === mealType.id}
+            isAvailable={mealAvailability[mealType.id]}
+            onPress={() => handleMealTypeSelect(mealType)}
+            index={index}
+            colors={colors}
+          />
+        ))}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
-// Updated styles for improved design
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: "center",
-    backgroundColor: "#F8FAFC", // Light gray background
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: 16,
-    color: "#1F2937", // Dark gray title
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 18,
-    textAlign: "center",
-    marginBottom: 40,
-    color: "#6B7280", // Medium gray subtitle
-    lineHeight: 28,
-    paddingHorizontal: 20,
-  },
-  grid: {
-    gap: 16,
-    paddingHorizontal: 8,
-  },
   mealTypeCard: {
-    backgroundColor: "#FFFFFF",
+    width: "auto",
+    padding: 20,
     borderRadius: 20,
-    padding: 24,
     alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    minHeight: 160,
-    width: "100%",
+    borderWidth: 2,
     marginBottom: 16,
-  },
-  selected: {
-    // Renamed from selectedCard for consistency with original code's selected state
-    borderColor: "#16A085", // Teal border for selected card
-    backgroundColor: "#F0FDFA", // Light teal background for selected card
-    transform: [{ scale: 1.05 }], // Slightly enlarge selected card
-    shadowColor: "#16A085",
-    shadowOpacity: 0.25, // Stronger shadow for selected card
+    position: "relative",
+    overflow: "hidden",
   },
   iconContainer: {
-    width: 56, // Larger icon container
+    marginBottom: 16,
+    position: "relative",
+  },
+  blurOverlay: {
+    position: "absolute",
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 30,
+    zIndex: 1,
+  },
+  iconGradient: {
+    width: 56,
     height: 56,
-    borderRadius: 28, // Circular container
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16, // Increased margin below icon
+    position: "relative",
+    zIndex: 2,
   },
   label: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1F2937",
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
     marginBottom: 8,
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
+  },
+  timeRange: {
+    fontSize: 13,
+    textAlign: "center",
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  unavailableCard: {
+    opacity: 0.7,
+  },
+  unavailableContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   unavailableText: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 4,
-    fontWeight: "500",
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 4,
   },
-  unavailable: {
-    opacity: 0.5,
-    borderColor: "#E5E7EB",
-  },
-  unavailableIcon: {
-    opacity: 0.6,
+  selectedIndicator: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
+// Export the function to get meal types with theme (for use in other components)
+export { getMealTypesWithTheme };

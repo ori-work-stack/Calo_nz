@@ -15,6 +15,12 @@ Notifications.setNotificationHandler({
 
 export class PushNotificationService {
   static async registerForPushNotifications() {
+    // Skip push notifications in Expo Go to avoid warnings
+    if (__DEV__ && !Device.isDevice) {
+      console.log("⚠️ Skipping push notifications in Expo Go development mode");
+      return null;
+    }
+
     // Skip push notifications in Expo Go
     if (!Device.isDevice || __DEV__) {
       console.log("Push notifications not available in Expo Go or development");
@@ -40,25 +46,44 @@ export class PushNotificationService {
       let projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ||
         Constants?.easConfig?.projectId ||
-        "your-project-id-here"; // Fallback
+        "calo-nutrition-app-2025"; // Use the actual project ID from app.json
 
       // If still not found, try from app config
       if (!projectId && Constants?.expoConfig?.extra) {
         projectId = Constants.expoConfig.extra.eas?.projectId;
       }
 
-      if (!projectId || projectId === "your-project-id-here") {
-        console.warn(
-          "Using fallback project ID - push notifications may not work properly"
-        );
-        return null;
+      if (!projectId) {
+        console.warn("⚠️ No project ID found for push notifications");
+        // In development, this is expected
+        if (__DEV__) {
+          return null;
+        }
       }
 
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
+      let token;
+      try {
+        token = await Notifications.getExpoPushTokenAsync({
+          projectId,
+        });
+      } catch (tokenError: any) {
+        console.warn("⚠️ Failed to get push token:", tokenError);
 
-      console.log("Push token:", token.data);
+        // In development with Expo Go, this is expected
+        if (__DEV__) {
+          console.log(
+            "📱 Push tokens not available in Expo Go - this is normal"
+          );
+          return null;
+        }
+
+        throw tokenError;
+      }
+
+      console.log(
+        "✅ Push token obtained:",
+        token.data.substring(0, 20) + "..."
+      );
       await AsyncStorage.setItem("expo_push_token", token.data);
       return token.data;
     } catch (error) {
@@ -214,6 +239,12 @@ export class PushNotificationService {
 
   static async initializeNotifications(userQuestionnaire?: any) {
     try {
+      // Skip initialization in Expo Go
+      if (__DEV__ && !Device.isDevice) {
+        console.log("⚠️ Skipping notification initialization in Expo Go");
+        return null;
+      }
+
       const token = await this.registerForPushNotifications();
 
       if (token && userQuestionnaire) {

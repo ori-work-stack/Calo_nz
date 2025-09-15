@@ -915,7 +915,7 @@
   "auth": {
     "sign_in": "התחברות",
     "email": "כתובת אימייל",
-    "enter_password": "צור סיסמה חזקה",
+    "enter_password": "הכנס סיסמא",
     "password": "סיסמה",
     "confirm_password": "אשר סיסמה",
     "create": "צור חשבון",

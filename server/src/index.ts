@@ -15,17 +15,20 @@ import { questionnaireRoutes } from "./routes/questionnaire";
 import chatRoutes from "./routes/chat";
 import { deviceRoutes } from "./routes/devices";
 import { mealPlansRoutes } from "./routes/mealPlans";
-import recommendedMenuRoutes  from "./routes/recommendedMenu";
+import recommendedMenuRoutes from "./routes/recommendedMenu";
 import { calendarRoutes } from "./routes/calendar";
 import statisticsRoutes from "./routes/statistics";
 import foodScannerRoutes from "./routes/foodScanner";
-import { CronJobService } from "./services/cronJobs";
+import { EnhancedCronJobService } from "./services/cron/enhanced";
 import { UserCleanupService } from "./services/userCleanup";
-import "./services/cron";
+import { enhancedDailyGoalsRoutes } from "./routes/enhanced/dailyGoals";
+import { enhancedRecommendationsRoutes } from "./routes/enhanced/recommendations";
+import { enhancedDatabaseRoutes } from "./routes/enhanced/database";
 import { dailyGoalsRoutes } from "./routes/dailyGoal";
 import achievementsRouter from "./routes/achievements";
 import shoppingListRoutes from "./routes/shoppingLists";
 import mealCompletionRouter from "./routes/mealCompletion";
+import { authenticateToken, AuthRequest } from "./middleware/auth";
 
 // Load environment variables
 dotenv.config();
@@ -179,9 +182,92 @@ apiRouter.use("/chat", chatRoutes);
 apiRouter.use("/food-scanner", foodScannerRoutes);
 apiRouter.use("/shopping-lists", shoppingListRoutes);
 apiRouter.use("/", statisticsRoutes);
-apiRouter.use("/daily-goals", dailyGoalsRoutes);
+apiRouter.use("/daily-goals", enhancedDailyGoalsRoutes);
+apiRouter.use("/recommendations", enhancedRecommendationsRoutes);
+apiRouter.use("/database", enhancedDatabaseRoutes);
+apiRouter.use("/daily-goals-simple", dailyGoalsRoutes);
 apiRouter.use("/", achievementsRouter);
 apiRouter.use("/meal-completions", mealCompletionRouter);
+
+// Add a test endpoint to manually trigger daily goals creation
+apiRouter.post("/test/create-daily-goals", async (req, res) => {
+  try {
+    console.log("🧪 TEST ENDPOINT: Creating daily goals for all users");
+
+    // Debug database state first
+    const { EnhancedDailyGoalsService } = await import(
+      "./services/database/dailyGoals"
+    );
+    const debugInfo = await EnhancedDailyGoalsService.debugDatabaseState();
+    console.log("🔍 Database state:", debugInfo);
+
+    // Force create goals for ALL users
+    console.log("🚨 FORCE creating goals for ALL users...");
+    const result =
+      await EnhancedDailyGoalsService.forceCreateGoalsForAllUsers();
+
+    console.log("📊 Final test result:", result);
+
+    // Final verification
+    const finalDebugInfo = await EnhancedDailyGoalsService.debugDatabaseState();
+    console.log("🔍 Final database state:", finalDebugInfo);
+
+    res.json({
+      success: true,
+      message: `Test completed: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped, ${result.errors.length} errors`,
+      data: {
+        ...result,
+        debugInfo,
+        finalDebugInfo,
+      },
+    });
+  } catch (error) {
+    console.error("💥 Test endpoint error:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Add simple test endpoint for single user goal creation
+apiRouter.post(
+  "/test/create-single-goal",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user.user_id;
+      console.log("🧪 TEST: Creating daily goal for single user:", userId);
+
+      const { EnhancedDailyGoalsService } = await import(
+        "./services/database/dailyGoals"
+      );
+      const success = await EnhancedDailyGoalsService.createDailyGoalForUser(
+        userId
+      );
+
+      if (success) {
+        const goals = await EnhancedDailyGoalsService.getUserDailyGoals(userId);
+        res.json({
+          success: true,
+          data: goals,
+          message: "Daily goal created successfully for current user",
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: "Failed to create daily goal",
+        });
+      }
+    } catch (error) {
+      console.error("💥 Single goal test error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
 
 app.use("/api", apiRouter);
 
@@ -256,12 +342,10 @@ async function startServer() {
           "Note: AI features are using mock data. Add OPENAI_API_KEY to enable real AI analysis."
         );
       }
-      // Initialize cron jobs
-      CronJobService.initializeCronJobs();
-      UserCleanupService.initializeCleanupJobs();
 
-      // Create daily goals for existing users
-      CronJobService.createDailyGoalsForAllUsers();
+      // Initialize enhanced cron jobs
+      EnhancedCronJobService.initializeEnhancedCronJobs();
+      UserCleanupService.initializeCleanupJobs();
     });
   } catch (error) {
     log.error("❌ Database connection failed:", error);

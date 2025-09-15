@@ -1501,7 +1501,7 @@ Language: ${language}`;
     };
   }
 
-   static async updateMealAnalysis(
+  static async updateMealAnalysis(
     originalAnalysis: MealAnalysisResult,
     updateText: string,
     language: string = "english"
@@ -1636,6 +1636,7 @@ Language for response: ${language}`;
           servingSize: parsed.servingSize || originalAnalysis.servingSize,
           cookingMethod: parsed.cookingMethod || originalAnalysis.cookingMethod,
           healthNotes: parsed.healthNotes || originalAnalysis.healthNotes,
+          recommendations: "",
         };
 
         console.log("✅ Update completed:", updatedResult);
@@ -2053,6 +2054,7 @@ Language for response: ${language}`;
         avg_daily_protein: userProfile.target_protein_daily,
         avg_daily_carbs: userProfile.target_carbs_daily,
         goal_adherence_percentage: 90,
+        avg_daily_fats: 0,
       },
       shopping_tips: [
         "Plan your shopping list based on the weekly meals",

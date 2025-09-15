@@ -16,11 +16,18 @@ export class StorageCleanupService {
   private static readonly STORAGE_WARNING_THRESHOLD = 0.7; // 70%
   private static readonly STORAGE_CRITICAL_THRESHOLD = 0.85; // 85%
   private static readonly LARGE_ITEM_THRESHOLD = 512; // 512 bytes
-  private static readonly MAX_STORAGE_SIZE = 8 * 1024 * 1024; // 8MB estimated max
+  private static readonly MAX_STORAGE_SIZE = 6 * 1024 * 1024; // 6MB to be safer
   private static readonly SECURE_STORE_SIZE_LIMIT = 2048; // SecureStore limit
 
   static async checkAndCleanupIfNeeded(): Promise<boolean> {
     try {
+      // Check available storage first
+      const hasSpace = await this.checkAvailableStorage();
+      if (!hasSpace) {
+        console.log("🚨 No available storage, running emergency cleanup");
+        return await this.emergencyCleanup();
+      }
+
       // First, handle SQLITE_FULL emergency
       if (await this.isDatabaseFull()) {
         console.log("🚨 Database full detected, running emergency cleanup");
@@ -57,6 +64,31 @@ export class StorageCleanupService {
     }
   }
 
+  static async checkAvailableStorage(): Promise<boolean> {
+    try {
+      // Try to write a small test item
+      const testKey = `storage_test_${Date.now()}`;
+      const testData = "test_data_for_storage_check";
+
+      await AsyncStorage.setItem(testKey, testData);
+      await AsyncStorage.removeItem(testKey);
+
+      return true;
+    } catch (error: any) {
+      console.error("🚨 Storage availability check failed:", error);
+
+      // Check for specific storage full errors
+      const isStorageFull =
+        error?.message?.includes("database or disk is full") ||
+        error?.message?.includes("SQLITE_FULL") ||
+        error?.code === 13 ||
+        error?.message?.includes("No space left") ||
+        error?.message?.includes("disk full");
+
+      return !isStorageFull;
+    }
+  }
+
   static async isDatabaseFull(): Promise<boolean> {
     try {
       // Try a simple storage operation
@@ -80,11 +112,20 @@ export class StorageCleanupService {
     try {
       console.log("🆘 Starting emergency storage cleanup...");
 
+      // 0. Clear all TanStack Query cache first
+      try {
+        const { queryClient } = await import("../services/queryClient");
+        queryClient.clear();
+        console.log("✅ Cleared TanStack Query cache");
+      } catch (error) {
+        console.warn("⚠️ Failed to clear query cache:", error);
+      }
+
       // 1. Clear all cached images and temporary data immediately
       await this.clearCachedImages();
 
-      // 2. Clear old meal data (keep only last 7 days in emergency)
-      await this.clearOldMealData(7);
+      // 2. Clear old meal data (keep only last 3 days in emergency)
+      await this.clearOldMealData(3);
 
       // 3. Clear Redux persist data except auth
       await this.clearNonCriticalReduxData();
@@ -95,7 +136,13 @@ export class StorageCleanupService {
       // 5. Clear analytics and debug data
       await this.clearAnalyticsData();
 
-      // 6. Force garbage collection
+      // 6. Clear all non-essential AsyncStorage keys
+      await this.clearNonEssentialData();
+
+      // 7. Compact remaining data
+      await this.compactStorageData();
+
+      // 8. Force garbage collection
       if (global.gc) {
         global.gc();
       }
@@ -105,6 +152,77 @@ export class StorageCleanupService {
     } catch (error) {
       console.error("❌ Emergency cleanup failed:", error);
       return false;
+    }
+  }
+
+  private static async clearNonEssentialData(): Promise<void> {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const nonEssentialKeys = keys.filter(
+        (key) =>
+          key.includes("cache_") ||
+          key.includes("temp_") ||
+          key.includes("debug_") ||
+          key.includes("log_") ||
+          key.includes("analytics_") ||
+          key.includes("performance_") ||
+          key.includes("crash_") ||
+          key.includes("query_") ||
+          key.includes("image_") ||
+          key.includes("photo_") ||
+          key.includes("base64_") ||
+          key.startsWith("rn:") ||
+          key.startsWith("__") ||
+          key.includes("react-query") ||
+          key.includes("@react-navigation") ||
+          key.includes("expo-") ||
+          key.includes("flipper")
+      );
+
+      if (nonEssentialKeys.length > 0) {
+        await AsyncStorage.multiRemove(nonEssentialKeys);
+        console.log(
+          `🗑️ Cleared ${nonEssentialKeys.length} non-essential items`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to clear non-essential data:", error);
+    }
+  }
+
+  private static async compactStorageData(): Promise<void> {
+    try {
+      // Get all remaining keys and their data
+      const keys = await AsyncStorage.getAllKeys();
+      const essentialKeys = keys.filter(
+        (key) =>
+          key.includes("persist:auth") ||
+          key.includes("auth_token") ||
+          key.includes("user_") ||
+          key.includes("language") ||
+          key.includes("theme") ||
+          key.includes("notification")
+      );
+
+      // Compact each essential item
+      for (const key of essentialKeys) {
+        try {
+          const value = await AsyncStorage.getItem(key);
+          if (value && value.length > 1000) {
+            const compressed = this.compressString(value);
+            if (compressed.length < value.length * 0.8) {
+              await AsyncStorage.setItem(key, compressed);
+              console.log(
+                `🗜️ Compacted ${key}: ${value.length} -> ${compressed.length} bytes`
+              );
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to compact ${key}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to compact storage data:", error);
     }
   }
 
@@ -185,7 +303,11 @@ export class StorageCleanupService {
           key.includes("photo_") ||
           key.includes("base64_") ||
           key.includes("pendingMeal") ||
-          key.startsWith("rn:")
+          key.startsWith("rn:") ||
+          key.includes("ImagePicker") ||
+          key.includes("CameraRoll") ||
+          key.includes("MediaLibrary") ||
+          key.includes("FileSystem")
       );
 
       if (imageKeys.length > 0) {
@@ -246,7 +368,12 @@ export class StorageCleanupService {
   private static async clearNonCriticalReduxData(): Promise<void> {
     try {
       // Keep auth data, clear everything else
-      const persistKeys = ["persist:meal", "persist:calendar"];
+      const persistKeys = [
+        "persist:meal",
+        "persist:calendar",
+        "persist:questionnaire",
+        "persist:statistics",
+      ];
       await AsyncStorage.multiRemove(persistKeys);
       console.log("🔄 Cleared non-critical Redux persist data");
     } catch (error) {
@@ -444,7 +571,40 @@ export class StorageCleanupService {
       console.log(
         `⚠️ Attempting to store oversized value in SecureStore (${value.length} bytes)`
       );
-      await this.splitLargeSecureStoreItem(key, value);
+
+      // Try to compress first
+      const compressed = this.compressString(value);
+      if (compressed.length <= this.SECURE_STORE_SIZE_LIMIT) {
+        console.log(`✅ Compressed ${key} to fit SecureStore`);
+        await SecureStore.setItemAsync(key, compressed);
+      } else {
+        // If still too large, split it
+        await this.splitLargeSecureStoreItem(key, value);
+      }
+    }
+  }
+
+  // Add method to monitor storage usage
+  static async monitorStorageUsage(): Promise<void> {
+    try {
+      const storageInfo = await this.getStorageInfo();
+      const usageRatio = storageInfo.usedSize / storageInfo.totalSize;
+
+      console.log(`📊 Storage Monitor: ${Math.round(usageRatio * 100)}% used`);
+
+      if (usageRatio > 0.8) {
+        console.warn("⚠️ Storage usage is high, consider cleanup");
+      }
+
+      // Log largest items for debugging
+      if (storageInfo.largeItems.length > 0) {
+        console.log("📦 Largest storage items:");
+        storageInfo.largeItems.slice(0, 5).forEach((item) => {
+          console.log(`  - ${item.key}: ${Math.round(item.size / 1024)}KB`);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to monitor storage:", error);
     }
   }
 }
