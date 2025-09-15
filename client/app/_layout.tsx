@@ -34,6 +34,45 @@ import Toast from "react-native-toast-message";
 import ToastWrapper from "@/components/ToastWrapper";
 import { StorageCleanupService } from "@/src/utils/storageCleanup";
 
+// Initialize storage cleanup on app start
+const initializeStorageCleanup = async () => {
+  try {
+    console.log("🚀 Starting critical storage initialization...");
+
+    // First check if database is full
+    const isDatabaseFull = await StorageCleanupService.isDatabaseFull();
+    if (isDatabaseFull) {
+      console.log(
+        "🚨 Database is full - running emergency cleanup immediately"
+      );
+      await StorageCleanupService.emergencyCleanup();
+    }
+
+    // Now run normal cleanup
+    const success = await StorageCleanupService.checkAndCleanupIfNeeded();
+    if (success) {
+      console.log("✅ Storage cleanup initialized successfully");
+    } else {
+      console.warn(
+        "⚠️ Storage cleanup completed with warnings - running emergency cleanup"
+      );
+      await StorageCleanupService.emergencyCleanup();
+    }
+  } catch (error) {
+    console.error("💥 Storage cleanup initialization failed:", error);
+    // Emergency cleanup as last resort
+    try {
+      console.log("🆘 Running emergency cleanup as last resort...");
+      await StorageCleanupService.emergencyCleanup();
+    } catch (emergencyError) {
+      console.error("💥 Emergency cleanup also failed:", emergencyError);
+    }
+  }
+};
+
+// Run cleanup on app initialization - CRITICAL
+initializeStorageCleanup();
+
 // Enable RTL support globally
 if (Platform.OS !== "web") {
   I18nManager.allowRTL(true);
@@ -346,6 +385,80 @@ const AppContent = React.memo(() => {
   });
 
   useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        console.log("🚀 Starting ENHANCED app initialization...");
+
+        // STEP 1: Critical storage check and cleanup
+        try {
+          const { StorageCleanupService } = await import(
+            "@/src/utils/storageCleanup"
+          );
+
+          // Check if storage is working at all
+          const storageWorking =
+            await StorageCleanupService.checkStorageBeforeOperation();
+          if (!storageWorking) {
+            console.log(
+              "🚨 Storage is not working - running emergency cleanup"
+            );
+            await StorageCleanupService.emergencyCleanup();
+          }
+
+          console.log("✅ Storage check completed");
+        } catch (storageError) {
+          console.error("💥 Critical storage error:", storageError);
+        }
+
+        // STEP 2: Initialize REAL notifications
+        try {
+          console.log("🔔 Initializing REAL notification service...");
+          await NotificationService.initialize();
+          console.log("✅ REAL notifications initialized successfully");
+
+          // Send welcome notification if user is available
+          if (user?.name && user?.email) {
+            setTimeout(async () => {
+              try {
+                await NotificationService.sendWelcomeNotification(
+                  user.name,
+                  user.email
+                );
+              } catch (welcomeError) {
+                console.warn("⚠️ Welcome notification failed:", welcomeError);
+              }
+            }, 2000); // Wait 2 seconds for app to fully load
+          }
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ REAL notification initialization failed:",
+            notificationError
+          );
+        }
+
+        console.log("✅ ENHANCED app initialization completed successfully");
+      } catch (error) {
+        console.error("❌ ENHANCED app initialization error:", error);
+
+        // Last resort emergency cleanup
+        try {
+          const { StorageCleanupService } = await import(
+            "@/src/utils/storageCleanup"
+          );
+          await StorageCleanupService.emergencyCleanup();
+          console.log(
+            "✅ Emergency cleanup completed after initialization failure"
+          );
+        } catch (cleanupError) {
+          console.error("💥 Emergency cleanup also failed:", cleanupError);
+        }
+      }
+    };
+
+    initializeApp();
+  }, [user?.name, user?.email]);
+
+  useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
 
@@ -363,9 +476,8 @@ const AppContent = React.memo(() => {
 
       // Only initialize notifications in production builds to avoid Expo Go warnings
       if (!__DEV__) {
-        NotificationService.requestPermissions().catch((error) => {
-          console.warn("Failed to request notification permissions:", error);
-        });
+        // The new notification service handles permissions internally on initialization.
+        // No explicit call to requestPermissions is needed here.
       }
 
       return () => {

@@ -257,7 +257,7 @@ export default function CameraScreen() {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -298,7 +298,7 @@ export default function CameraScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -343,6 +343,23 @@ export default function CameraScreen() {
     if (!selectedMealType) {
       Alert.alert(t("common.error"), "Please select a meal type first");
       return;
+    }
+
+    // Check and cleanup storage before analysis
+    try {
+      const { StorageCleanupService } = await import(
+        "@/src/utils/storageCleanup"
+      );
+      const storageOk = await StorageCleanupService.checkAndCleanupIfNeeded();
+      if (!storageOk) {
+        Alert.alert(
+          "Storage Full",
+          "Device storage is full. Please free up space and try again."
+        );
+        return;
+      }
+    } catch (error) {
+      console.warn("Storage check failed:", error);
     }
 
     // Show scanning animation with progress
@@ -1214,55 +1231,49 @@ export default function CameraScreen() {
 
 const processImage = async (imageUri: string): Promise<string | null> => {
   try {
-    console.log("Processing native image:", imageUri);
+    console.log("Processing image:", imageUri);
 
     if (!imageUri || imageUri.trim() === "") {
       console.error("Invalid image URI provided");
       return null;
     }
 
-    // Create File instance
-    const file = new File(imageUri);
+    // Import image optimization utility
+    const { optimizeImageForUpload } = await import(
+      "@/src/utils/imageOptimiztion"
+    );
 
-    // Check if file exists (property, not method)
-    if (!file.exists) {
-      console.error("Image file does not exist");
-      return null;
-    }
+    // Optimize image for analysis
+    const optimizedBase64 = await optimizeImageForUpload(imageUri, {
+      maxWidth: 1024,
+      maxHeight: 1024,
+      quality: 0.8,
+      format: "jpeg",
+    });
 
-    // Get file size (property, not method)
-    const fileSize = file.size;
-    console.log("Image file size:", fileSize);
-
-    // Check if file is too small or too large
-    if (fileSize && fileSize < 1000) {
-      console.error("Image file is too small");
-      return null;
-    }
-
-    if (fileSize && fileSize > 10 * 1024 * 1024) {
-      // 10MB limit
-      console.error("Image file is too large");
-      return null;
-    }
-
-    // Read as base64 (this is still a method)
-    const base64 = file.base64();
-
-    if (!base64 || base64.length < 100) {
-      console.error("Failed to read image or image too small");
+    if (!optimizedBase64 || optimizedBase64.length < 100) {
+      console.error("Failed to optimize image or result too small");
       return null;
     }
 
     // Validate base64 format
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-    if (!base64Regex.test(base64)) {
+    if (!base64Regex.test(optimizedBase64)) {
       console.error("Invalid base64 format generated");
       return null;
     }
 
-    console.log("Native image processed, base64 length:", base64.length);
-    return base64;
+    // Check size limit (10MB base64 ≈ 7.5MB binary)
+    if (optimizedBase64.length > 10 * 1024 * 1024) {
+      console.error("Optimized image still too large");
+      return null;
+    }
+
+    console.log(
+      "Image processed successfully, base64 length:",
+      optimizedBase64.length
+    );
+    return optimizedBase64;
   } catch (error) {
     console.error("Error processing image:", error);
     return null;

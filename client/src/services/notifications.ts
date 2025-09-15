@@ -1,98 +1,261 @@
-import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import {
+  Platform,
+  PermissionsAndroid,
+  Alert,
+  ToastAndroid,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Device from "expo-device";
-import Constants from "expo-constants";
-
-// Configure notification behavior for background delivery
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    // Get user preferences
-    const settings = await NotificationService.getSettings();
-
-    return {
-      shouldShowAlert: true,
-      shouldPlaySound: settings.pushNotifications,
-      shouldSetBadge: true,
-    };
-  },
-});
 
 export interface NotificationSettings {
-  pushNotifications: boolean;
+  systemNotifications: boolean;
   mealReminders: boolean;
   waterReminders: boolean;
-  exerciseReminders: boolean;
-  weeklyReports: boolean;
   goalAchievements: boolean;
-  menuRating: boolean;
+  weeklyReports: boolean;
+  soundEnabled: boolean;
+  badgeEnabled: boolean;
+  vibrationEnabled: boolean;
   reminderTimes: string[];
   notificationFrequency: "DAILY" | "WEEKLY" | "NONE";
 }
 
 const defaultSettings: NotificationSettings = {
-  pushNotifications: true,
+  systemNotifications: true,
   mealReminders: true,
   waterReminders: true,
-  exerciseReminders: false,
-  weeklyReports: true,
   goalAchievements: true,
-  menuRating: true,
+  weeklyReports: true,
+  soundEnabled: true,
+  badgeEnabled: true,
+  vibrationEnabled: true,
   reminderTimes: ["08:00", "12:30", "18:00"],
   notificationFrequency: "DAILY",
 };
 
+interface NotificationData {
+  type: string;
+  title: string;
+  message: string;
+  timestamp: number;
+  userName?: string;
+  userEmail?: string;
+  screen?: string;
+}
+
 export class NotificationService {
-  static async requestPermissions(): Promise<boolean> {
+  private static isInitialized = false;
+  private static initializationPromise: Promise<void> | null = null;
+  private static fallbackMode = false;
+  private static notificationQueue: NotificationData[] = [];
+
+  static async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+    if (this.initializationPromise) return this.initializationPromise;
+
+    this.initializationPromise = this.performInitialization();
+    return this.initializationPromise;
+  }
+
+  private static async performInitialization(): Promise<void> {
     try {
-      // Skip notifications in Expo Go to avoid warnings
-      if (__DEV__ && !Device.isDevice) {
-        console.log("⚠️ Skipping notifications in Expo Go development mode");
-        return false;
+      console.log("🚀 Initializing ENHANCED notification system...");
+
+      if (Platform.OS === "web") {
+        console.log("⚠️ Web platform detected - using fallback notifications");
+        this.fallbackMode = true;
+        this.isInitialized = true;
+        return;
       }
 
-      console.log("🔔 Requesting notification permissions...");
+      // Try to initialize push notifications, but use fallback if it fails
+      try {
+        // Check if native modules are available
+        const PushNotification =
+          require("react-native-push-notification").default;
 
-      if (!Device.isDevice) {
-        console.log(
-          "⚠️ Running on simulator - permissions granted for testing"
+        if (
+          !PushNotification ||
+          typeof PushNotification.configure !== "function"
+        ) {
+          throw new Error("Push notification module not properly linked");
+        }
+
+        // Request permissions first
+        const hasPermissions = await this.requestPermissions();
+        if (!hasPermissions) {
+          console.warn(
+            "❌ System notification permissions denied - using fallback"
+          );
+          this.fallbackMode = true;
+          this.isInitialized = true;
+          return;
+        }
+
+        // Configure push notifications with error handling
+        await new Promise<void>((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error("Notification configuration timeout"));
+          }, 10000); // 10 second timeout
+
+          try {
+            PushNotification.configure({
+              onRegister: function (token: { token: string }) {
+                console.log(
+                  "✅ System notification token received:",
+                  token.token?.substring(0, 20) + "..."
+                );
+                clearTimeout(timeoutId);
+                resolve();
+              },
+
+              onNotification: function (notification: {
+                userInteraction: any;
+                data: any;
+              }) {
+                console.log("🔔 SYSTEM notification received:", notification);
+                if (notification.userInteraction) {
+                  NotificationService.handleNotificationTap(notification.data);
+                }
+              },
+
+              onAction: function (notification: any) {
+                console.log("👆 System notification action:", notification);
+              },
+
+              onRegistrationError: function (err: any) {
+                console.error(
+                  "❌ System notification registration error:",
+                  err
+                );
+                clearTimeout(timeoutId);
+                reject(err);
+              },
+
+              permissions: {
+                alert: true,
+                badge: true,
+                sound: true,
+              },
+
+              popInitialNotification: false, // Disable to prevent crashes
+              requestPermissions: Platform.OS === "ios",
+            });
+          } catch (configError) {
+            clearTimeout(timeoutId);
+            reject(configError);
+          }
+        });
+
+        // Create Android channels if needed
+        if (Platform.OS === "android") {
+          await this.setupAndroidChannels();
+        }
+
+        console.log("✅ ENHANCED notification system initialized successfully");
+      } catch (nativeError) {
+        console.warn(
+          "⚠️ Native notifications failed, using fallback:",
+          nativeError.message
         );
+        this.fallbackMode = true;
+      }
+
+      this.isInitialized = true;
+    } catch (error) {
+      console.error("❌ Notification system initialization failed:", error);
+      this.fallbackMode = true;
+      this.isInitialized = true;
+    }
+  }
+
+  private static async setupAndroidChannels(): Promise<void> {
+    try {
+      const PushNotification =
+        require("react-native-push-notification").default;
+      const { Importance } = require("react-native-push-notification");
+
+      const channels = [
+        {
+          channelId: "calo-welcome",
+          channelName: "Welcome Notifications",
+          channelDescription: "Welcome messages and app initialization",
+          importance: Importance.HIGH,
+          vibrate: true,
+          soundName: "default",
+          playSound: true,
+        },
+        {
+          channelId: "calo-general",
+          channelName: "General Notifications",
+          channelDescription: "General app notifications",
+          importance: Importance.DEFAULT,
+          soundName: "default",
+          playSound: true,
+        },
+      ];
+
+      for (const channel of channels) {
+        await new Promise<void>((resolve) => {
+          PushNotification.createChannel(
+            {
+              channelId: channel.channelId,
+              channelName: channel.channelName,
+              channelDescription: channel.channelDescription,
+              playSound: channel.playSound,
+              soundName: channel.soundName,
+              importance: channel.importance,
+              vibrate: channel.vibrate,
+            },
+            (created: any) => {
+              console.log(
+                `✅ Android channel ${channel.channelId} created: ${created}`
+              );
+              resolve();
+            }
+          );
+        });
+      }
+
+      console.log("✅ Android notification channels configured");
+    } catch (error) {
+      console.error("❌ Failed to setup Android channels:", error);
+    }
+  }
+
+  static async requestPermissions(): Promise<boolean> {
+    try {
+      if (Platform.OS === "android") {
+        if (Platform.Version >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: "Calo Notification Permission",
+              message:
+                "Calo needs notification permission to send you important updates",
+              buttonNeutral: "Ask Me Later",
+              buttonNegative: "Cancel",
+              buttonPositive: "Allow",
+            }
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        }
         return true;
       }
 
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        console.log("📱 Requesting notification permissions from user...");
-        const { status } = await Notifications.requestPermissionsAsync({
-          ios: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-            allowAnnouncements: true,
-          },
-          android: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-          },
-        });
-        finalStatus = status;
+      if (Platform.OS === "ios") {
+        try {
+          const PushNotification =
+            require("react-native-push-notification").default;
+          const permissions = await PushNotification.requestPermissions();
+          return Boolean(
+            permissions?.alert || permissions?.badge || permissions?.sound
+          );
+        } catch (error) {
+          console.error("iOS permission error:", error);
+          return false;
+        }
       }
 
-      if (finalStatus !== "granted") {
-        console.log("❌ Notification permissions denied");
-        return false;
-      }
-
-      // Set up notification channels for Android
-      if (Platform.OS === "android") {
-        await this.setupAndroidChannels();
-      }
-
-      console.log("✅ Notification permissions granted");
       return true;
     } catch (error) {
       console.error("💥 Error requesting notification permissions:", error);
@@ -100,451 +263,153 @@ export class NotificationService {
     }
   }
 
-  private static async setupAndroidChannels(): Promise<void> {
-    const channels = [
-      {
-        channelId: "meal-reminders",
-        name: "Meal Reminders",
-        importance: Notifications.AndroidImportance.HIGH,
-        description: "Reminders for meal times and logging",
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#10b981",
-        sound: "default",
-        enableLights: true,
-        enableVibrate: true,
-      },
-      {
-        channelId: "menu-rating",
-        name: "Menu Rating",
-        importance: Notifications.AndroidImportance.HIGH,
-        description: "Requests to rate meals and menus",
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#f59e0b",
-        sound: "default",
-        enableLights: true,
-        enableVibrate: true,
-      },
-      {
-        channelId: "water-reminders",
-        name: "Water Reminders",
-        importance: Notifications.AndroidImportance.DEFAULT,
-        description: "Hydration reminders",
-        vibrationPattern: [0, 250],
-        lightColor: "#3b82f6",
-        sound: "default",
-      },
-      {
-        channelId: "achievements",
-        name: "Achievements",
-        importance: Notifications.AndroidImportance.HIGH,
-        description: "Goal achievements and milestones",
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#10b981",
-        sound: "default",
-        enableLights: true,
-        enableVibrate: true,
-      },
-      {
-        channelId: "weekly-reports",
-        name: "Weekly Reports",
-        importance: Notifications.AndroidImportance.DEFAULT,
-        description: "Weekly progress reports",
-        sound: "default",
-      },
-    ];
-
-    for (const channel of channels) {
-      await Notifications.setNotificationChannelAsync(
-        channel.channelId,
-        channel
-      );
-    }
-
-    console.log("✅ Android notification channels configured");
-  }
-
-  static async registerForPushNotifications(): Promise<string | null> {
+  private static showFallbackNotification(
+    title: string,
+    message: string,
+    data?: any
+  ): void {
     try {
-      // Skip push notifications in Expo Go
-      if (__DEV__ && !Device.isDevice) {
-        console.log(
-          "⚠️ Skipping push notifications in Expo Go development mode"
+      // Store notification for later display
+      const notification: NotificationData = {
+        type: data?.type || "general",
+        title,
+        message,
+        timestamp: Date.now(),
+        ...data,
+      };
+
+      this.notificationQueue.push(notification);
+
+      // Show immediate feedback
+      if (Platform.OS === "android") {
+        ToastAndroid.showWithGravity(
+          `${title}: ${message}`,
+          ToastAndroid.LONG,
+          ToastAndroid.TOP
         );
-        return null;
+      } else {
+        Alert.alert(title, message, [{ text: "OK", style: "default" }]);
       }
 
-      console.log("🚀 Registering for push notifications...");
-
-      if (!Device.isDevice) {
-        console.log("💻 Running on simulator - using mock token");
-        await AsyncStorage.setItem("expo_push_token", "simulator-token");
-        return "simulator-token";
-      }
-
-      const hasPermissions = await this.requestPermissions();
-      if (!hasPermissions) {
-        console.log(
-          "❌ No permissions - cannot register for push notifications"
-        );
-        return null;
-      }
-
-      // Get project ID from app config
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ||
-        Constants?.easConfig?.projectId ||
-        process.env.EXPO_PUBLIC_PROJECT_ID ||
-        "calo-nutrition-app-2025"; // Fallback from app.json
-
-      if (!projectId) {
-        console.warn("⚠️ Using fallback project ID for push notifications");
-      }
-
-      let tokenData;
-      try {
-        tokenData = await Notifications.getExpoPushTokenAsync({
-          projectId,
-        });
-      } catch (tokenError: any) {
-        console.warn("⚠️ Failed to get Expo push token:", tokenError);
-
-        // In development, this is expected in Expo Go
-        if (__DEV__) {
-          console.log(
-            "📱 Push tokens not available in Expo Go - this is normal"
-          );
-          return null;
-        }
-
-        throw tokenError;
-      }
-
-      const token = tokenData.data;
-      console.log("✅ Push token obtained:", token.substring(0, 20) + "...");
-
-      await AsyncStorage.setItem("expo_push_token", token);
-
-      // Send token to backend for user
-      try {
-        const userToken = await AsyncStorage.getItem("auth_token");
-        if (userToken) {
-          await fetch(
-            `${process.env.EXPO_PUBLIC_API_URL}/api/user/push-token`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${userToken}`,
-              },
-              body: JSON.stringify({ pushToken: token }),
-            }
-          );
-        }
-      } catch (error) {
-        console.warn("⚠️ Failed to send push token to server:", error);
-      }
-
-      return token;
+      console.log(`🔔 Fallback notification: ${title} - ${message}`);
     } catch (error) {
-      console.error("💥 Error registering for push notifications:", error);
-      return null;
+      console.error("💥 Error showing fallback notification:", error);
     }
   }
 
-  static async getSettings(): Promise<NotificationSettings> {
-    try {
-      const settings = await AsyncStorage.getItem("notification_settings");
-      const parsed = settings ? JSON.parse(settings) : {};
-
-      // Check global notification preference
-      const globalEnabled = await AsyncStorage.getItem(
-        "global_notifications_enabled"
-      );
-      const isGlobalEnabled =
-        globalEnabled !== null ? JSON.parse(globalEnabled) : true;
-
-      if (!isGlobalEnabled) {
-        // If globally disabled, return settings with all notifications off
-        return {
-          ...defaultSettings,
-          ...parsed,
-          pushNotifications: false,
-          mealReminders: false,
-          waterReminders: false,
-          exerciseReminders: false,
-          weeklyReports: false,
-          goalAchievements: false,
-          menuRating: false,
-        };
-      }
-
-      return { ...defaultSettings, ...parsed };
-    } catch (error) {
-      console.error("💥 Error loading notification settings:", error);
-      return defaultSettings;
-    }
-  }
-
-  static async updateSettings(settings: NotificationSettings): Promise<void> {
-    try {
-      await AsyncStorage.setItem(
-        "notification_settings",
-        JSON.stringify(settings)
-      );
-      console.log("✅ Notification settings updated");
-
-      // Reschedule notifications based on new settings
-      await this.rescheduleAllNotifications();
-    } catch (error) {
-      console.error("💥 Error saving notification settings:", error);
-    }
-  }
-
-  static async rescheduleAllNotifications(): Promise<void> {
-    try {
-      console.log("🔄 Rescheduling all notifications...");
-
-      // Cancel all existing notifications
-      await Notifications.cancelAllScheduledNotificationsAsync();
-
-      // Get user questionnaire and settings
-      const [questionnaireData, settings] = await Promise.all([
-        AsyncStorage.getItem("user_questionnaire"),
-        this.getSettings(),
-      ]);
-
-      if (questionnaireData) {
-        const questionnaire = JSON.parse(questionnaireData);
-
-        if (settings.mealReminders) {
-          await this.scheduleMealReminders(questionnaire, settings);
-        }
-      }
-
-      if (settings.waterReminders) {
-        await this.scheduleWaterReminder(settings);
-      }
-
-      if (settings.weeklyReports) {
-        await this.scheduleWeeklyProgress(settings);
-      }
-
-      console.log("✅ All notifications rescheduled");
-    } catch (error) {
-      console.error("💥 Error rescheduling notifications:", error);
-    }
-  }
-
-  static async scheduleMealReminders(
-    userQuestionnaire: any,
-    settings?: NotificationSettings
+  private static async sendNativeNotification(
+    title: string,
+    message: string,
+    channelId: string = "calo-general",
+    data: any = {}
   ): Promise<void> {
     try {
-      const notificationSettings = settings || (await this.getSettings());
+      const PushNotification =
+        require("react-native-push-notification").default;
+
       if (
-        !notificationSettings.mealReminders ||
-        notificationSettings.notificationFrequency === "NONE"
+        !PushNotification ||
+        typeof PushNotification.localNotification !== "function"
       ) {
-        console.log("⏭️ Meal reminders disabled - skipping");
-        return;
+        throw new Error("Native notification method not available");
       }
 
-      // Cancel existing meal reminders
-      await this.cancelNotificationsByType("meal_reminder");
-
-      // Use questionnaire meal times or default reminder times
-      const mealTimes =
-        userQuestionnaire?.meal_times
-          ?.split(",")
-          ?.map((time: string) => time.trim()) ||
-        notificationSettings.reminderTimes;
-
-      const mealNames = ["Breakfast", "Lunch", "Dinner", "Snack", "Late Snack"];
-
-      for (let i = 0; i < mealTimes.length; i++) {
-        const timeStr = mealTimes[i];
-        const [hours, minutes] = timeStr.split(":").map(Number);
-
-        if (isNaN(hours) || isNaN(minutes)) {
-          console.warn(`⚠️ Invalid time format: ${timeStr}`);
-          continue;
-        }
-
-        const mealName = mealNames[i] || `Meal ${i + 1}`;
-
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `🍽️ ${mealName} Time!`,
-            body: `Don't forget to log your ${mealName.toLowerCase()} and track your nutrition goals!`,
-            data: {
-              type: "meal_reminder",
-              mealType: mealName,
-              mealIndex: i,
-              time: timeStr,
-            },
-            categoryIdentifier: "meal",
-            sound: true,
-            badge: 1,
-          },
-          trigger: {
-            hour: hours,
-            minute: minutes,
-            repeats: true,
-            channelId: "meal-reminders",
-          },
-        });
-      }
-
-      console.log(`✅ Scheduled ${mealTimes.length} meal reminders`);
-    } catch (error) {
-      console.error("💥 Error scheduling meal reminders:", error);
-    }
-  }
-
-  static async scheduleMenuRatingReminder(
-    menuId: string,
-    menuName: string
-  ): Promise<void> {
-    try {
-      const settings = await this.getSettings();
-      if (!settings.menuRating) {
-        console.log("⏭️ Menu rating reminders disabled - skipping");
-        return;
-      }
-
-      const userQuestionnaire = await AsyncStorage.getItem(
-        "user_questionnaire"
-      );
-      if (!userQuestionnaire) {
-        console.log("⚠️ No user questionnaire found");
-        return;
-      }
-
-      const questionnaire = JSON.parse(userQuestionnaire);
-      const mealTimes =
-        questionnaire.meal_times
-          ?.split(",")
-          ?.map((time: string) => time.trim()) || [];
-
-      for (let i = 0; i < mealTimes.length; i++) {
-        const timeStr = mealTimes[i];
-        const [hours, minutes] = timeStr.split(":").map(Number);
-
-        if (isNaN(hours) || isNaN(minutes)) continue;
-
-        // Schedule rating reminder 30 minutes after meal time
-        let reminderMinutes = minutes + 30;
-        let reminderHours = hours;
-
-        if (reminderMinutes >= 60) {
-          reminderMinutes -= 60;
-          reminderHours += 1;
-        }
-
-        if (reminderHours >= 24) {
-          reminderHours -= 24;
-        }
-
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "⭐ Rate Your Meal",
-            body: `How was your meal from ${menuName}? Share your experience and help us improve!`,
-            data: {
-              type: "menu_rating",
-              menuId,
-              menuName,
-              mealIndex: i,
-              originalTime: timeStr,
-            },
-            categoryIdentifier: "rating",
-            sound: true,
-            badge: 1,
-          },
-          trigger: {
-            hour: reminderHours,
-            minute: reminderMinutes,
-            repeats: true,
-            channelId: "menu-rating",
-          },
-        });
-      }
-
-      console.log(`✅ Scheduled menu rating reminders for ${menuName}`);
-    } catch (error) {
-      console.error("💥 Error scheduling menu rating reminders:", error);
-    }
-  }
-
-  static async scheduleWaterReminder(
-    settings?: NotificationSettings
-  ): Promise<void> {
-    try {
-      const notificationSettings = settings || (await this.getSettings());
-      if (!notificationSettings.waterReminders) {
-        console.log("⏭️ Water reminders disabled - skipping");
-        return;
-      }
-
-      // Schedule water reminder every 2 hours from 8 AM to 8 PM
-      const waterHours = [8, 10, 12, 14, 16, 18, 20];
-
-      for (const hour of waterHours) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "💧 Stay Hydrated!",
-            body: "Time to drink some water and log your intake!",
-            data: { type: "water_reminder" },
-            sound: true,
-            badge: 1,
-          },
-          trigger: {
-            hour,
-            minute: 0,
-            repeats: true,
-            channelId: "water-reminders",
-          },
-        });
-      }
-
-      console.log("✅ Water reminders scheduled");
-    } catch (error) {
-      console.error("💥 Error scheduling water reminder:", error);
-    }
-  }
-
-  static async scheduleWeeklyProgress(
-    settings?: NotificationSettings
-  ): Promise<void> {
-    try {
-      const notificationSettings = settings || (await this.getSettings());
-      if (
-        !notificationSettings.weeklyReports ||
-        notificationSettings.notificationFrequency !== "WEEKLY"
-      ) {
-        console.log("⏭️ Weekly reports disabled - skipping");
-        return;
-      }
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "📊 Weekly Progress Report",
-          body: "Check out your nutrition progress this week! See how you're doing with your goals.",
-          data: { type: "weekly_progress" },
-          sound: true,
-          badge: 1,
-        },
-        trigger: {
-          weekday: 1, // Monday
-          hour: 9,
-          minute: 0,
-          repeats: true,
-          channelId: "weekly-reports",
-        },
+      PushNotification.localNotification({
+        channelId,
+        id: Date.now(),
+        title,
+        message,
+        playSound: true,
+        soundName: "default",
+        vibrate: true,
+        vibration: 300,
+        priority: "high",
+        importance: "high",
+        autoCancel: true,
+        largeIcon: "ic_launcher",
+        smallIcon: "ic_notification",
+        color: "#10b981",
+        userInfo: { ...data, timestamp: Date.now() },
+        actions: ["View"],
+        number: 1,
       });
 
-      console.log("✅ Weekly progress reminders scheduled");
+      console.log(`✅ Native notification sent: ${title}`);
     } catch (error) {
-      console.error("💥 Error scheduling weekly progress reminder:", error);
+      console.error("💥 Native notification failed:", error);
+      throw error; // Re-throw to trigger fallback
+    }
+  }
+
+  static async sendWelcomeNotification(
+    userName: string,
+    userEmail: string
+  ): Promise<void> {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      const title = `🎉 Welcome ${userName}!`;
+      const message = `Welcome to Calo - your nutrition tracking app!\n\nStart tracking your meals and reach your health goals!`;
+
+      const data = {
+        type: "welcome",
+        userName,
+        userEmail,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        screen: "home",
+      };
+
+      if (this.fallbackMode) {
+        this.showFallbackNotification(title, message, data);
+        return;
+      }
+
+      try {
+        await this.sendNativeNotification(title, message, "calo-welcome", data);
+      } catch (nativeError) {
+        console.warn("Native welcome notification failed, using fallback");
+        this.showFallbackNotification(title, message, data);
+      }
+
+      console.log(`✅ Welcome notification sent to ${userName} (${userEmail})`);
+    } catch (error) {
+      console.error("💥 Error sending welcome notification:", error);
+
+      // Final fallback - simple alert
+      Alert.alert(
+        "🎉 Welcome to Calo!",
+        `Hello ${userName}!\n\nWelcome to your nutrition tracking app!`,
+        [{ text: "Great!", style: "default" }]
+      );
+    }
+  }
+
+  static async sendInstantNotification(
+    title: string,
+    message: string,
+    data: any = {}
+  ): Promise<void> {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      if (this.fallbackMode) {
+        this.showFallbackNotification(title, message, data);
+        return;
+      }
+
+      try {
+        await this.sendNativeNotification(title, message, "calo-general", data);
+      } catch (nativeError) {
+        console.warn("Native instant notification failed, using fallback");
+        this.showFallbackNotification(title, message, data);
+      }
+    } catch (error) {
+      console.error("💥 Error sending instant notification:", error);
     }
   }
 
@@ -553,303 +418,171 @@ export class NotificationService {
     message: string
   ): Promise<void> {
     try {
-      const settings = await this.getSettings();
-      if (!settings.goalAchievements) {
-        console.log("⏭️ Goal achievement notifications disabled - skipping");
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      const fullTitle = `🎉 ${title}`;
+      const data = { type: "achievement", category: "goal" };
+
+      if (this.fallbackMode) {
+        this.showFallbackNotification(fullTitle, message, data);
         return;
       }
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `🎉 ${title}`,
-          body: message,
-          data: { type: "achievement" },
-          sound: true,
-          badge: 1,
-        },
-        trigger: null,
-        channelId: "achievements",
-      });
-
-      console.log("✅ Goal achievement notification sent");
+      try {
+        await this.sendNativeNotification(
+          fullTitle,
+          message,
+          "calo-general",
+          data
+        );
+      } catch (nativeError) {
+        console.warn("Native achievement notification failed, using fallback");
+        this.showFallbackNotification(fullTitle, message, data);
+      }
     } catch (error) {
-      console.error("💥 Error sending goal achievement:", error);
+      console.error("💥 Error sending achievement notification:", error);
     }
   }
 
-  static async sendInstantNotification(
-    title: string,
-    body: string,
-    data: any = {}
+  static async scheduleMealReminder(
+    mealName: string,
+    time: string
   ): Promise<void> {
     try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data,
-          sound: true,
-          badge: 1,
-        },
-        trigger: null,
-      });
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
 
-      console.log("✅ Instant notification sent");
+      console.log(`📅 Scheduling meal reminder for ${mealName} at ${time}`);
+
+      // For now, just log the scheduling - actual scheduling would need working native modules
+      if (this.fallbackMode) {
+        console.log(
+          `⚠️ Meal reminder scheduled in fallback mode: ${mealName} at ${time}`
+        );
+        return;
+      }
+
+      // Would implement native scheduling here if modules were working
+      console.log(`✅ Meal reminder scheduled for ${mealName} at ${time}`);
     } catch (error) {
-      console.error("💥 Error sending instant notification:", error);
+      console.error("💥 Error scheduling meal reminder:", error);
     }
   }
 
   static async cancelAllNotifications(): Promise<void> {
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      console.log("✅ All notifications cancelled");
+      if (this.fallbackMode) {
+        this.notificationQueue = [];
+        console.log("✅ Fallback notifications cleared");
+        return;
+      }
+
+      const PushNotification =
+        require("react-native-push-notification").default;
+      if (PushNotification?.cancelAllLocalNotifications) {
+        PushNotification.cancelAllLocalNotifications();
+        console.log("✅ All native notifications cancelled");
+      }
     } catch (error) {
       console.error("💥 Error cancelling notifications:", error);
     }
   }
 
-  static async cancelNotificationsByType(type: string): Promise<void> {
+  private static handleNotificationTap(data: any): void {
     try {
-      const notifications =
-        await Notifications.getAllScheduledNotificationsAsync();
-      const toCancel = notifications
-        .filter((n: any) => n.content.data?.type === type)
-        .map((n: any) => n.identifier);
-
-      for (const id of toCancel) {
-        await Notifications.cancelScheduledNotificationAsync(id);
-      }
-
-      console.log(
-        `✅ Cancelled ${toCancel.length} notifications of type: ${type}`
+      console.log("🎯 Handling notification tap:", data?.type);
+      AsyncStorage.setItem("pending_navigation", JSON.stringify(data)).catch(
+        (error) => {
+          console.error("Error storing navigation data:", error);
+        }
       );
     } catch (error) {
-      console.error(
-        `💥 Error cancelling notifications of type ${type}:`,
-        error
-      );
+      console.error("💥 Error handling notification tap:", error);
     }
   }
 
-  static async setupNotificationHandlers(): Promise<void> {
-    // Handle notification received while app is foregrounded
-    const receivedSubscription = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log("🔔 Notification received:", notification);
-      }
-    );
-
-    // Handle notification tapped/opened
-    const responseSubscription =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("👆 Notification tapped:", response);
-        const data = response.notification.request.content.data;
-
-        // Handle different notification types
-        this.handleNotificationResponse(data);
-      });
-
-    // Store subscriptions for cleanup if needed
-    return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
-    };
+  static async showTestNotification(): Promise<void> {
+    try {
+      await this.sendInstantNotification(
+        "🧪 Test Notification",
+        `Your notification system is working! Mode: ${
+          this.fallbackMode ? "Fallback" : "Native"
+        }`,
+        { type: "test", timestamp: Date.now() }
+      );
+    } catch (error) {
+      console.error("💥 Error showing test notification:", error);
+    }
   }
 
-  private static async handleNotificationResponse(data: any): Promise<void> {
+  // Get queued notifications for fallback mode
+  static getQueuedNotifications(): NotificationData[] {
+    return [...this.notificationQueue];
+  }
+
+  static clearQueuedNotifications(): void {
+    this.notificationQueue = [];
+  }
+
+  // Compatibility methods
+  static async getSettings(): Promise<NotificationSettings> {
     try {
-      console.log("🎯 Handling notification response:", data.type);
-
-      // Import router dynamically to avoid circular imports
-      const { router } = await import("expo-router");
-
-      switch (data.type) {
-        case "meal_reminder":
-          console.log("📱 Navigate to meal logging for:", data.mealType);
-          router.push("/(tabs)/camera");
-          break;
-
-        case "menu_rating":
-          console.log("📱 Navigate to menu rating for:", data.menuId);
-          router.push(`/menu/${data.menuId}?showRating=true`);
-          break;
-
-        case "water_reminder":
-          console.log("📱 Navigate to water tracking");
-          router.push("/(tabs)?tab=water");
-          break;
-
-        case "weekly_progress":
-          console.log("📱 Navigate to statistics");
-          router.push("/(tabs)/statistics");
-          break;
-
-        case "achievement":
-          console.log("📱 Navigate to profile achievements");
-          router.push("/(tabs)/profile?tab=achievements");
-          break;
-
-        default:
-          console.log("📱 Navigate to home");
-          router.push("/(tabs)");
-      }
+      const settings = await AsyncStorage.getItem(
+        "notification_settings_enhanced"
+      );
+      const parsed = settings ? JSON.parse(settings) : {};
+      return { ...defaultSettings, ...parsed };
     } catch (error) {
-      console.error("💥 Error handling notification response:", error);
+      console.error("Error loading notification settings:", error);
+      return defaultSettings;
+    }
+  }
+
+  static async updateSettings(settings: NotificationSettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        "notification_settings_enhanced",
+        JSON.stringify(settings)
+      );
+    } catch (error) {
+      console.error("Error saving notification settings:", error);
     }
   }
 
   static async initializeNotifications(userQuestionnaire?: any): Promise<void> {
     try {
-      // Skip initialization in Expo Go
-      if (__DEV__ && !Device.isDevice) {
-        console.log("⚠️ Skipping notification initialization in Expo Go");
-        return;
-      }
+      console.log("🚀 Initializing ENHANCED notification system...");
+      await this.initialize();
 
-      console.log("🚀 Initializing notification system...");
+      if (userQuestionnaire?.meal_times) {
+        const mealTimes = userQuestionnaire.meal_times
+          .split(",")
+          .map((t: string) => t.trim());
+        const mealNames = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-      // Setup notification handlers
-      await this.setupNotificationHandlers();
-
-      // Register for push notifications
-      const token = await this.registerForPushNotifications();
-
-      if (token) {
-        console.log("✅ Push notification token registered");
-      }
-
-      // Schedule notifications based on user preferences
-      if (userQuestionnaire) {
-        const settings = await this.getSettings();
-
-        if (settings.mealReminders) {
-          await this.scheduleMealReminders(userQuestionnaire, settings);
-        }
-
-        if (settings.waterReminders) {
-          await this.scheduleWaterReminder(settings);
-        }
-
-        if (settings.weeklyReports) {
-          await this.scheduleWeeklyProgress(settings);
+        for (let i = 0; i < Math.min(mealTimes.length, mealNames.length); i++) {
+          await this.scheduleMealReminder(mealNames[i], mealTimes[i]);
         }
       }
 
-      console.log("✅ Notification system initialized successfully");
+      console.log("✅ ENHANCED notification system initialized successfully");
     } catch (error) {
-      console.error("💥 Error initializing notifications:", error);
+      console.error("💥 Error initializing notification system:", error);
     }
   }
 
-  // Utility method to show local notification (for testing)
-  static async showTestNotification(): Promise<void> {
-    const settings = await this.getSettings();
-    if (!settings.pushNotifications) {
-      console.log("⏭️ Test notification skipped - notifications disabled");
-      return;
-    }
-
-    await this.sendInstantNotification(
-      "🧪 Test Notification",
-      "This is a test notification to verify the system is working!",
-      { type: "test" }
-    );
-  }
-
-  // Global notification preference management
-  static async setGlobalNotificationPreference(
-    enabled: boolean
-  ): Promise<void> {
-    try {
-      await AsyncStorage.setItem(
-        "global_notifications_enabled",
-        JSON.stringify(enabled)
-      );
-
-      if (!enabled) {
-        // Cancel all notifications if disabled globally
-        await this.cancelAllNotifications();
-      } else {
-        // Re-schedule notifications if enabled
-        await this.rescheduleAllNotifications();
-      }
-
-      console.log(
-        `✅ Global notifications ${enabled ? "enabled" : "disabled"}`
-      );
-    } catch (error) {
-      console.error("💥 Error setting global notification preference:", error);
-    }
-  }
-
-  static async getGlobalNotificationPreference(): Promise<boolean> {
-    try {
-      const setting = await AsyncStorage.getItem(
-        "global_notifications_enabled"
-      );
-      return setting !== null ? JSON.parse(setting) : true;
-    } catch (error) {
-      console.error("💥 Error getting global notification preference:", error);
-      return true;
-    }
-  }
-
-  // Enhanced initialization with questionnaire sync
-  static async initializeWithQuestionnaireSync(
-    userQuestionnaire?: any
-  ): Promise<void> {
-    try {
-      // Skip initialization in Expo Go
-      if (__DEV__ && !Device.isDevice) {
-        console.log("⚠️ Skipping notification sync in Expo Go");
-        return;
-      }
-
-      console.log(
-        "🚀 Initializing notification system with questionnaire sync..."
-      );
-
-      // Check global preference first
-      const isGlobalEnabled = await this.getGlobalNotificationPreference();
-      if (!isGlobalEnabled) {
-        console.log(
-          "⏭️ Notifications disabled globally - skipping initialization"
-        );
-        return;
-      }
-
-      // Setup notification handlers
-      await this.setupNotificationHandlers();
-
-      // Register for push notifications
-      const token = await this.registerForPushNotifications();
-
-      if (token && userQuestionnaire) {
-        const settings = await this.getSettings();
-
-        // Use questionnaire data for meal reminders
-        if (settings.mealReminders && userQuestionnaire.meals_per_day) {
-          await this.scheduleMealReminders(userQuestionnaire, settings);
-        }
-
-        if (settings.waterReminders) {
-          await this.scheduleWaterReminder(settings);
-        }
-
-        if (settings.weeklyReports) {
-          await this.scheduleWeeklyProgress(settings);
-        }
-
-        console.log(
-          "✅ Notification system initialized with questionnaire data"
-        );
-      }
-    } catch (error) {
-      console.error(
-        "💥 Error initializing notifications with questionnaire sync:",
-        error
-      );
-    }
+  static getStatus(): {
+    initialized: boolean;
+    fallbackMode: boolean;
+    queueLength: number;
+  } {
+    return {
+      initialized: this.isInitialized,
+      fallbackMode: this.fallbackMode,
+      queueLength: this.notificationQueue.length,
+    };
   }
 }

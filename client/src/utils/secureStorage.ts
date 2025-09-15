@@ -27,7 +27,10 @@ export const setSecureItem = async (
 ): Promise<void> => {
   let processedValue = value;
   try {
-    // Try to compress the value first if it's large
+    // Check initial size and compress if needed
+    const initialSize = Buffer.byteLength(value, "utf8");
+    console.log(`📏 Initial size for ${key}: ${initialSize} bytes`);
+
     if (value.length > COMPRESSION_THRESHOLD) {
       processedValue = compressString(value);
       console.log(
@@ -37,14 +40,25 @@ export const setSecureItem = async (
 
     // Check if value is too large for SecureStore (2048 bytes limit)
     const valueSize = Buffer.byteLength(processedValue, "utf8");
-    if (valueSize > MAX_SECURE_STORE_SIZE) {
+
+    // Use a more conservative limit (1800 bytes) to account for key size and overhead
+    const SAFE_SECURE_STORE_LIMIT = 1800;
+
+    if (valueSize > SAFE_SECURE_STORE_LIMIT) {
       console.warn(
-        `📦 Value for key "${key}" is ${valueSize} bytes (>${MAX_SECURE_STORE_SIZE}), using AsyncStorage instead`
+        `📦 Value for key "${key}" is ${valueSize} bytes (>${SAFE_SECURE_STORE_LIMIT}), using AsyncStorage fallback`
       );
 
+      // Clean up any existing SecureStore entry
+      try {
+        await SecureStore.deleteItemAsync(key);
+      } catch (e) {
+        // Ignore if key doesn't exist
+      }
+
       // For very large items, split them across multiple AsyncStorage keys
-      if (valueSize > 100000) {
-        // 100KB
+      if (valueSize > 50000) {
+        // 50KB
         await splitLargeValue(key, processedValue);
       } else {
         await AsyncStorage.setItem(key, processedValue);

@@ -24,9 +24,7 @@ const DEVICE_CONFIGS = {
   },
   GOOGLE_FIT: {
     name: "Google Fit",
-    clientId:
-      process.env.EXPO_PUBLIC_GOOGLE_FIT_CLIENT_ID ||
-      "68705076317-s2vqnmlnpu7r2qlr95bhkh4f2lbfqhg1.apps.googleusercontent.com",
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_FIT_CLIENT_ID || "",
     clientSecret: process.env.EXPO_PUBLIC_GOOGLE_FIT_CLIENT_SECRET || "",
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",

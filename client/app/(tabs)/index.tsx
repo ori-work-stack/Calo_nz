@@ -20,8 +20,8 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { useFocusEffect, useTheme } from "@react-navigation/native";
+import { router, useFocusEffect } from "expo-router";
+import { useTheme } from "@/src/context/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Target,
@@ -48,6 +48,7 @@ import {
   Coffee,
   Utensils,
   ShoppingCart,
+  Bell,
 } from "lucide-react-native";
 import { api, APIError } from "@/src/services/api";
 import { fetchMeals } from "../../src/store/mealSlice";
@@ -64,6 +65,7 @@ import { useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/src/store";
 import CircularCaloriesProgress from "@/components/index/CircularCaloriesProgress";
 import ShoppingList from "@/components/ShoppingList";
+import { NotificationService } from "@/src/services/notifications";
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -122,7 +124,10 @@ const HomeScreen = React.memo(() => {
 
   const { meals, isLoading } = useOptimizedSelector(selectMealState);
   const { user } = useOptimizedSelector(selectAuthState);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+
+  // Create dynamic styles based on theme
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL LOGIC
   const [userStats, setUserStats] = useState<UserStats>({
@@ -177,6 +182,45 @@ const HomeScreen = React.memo(() => {
     console.log("Closing shopping list modal");
     setShowShoppingList(false);
   }, []);
+
+  const handleTestNotification = useCallback(async () => {
+    try {
+      Alert.alert(
+        "🔔 Test System Notification",
+        "A real system notification will appear in your phone's notification bar in 2 seconds!",
+        [
+          {
+            text: "Send Now",
+            onPress: async () => {
+              // Show a simple test notification immediately
+              await NotificationService.showTestNotification();
+
+              // Send a welcome notification after a delay to simulate async behavior
+              if (user?.name && user?.email) {
+                setTimeout(async () => {
+                  try {
+                    await NotificationService.sendWelcomeNotification(
+                      user.name,
+                      user.email
+                    );
+                  } catch (welcomeError) {
+                    console.error(
+                      "Failed to send welcome notification:",
+                      welcomeError
+                    );
+                  }
+                }, 3000); // Delay of 3 seconds
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } catch (error) {
+      console.error("Test notification error:", error);
+      Alert.alert("Error", "Failed to send test notification");
+    }
+  }, [user]);
 
   const { t } = useTranslation();
   const { isRTL } = useLanguage();
@@ -841,6 +885,30 @@ const HomeScreen = React.memo(() => {
         >
           {/* Header */}
           <View style={styles.header}>
+            {/* <View style={styles.testNotificationContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.testNotificationButton,
+                ]}
+                onPress={handleTestNotification}
+                activeOpacity={0.8}
+              >
+                <Bell
+                  size={18}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.testNotificationText}>
+                  🔔 Test Real System Notification
+                </Text>
+              </TouchableOpacity>
+              <Text
+                style={[
+                ]}
+              >
+                This will send a REAL notification to your phone's notification
+                bar!
+              </Text>
+            </View> */}
             <View style={styles.headerLeft}>
               <View style={styles.profileContainer}>
                 <Image
@@ -1024,6 +1092,19 @@ const HomeScreen = React.memo(() => {
                 </View>
               </TouchableOpacity>
             </View>
+
+            {/* Test Notification Button */}
+            <View style={styles.testNotificationContainer}>
+              <TouchableOpacity
+                style={styles.testNotificationButton}
+                onPress={handleTestNotification}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.testNotificationText}>
+                  🔔 Test Welcome Notification
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Today's Meal Section */}
@@ -1124,814 +1205,839 @@ const HomeScreen = React.memo(() => {
 
 export default HomeScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    marginTop: 10,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  headerCenter: {
-    flex: 2, // Give it more space to push towards center
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: -40, // Offset the profile image width to center better
-  },
-  profileContainer: {
-    position: "relative",
-    marginRight: 12,
-  },
-  profileImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#F3F4F6",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+// Dynamic styles function that uses theme colors
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  }, // Text column container
-  textColumn: {
-    flex: 1,
-    paddingLeft: 20,
-    justifyContent: "center",
-    alignItems: "center", // Centers the entire content
-  },
-
-  // Welcome container
-  welcomeContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-  },
-
-  // Greeting row with icon and text
-  greetingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 25,
-    marginBottom: 8,
-    alignSelf: "center",
-    minWidth: 180,
-    maxWidth: "90%",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    header: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      marginTop: 10,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
+    headerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    headerCenter: {
+      flex: 2, // Give it more space to push towards center
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: -40, // Offset the profile image width to center better
+    },
+    profileContainer: {
+      position: "relative",
+      marginRight: 12,
+    },
+    profileImage: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: "#F3F4F6",
+      borderWidth: 3,
+      borderColor: "#FFFFFF",
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }, // Text column container
+    textColumn: {
+      flex: 1,
+      paddingLeft: 20,
+      justifyContent: "center",
+      alignItems: "center", // Centers the entire content
+    },
 
-  // Icon styling
-  greetingIcon: {
-    marginRight: 10,
-    marginLeft: 2,
-  },
+    // Welcome container
+    welcomeContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+    },
 
-  // Welcome text styling
-  welcomeText: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textAlign: "center",
-    textTransform: "capitalize", // Better than uppercase for readability
-  },
+    // Greeting row with icon and text
+    greetingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 25,
+      marginBottom: 8,
+      alignSelf: "center",
+      minWidth: 180,
+      maxWidth: "90%",
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
 
-  // User name styling (if you want to add it)
-  userName: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1F2937",
-    lineHeight: 28,
-    letterSpacing: -0.5,
-    textAlign: "center",
-    writingDirection: "auto", // Supports RTL for Hebrew
-    marginTop: 4,
-  },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#10B981",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-  },
-  welcomeTextContainer: {
-    flex: 1,
-  },
-  compactGreetingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-    alignSelf: "center",
-  },
+    // Icon styling
+    greetingIcon: {
+      marginRight: 10,
+      marginLeft: 2,
+    },
 
-  compactIcon: {
-    marginRight: 6,
-  },
+    // Welcome text styling
+    welcomeText: {
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: 0.5,
+      textAlign: "center",
+      textTransform: "capitalize", // Better than uppercase for readability
+    },
 
-  compactGreetingText: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    opacity: 0.9,
-    textAlign: "center",
-  },
-  dateContainer: {
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  dateText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    textAlign: "center",
-    letterSpacing: 0.2,
-  },
-  // Greeting Section
-  greetingSection: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  greetingText: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  greetingSubtext: {
-    fontSize: 16,
-    color: "#6B7280",
-    lineHeight: 22,
-  },
+    // User name styling (if you want to add it)
+    userName: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: "#1F2937",
+      lineHeight: 28,
+      letterSpacing: -0.5,
+      textAlign: "center",
+      writingDirection: "auto", // Supports RTL for Hebrew
+      marginTop: 4,
+    },
+    onlineIndicator: {
+      position: "absolute",
+      bottom: 2,
+      right: 2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: "#10B981",
+      borderWidth: 3,
+      borderColor: "#FFFFFF",
+    },
+    welcomeTextContainer: {
+      flex: 1,
+    },
+    compactGreetingContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+      alignSelf: "center",
+    },
 
-  // Main Progress Section
-  mainProgressSection: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-    alignItems: "center",
-  },
-  circularProgressContainer: {
-    alignItems: "center",
-  },
-  circularProgressBackground: {
-    width: 280,
-    height: 280,
-    backgroundColor: "#F0FDF4",
-    borderRadius: 140,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-  },
-  circularProgress: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  progressRing: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    borderWidth: 16,
-    borderColor: "#E5E7EB",
-    borderTopColor: "#10B981",
-    borderRightColor: "#10B981",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressContent: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressLabel: {
-    fontSize: 16,
-    color: "#6B7280",
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-  progressValue: {
-    fontSize: 48,
-    fontWeight: "700",
-    color: "#111827",
-    lineHeight: 52,
-  },
-  progressUnit: {
-    fontSize: 16,
-    color: "#6B7280",
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  progressTarget: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontWeight: "400",
-  },
+    compactIcon: {
+      marginRight: 6,
+    },
 
-  // Statistics Row
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 40,
-    marginBottom: 30,
-  },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-  statPercentage: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#10B981",
-  },
+    compactGreetingText: {
+      fontSize: 15,
+      fontWeight: "600",
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      opacity: 0.9,
+      textAlign: "center",
+    },
+    dateContainer: {
+      backgroundColor: "#F8FAFC",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    dateText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#374151",
+      textAlign: "center",
+      letterSpacing: 0.2,
+    },
+    // Greeting Section
+    greetingSection: {
+      paddingHorizontal: 20,
+      marginBottom: 30,
+    },
+    greetingText: {
+      fontSize: 28,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 8,
+    },
+    greetingSubtext: {
+      fontSize: 16,
+      color: "#6B7280",
+      lineHeight: 22,
+    },
 
-  // Section Styles
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 16,
-  },
+    // Main Progress Section
+    mainProgressSection: {
+      paddingHorizontal: 20,
+      marginBottom: 30,
+      alignItems: "center",
+    },
+    circularProgressContainer: {
+      alignItems: "center",
+    },
+    circularProgressBackground: {
+      width: 280,
+      height: 280,
+      backgroundColor: "#F0FDF4",
+      borderRadius: 140,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+    },
+    circularProgress: {
+      width: 240,
+      height: 240,
+      borderRadius: 120,
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+    },
+    progressRing: {
+      width: 240,
+      height: 240,
+      borderRadius: 120,
+      borderWidth: 16,
+      borderColor: "#E5E7EB",
+      borderTopColor: "#10B981",
+      borderRightColor: "#10B981",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    progressContent: {
+      position: "absolute",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    progressLabel: {
+      fontSize: 16,
+      color: "#6B7280",
+      marginBottom: 4,
+      fontWeight: "500",
+    },
+    progressValue: {
+      fontSize: 48,
+      fontWeight: "700",
+      color: "#111827",
+      lineHeight: 52,
+    },
+    progressUnit: {
+      fontSize: 16,
+      color: "#6B7280",
+      marginBottom: 8,
+      fontWeight: "500",
+    },
+    progressTarget: {
+      fontSize: 14,
+      color: "#9CA3AF",
+      fontWeight: "400",
+    },
 
-  // User Stats Card
-  statsMainContainer: {
-    marginBottom: 8,
-  },
-  statsCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  statsLoadingContainer: {
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  statsLoadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
-  },
-  statsTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  statsXPContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  statsLevelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  statsIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FEF3C7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  statsTextContainer: {
-    flex: 1,
-  },
-  statsLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  statsValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  statsDivider: {
-    height: 1,
-    backgroundColor: "#E5E7EB",
-    marginVertical: 16,
-  },
-  statsBottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statsItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  statsSmallLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  statsSmallValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  statsErrorBanner: {
-    backgroundColor: "#FEE2E2",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  statsErrorText: {
-    color: "#DC2626",
-    fontSize: 14,
-    textAlign: "center",
-  },
+    // Statistics Row
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      paddingHorizontal: 40,
+      marginBottom: 30,
+    },
+    statItem: {
+      alignItems: "center",
+      flex: 1,
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 14,
+      color: "#6B7280",
+      marginBottom: 4,
+      fontWeight: "500",
+    },
+    statPercentage: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#10B981",
+    },
 
-  // Goal Gauges
-  goalGaugesContainer: {
-    gap: 16,
-  },
-  goalGaugeWrapper: {
-    marginBottom: 8,
-  },
-  gaugeContainer: {
-    width: "100%",
-  },
-  gaugeCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  gaugeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  gaugeIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  gaugeInfo: {
-    flex: 1,
-  },
-  gaugeLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  gaugeCurrent: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  gaugePercentage: {
-    alignItems: "flex-end",
-  },
-  gaugePercentageText: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  gaugeProgressContainer: {
-    marginBottom: 12,
-  },
-  gaugeProgressBg: {
-    height: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  gaugeProgressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  gaugeFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  gaugeTarget: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  gaugeRemaining: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  completedContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  completedText: {
-    fontSize: 14,
-    color: "#10B981",
-    fontWeight: "600",
-    marginLeft: 4,
-  },
+    // Section Styles
+    section: {
+      paddingHorizontal: 20,
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: "#111827",
+      marginBottom: 16,
+    },
 
-  // Water Tracking
-  waterTrackingContainer: {
-    marginBottom: 8,
-  },
-  waterCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  waterTrackingHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  waterIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#E0F7FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  waterInfo: {
-    flex: 1,
-  },
-  waterTrackingTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  waterTrackingValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  waterTrackingTarget: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  waterBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F0FDF4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  waterBadgeText: {
-    fontSize: 16,
-  },
-  waterProgress: {
-    marginBottom: 16,
-  },
-  waterProgressBg: {
-    height: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 4,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  waterProgressFill: {
-    height: "100%",
-    backgroundColor: "#06B6D4",
-    borderRadius: 4,
-  },
-  waterProgressText: {
-    fontSize: 14,
-    color: "#06B6D4",
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  waterControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  waterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F0F9FF",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#06B6D4",
-  },
-  waterCupsDisplay: {
-    flex: 1,
-    alignItems: "center",
-    marginHorizontal: 20,
-  },
-  waterCupsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-  },
+    // User Stats Card
+    statsMainContainer: {
+      marginBottom: 8,
+    },
+    statsCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 20,
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F3F4F6",
+    },
+    statsLoadingContainer: {
+      alignItems: "center",
+      paddingVertical: 20,
+    },
+    statsLoadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: "#6B7280",
+    },
+    statsTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 16,
+    },
+    statsXPContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    statsLevelContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    statsIconWrapper: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "#FEF3C7",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    statsTextContainer: {
+      flex: 1,
+    },
+    statsLabel: {
+      fontSize: 14,
+      color: "#6B7280",
+      fontWeight: "500",
+      marginBottom: 2,
+    },
+    statsValue: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: "#111827",
+    },
+    statsDivider: {
+      height: 1,
+      backgroundColor: "#E5E7EB",
+      marginVertical: 16,
+    },
+    statsBottomRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    statsItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    statsSmallLabel: {
+      fontSize: 12,
+      color: "#6B7280",
+      fontWeight: "500",
+      marginBottom: 2,
+    },
+    statsSmallValue: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#111827",
+    },
+    statsErrorBanner: {
+      backgroundColor: "#FEE2E2",
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 16,
+    },
+    statsErrorText: {
+      color: "#DC2626",
+      fontSize: 14,
+      textAlign: "center",
+    },
 
-  // Quick Actions
-  quickActionsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  quickActionButton: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  quickActionContent: {
-    padding: 20,
-    alignItems: "center",
-  },
-  quickActionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#F0FDF4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  quickActionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    textAlign: "center",
-  },
+    // Goal Gauges
+    goalGaugesContainer: {
+      gap: 16,
+    },
+    goalGaugeWrapper: {
+      marginBottom: 8,
+    },
+    gaugeContainer: {
+      width: "100%",
+    },
+    gaugeCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 20,
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F3F4F6",
+    },
+    gaugeHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    gaugeIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
+    },
+    gaugeInfo: {
+      flex: 1,
+    },
+    gaugeLabel: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    gaugeCurrent: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: "#111827",
+    },
+    gaugePercentage: {
+      alignItems: "flex-end",
+    },
+    gaugePercentageText: {
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    gaugeProgressContainer: {
+      marginBottom: 12,
+    },
+    gaugeProgressBg: {
+      height: 8,
+      backgroundColor: "#F3F4F6",
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    gaugeProgressFill: {
+      height: "100%",
+      borderRadius: 4,
+    },
+    gaugeFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    gaugeTarget: {
+      fontSize: 14,
+      color: "#6B7280",
+      fontWeight: "500",
+    },
+    gaugeRemaining: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    completedContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    completedText: {
+      fontSize: 14,
+      color: "#10B981",
+      fontWeight: "600",
+      marginLeft: 4,
+    },
 
-  // Meal Section
-  mealSectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  viewButton: {
-    backgroundColor: "#064E3B",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  viewButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  mealsContainer: {
-    gap: 12,
-  },
-  mealCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  mealImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
-    overflow: "hidden",
-  },
-  mealImage: {
-    width: "100%",
-    height: "100%",
-  },
-  mealPlaceholder: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mealInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  mealDetails: {
-    flex: 1,
-  },
-  mealName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  mealTime: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  mealCaloriesContainer: {
-    marginRight: 12,
-  },
-  mealCalories: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#10B981",
-  },
-  chevronContainer: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // Water Tracking
+    waterTrackingContainer: {
+      marginBottom: 8,
+    },
+    waterCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 20,
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F3F4F6",
+    },
+    waterTrackingHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    waterIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: "#E0F7FA",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
+    },
+    waterInfo: {
+      flex: 1,
+    },
+    waterTrackingTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    waterTrackingValue: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 2,
+    },
+    waterTrackingTarget: {
+      fontSize: 14,
+      color: "#6B7280",
+      fontWeight: "500",
+    },
+    waterBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#F0FDF4",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    waterBadgeText: {
+      fontSize: 16,
+    },
+    waterProgress: {
+      marginBottom: 16,
+    },
+    waterProgressBg: {
+      height: 8,
+      backgroundColor: "#F3F4F6",
+      borderRadius: 4,
+      overflow: "hidden",
+      marginBottom: 8,
+    },
+    waterProgressFill: {
+      height: "100%",
+      backgroundColor: "#06B6D4",
+      borderRadius: 4,
+    },
+    waterProgressText: {
+      fontSize: 14,
+      color: "#06B6D4",
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    waterControls: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    waterButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: "#F0F9FF",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: "#06B6D4",
+    },
+    waterCupsDisplay: {
+      flex: 1,
+      alignItems: "center",
+      marginHorizontal: 20,
+    },
+    waterCupsText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: "#111827",
+    },
 
-  // Empty State
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F9FAFB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  emptyActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#10B981",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-  },
-  emptyActionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+    // Quick Actions
+    quickActionsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    quickActionButton: {
+      flex: 1,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F3F4F6",
+    },
+    quickActionContent: {
+      padding: 20,
+      alignItems: "center",
+    },
+    quickActionIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: "#F0FDF4",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
+    quickActionText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#111827",
+      textAlign: "center",
+    },
 
-  // Bottom Navigation
-  bottomNavigation: {
-    flexDirection: "row",
-    backgroundColor: "#064E3B",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  navIcon: {
-    width: 24,
-    height: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderRadius: 12,
-  },
-  navIconActive: {
-    backgroundColor: "#FFFFFF",
-  },
-  bottomSpacing: {
-    height: 20,
-  },
+    // Meal Section
+    mealSectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    viewButton: {
+      backgroundColor: "#064E3B",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    viewButtonText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    mealsContainer: {
+      gap: 12,
+    },
+    mealCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F3F4F6",
+    },
+    mealImageContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 12,
+      marginRight: 16,
+      overflow: "hidden",
+    },
+    mealImage: {
+      width: "100%",
+      height: "100%",
+    },
+    mealPlaceholder: {
+      width: "100%",
+      height: "100%",
+      backgroundColor: "#F3F4F6",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    mealInfo: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    mealDetails: {
+      flex: 1,
+    },
+    mealName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    mealTime: {
+      fontSize: 14,
+      color: "#6B7280",
+      fontWeight: "500",
+    },
+    mealCaloriesContainer: {
+      marginRight: 12,
+    },
+    mealCalories: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#10B981",
+    },
+    chevronContainer: {
+      width: 24,
+      height: 24,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  // Loading and Error States
-  loader: {
-    paddingVertical: 40,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#DC2626",
-    textAlign: "center",
-    marginBottom: 20,
-    fontWeight: "500",
-  },
-  retryButton: {
-    backgroundColor: "#10B981",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-});
+    // Empty State
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+    },
+    emptyIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: "#F9FAFB",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: "#374151",
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: "#6B7280",
+      textAlign: "center",
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    emptyActionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#10B981",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 24,
+      gap: 8,
+    },
+    emptyActionText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+
+    // Bottom Navigation
+    bottomNavigation: {
+      flexDirection: "row",
+      backgroundColor: "#064E3B",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+    },
+    navItem: {
+      flex: 1,
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    navIcon: {
+      width: 24,
+      height: 24,
+      backgroundColor: "rgba(255, 255, 255, 0.3)",
+      borderRadius: 12,
+    },
+    navIconActive: {
+      backgroundColor: "#FFFFFF",
+    },
+    bottomSpacing: {
+      height: 20,
+    },
+
+    // Loading and Error States
+    loader: {
+      paddingVertical: 40,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+      backgroundColor: "#FFFFFF",
+    },
+    errorText: {
+      fontSize: 16,
+      color: "#DC2626",
+      textAlign: "center",
+      marginBottom: 20,
+      fontWeight: "500",
+    },
+    retryButton: {
+      backgroundColor: "#10B981",
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
+    retryButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "600",
+      fontSize: 16,
+    },
+
+    // Test Notification Button Styles
+    testNotificationContainer: {
+      alignItems: "center",
+    },
+    testNotificationButton: {
+      backgroundColor: "#6366F1",
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 24,
+      shadowColor: "#6366F1",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#E0E7FF",
+    },
+    testNotificationText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+  });
