@@ -58,7 +58,7 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
-import { api } from "@/src/services/api";
+import { api, userAPI } from "@/src/services/api";
 import LoadingScreen from "@/components/LoadingScreen";
 import { StatisticsData } from "@/src/store/calendarSlice"; // This import seems redundant with the new definition. Keeping for now as per instructions.
 import {
@@ -73,6 +73,9 @@ import * as Sharing from "expo-sharing";
 import { useSelector } from "react-redux";
 import { RootState } from "@/src/store";
 import { getStatusColor } from "@/src/utils/statisticsHelper";
+import { AIRecommendationsSection } from "@/components/statistics/AIRecommendationsSection";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import useOptimizedAuthSelector from "@/hooks/useOptimizedAuthSelector";
 
 const { width, height } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
@@ -672,7 +675,7 @@ export default function StatisticsScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
   const isRTL = language === "he";
-
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
   // State management
   const [selectedPeriod, setSelectedPeriod] = useState<
     "today" | "week" | "month"
@@ -698,23 +701,25 @@ export default function StatisticsScreen() {
     try {
       const response = await api.get("/statistics/achievements");
       if (response.data.success && response.data.data) {
-        setAchievements(response.data.data.map((achievement: any) => ({
-          id: achievement.id,
-          title: achievement.title || { en: "Achievement", he: "הישג" },
-          description: achievement.description || {
-            en: "Description",
-            he: "תיאור",
-          },
-          icon: achievement.icon || "trophy",
-          color: getRarityColor(achievement.rarity || "COMMON"),
-          progress: achievement.progress || 0,
-          maxProgress: achievement.max_progress || 1,
-          unlocked: achievement.unlocked || false,
-          category: achievement.category || "MILESTONE",
-          xpReward: achievement.xpReward || 0,
-          rarity: achievement.rarity || "COMMON",
-          unlockedDate: achievement.unlockedDate,
-        })));
+        setAchievements(
+          response.data.data.map((achievement: any) => ({
+            id: achievement.id,
+            title: achievement.title || { en: "Achievement", he: "הישג" },
+            description: achievement.description || {
+              en: "Description",
+              he: "תיאור",
+            },
+            icon: achievement.icon || "trophy",
+            color: getRarityColor(achievement.rarity || "COMMON"),
+            progress: achievement.progress || 0,
+            maxProgress: achievement.max_progress || 1,
+            unlocked: achievement.unlocked || false,
+            category: achievement.category || "MILESTONE",
+            xpReward: achievement.xpReward || 0,
+            rarity: achievement.rarity || "COMMON",
+            unlockedDate: achievement.unlockedDate,
+          }))
+        );
       }
     } catch (error) {
       console.error("Failed to fetch achievements:", error);
@@ -722,6 +727,39 @@ export default function StatisticsScreen() {
   };
 
   // Fetch statistics data from API
+  const fetchAIRecommendations = async () => {
+    try {
+      console.log("🤖 Fetching AI recommendations...");
+      const response = await api.get("/recommendations");
+      console.log("📊 AI Recommendations Response:", response.data);
+
+      if (response.data.success && response.data.data) {
+        // Transform single object into array format expected by component
+        const singleRecommendation = {
+          id: Date.now().toString(), // Generate a temporary ID
+          date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          is_read: false,
+          recommendations: {
+            nutrition_tips: response.data.nutrition_tips || [],
+            meal_suggestions: response.data.meal_suggestions || [],
+            goal_adjustments: response.data.goal_adjustments || [],
+            behavioral_insights: response.data.behavioral_insights || [],
+          },
+          priority_level: response.data.data.priority_level || "medium",
+          confidence_score: response.data.data.confidence_score || 0,
+        };
+        console.log("WHAT THE FUCK",response.data.nutrition_tips);
+
+        setAiRecommendations([singleRecommendation]); // Wrap in array
+      } else {
+        setAiRecommendations([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI recommendations:", error);
+      setAiRecommendations([]);
+    }
+  };
   const fetchStatistics = async (period: "today" | "week" | "month") => {
     setIsLoading(true);
     setError(null);
@@ -732,7 +770,7 @@ export default function StatisticsScreen() {
         api.get(`/statistics?period=${period}`),
         api.get("/questionnaire"),
       ]);
-
+      fetchAIRecommendations();
       if (statisticsResponse.data.success && statisticsResponse.data.data) {
         setStatisticsData(statisticsResponse.data.data);
       } else {
@@ -1957,7 +1995,12 @@ export default function StatisticsScreen() {
                 </View>
               )}
             </View>
-
+            <Animated.View entering={FadeInDown.delay(700)}>
+              <AIRecommendationsSection
+                recommendations={aiRecommendations}
+                period={selectedPeriod}
+              />
+            </Animated.View>
             {/* Progress Overview */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>

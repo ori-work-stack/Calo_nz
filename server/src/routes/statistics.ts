@@ -237,27 +237,35 @@ router.get(
     const userId = req.user?.user_id?.toString();
 
     if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
     }
 
     try {
       console.log(`💡 Fetching AI recommendations for user: ${userId}`);
       const recommendations =
         await AIRecommendationService.getUserRecommendations(userId);
-      res.json(recommendations);
+
+      // ✅ Return in expected format
+      res.json({
+        success: true,
+        data: recommendations,
+      });
     } catch (error) {
       console.error(
         `❌ Error fetching AI recommendations for user ${userId}:`,
         error
       );
       res.status(500).json({
+        success: false,
         error: "Failed to fetch AI recommendations",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
 );
-
 // Emergency setup trigger
 router.post("/debug/force-setup", async (req: any, res: Response) => {
   try {

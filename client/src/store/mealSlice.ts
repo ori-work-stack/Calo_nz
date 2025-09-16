@@ -199,6 +199,8 @@ export const analyzeMeal = createAsyncThunk(
       updateText?: string;
       language?: string;
       editedIngredients?: any[];
+      mealType?: string;
+      mealPeriod?: string;
     },
     { rejectWithValue }
   ) => {
@@ -223,7 +225,8 @@ export const analyzeMeal = createAsyncThunk(
         cleanBase64,
         params.updateText,
         params.editedIngredients || [],
-        params.language || "en"
+        params.language || "en",
+        params.mealType
       );
       console.log("API response received:", response);
 
@@ -258,7 +261,11 @@ export const analyzeMeal = createAsyncThunk(
 
         const pendingMeal: PendingMeal = {
           image_base_64: cleanBase64, // Store clean base64 without data URL prefix
-          analysis: response.data,
+          analysis: {
+            ...response.data,
+            meal_period:
+              params.mealPeriod || response.data.meal_period || "other",
+          },
           timestamp: Date.now(),
         };
         console.log("Pending meal created:", pendingMeal);

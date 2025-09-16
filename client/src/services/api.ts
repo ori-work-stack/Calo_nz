@@ -258,7 +258,8 @@ export const nutritionAPI = {
     imageBase64: string,
     updateText?: string,
     editedIngredients: any[] = [],
-    language: string = "english"
+    language: string = "en",
+    mealPeriod?: string
   ): Promise<any> {
     try {
       console.log("🔄 Analyzing meal...");
@@ -292,6 +293,7 @@ export const nutritionAPI = {
                 updateText,
                 editedIngredients,
                 language,
+                mealPeriod,
               },
               {
                 cancelToken: source.token,
@@ -739,7 +741,16 @@ export const userAPI = {
       throw new APIError("Failed to get global statistics");
     }
   },
-
+  async getAIRecommendations(): Promise<any> {
+    try {
+      const response = await api.get("/recommendations/today");
+        console.log(response.data)
+        return response.data;
+    } catch (error) {
+      console.error("Failed to fetch AI recommendations:", error);
+      throw error; // Re-throw so calling code can handle it
+    }
+  },
   async forgotPassword(email: string): Promise<any> {
     try {
       console.log("🔄 Sending forgot password request...");

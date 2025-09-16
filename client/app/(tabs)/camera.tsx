@@ -257,7 +257,7 @@ export default function CameraScreen() {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -298,7 +298,7 @@ export default function CameraScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -387,7 +387,7 @@ export default function CameraScreen() {
         includeNutritionBreakdown: true,
         updateText:
           userComment.trim() || "Please provide detailed nutritional analysis.",
-        mealType: selectedMealType.id,
+        mealType: selectedMealType.period,
         mealPeriod: selectedMealType.period,
       };
 

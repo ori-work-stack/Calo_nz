@@ -42,23 +42,48 @@ export interface ProgressData {
 
 export interface Achievement {
   id: string;
-  title: {
-    en: string;
-    he: string;
-  };
-  description: {
-    en: string;
-    he: string;
-  };
+  title:
+    | {
+        en: string;
+        he: string;
+      }
+    | string;
+  description:
+    | {
+        en: string;
+        he: string;
+      }
+    | string;
   icon: string;
   color: string;
   progress: number;
   maxProgress?: number;
   unlocked: boolean;
-  category: "STREAK" | "GOAL" | "IMPROVEMENT" | "CONSISTENCY" | "MILESTONE";
+  category:
+    | "STREAK"
+    | "GOAL"
+    | "IMPROVEMENT"
+    | "CONSISTENCY"
+    | "MILESTONE"
+    | "SPECIAL";
   xpReward: number;
-  rarity: "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+  rarity: "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
   unlockedDate?: string;
+}
+
+export interface AIRecommendation {
+  id: string;
+  date: string;
+  recommendations: {
+    nutrition_tips: string[];
+    meal_suggestions: string[];
+    goal_adjustments: string[];
+    behavioral_insights: string[];
+  };
+  priority_level: "low" | "medium" | "high";
+  confidence_score: number;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface StatisticsData {
