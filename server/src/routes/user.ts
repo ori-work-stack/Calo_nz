@@ -220,14 +220,19 @@ router.patch(
   authenticateToken,
   async (req: AuthRequest, res, next) => {
     try {
-      // Only allow updating specific fields
-      const allowedFields = ["name", "birth_date"];
+      // Only allow updating specific fields with explicit mapping
+      const allowedFields = {
+        name: "name",
+        birth_date: "birth_date",
+      } as const;
+
       const updateData: any = {};
 
-      // Filter only allowed fields from request body
-      Object.keys(req.body).forEach((key) => {
-        if (allowedFields.includes(key) && req.body[key] !== undefined) {
-          updateData[key] = req.body[key];
+      // Safely map only allowed fields from request body
+      Object.keys(allowedFields).forEach((key) => {
+        const fieldName = allowedFields[key as keyof typeof allowedFields];
+        if (req.body[key] !== undefined) {
+          updateData[fieldName] = req.body[key];
         }
       });
 

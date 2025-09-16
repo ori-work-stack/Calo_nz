@@ -7,9 +7,11 @@ import { $Enums } from "@prisma/client";
 import { JsonValue } from "@prisma/client/runtime/library";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 
 const router = Router();
 
@@ -643,7 +645,13 @@ router.post(
         "✅ Input validation passed, generating comprehensive menu..."
       );
 
-      // Create comprehensive request
+      // Sanitize user inputs to prevent injection
+      const sanitizeName = (name || "").replace(/[^\w\s-]/g, "").trim();
+      const sanitizeRequests = (specialRequests || "")
+        .replace(/[<>]/g, "")
+        .trim();
+
+      // Create comprehensive request with sanitized inputs
       const comprehensiveRequest = {
         userId,
         days,
@@ -652,13 +660,21 @@ router.post(
         dietaryPreferences: [],
         excludedIngredients: [],
         budget,
-        customRequest: `Create a comprehensive menu named "${name}". ${
-          specialRequests || ""
-        }. ${
-          targetCalories ? `Target ${targetCalories} calories daily.` : ""
-        } ${proteinGoal ? `${proteinGoal}g protein daily.` : ""} ${
-          carbGoal ? `${carbGoal}g carbs daily.` : ""
-        } ${fatGoal ? `${fatGoal}g fats daily.` : ""}`.trim(),
+        customRequest: [
+          `Create a comprehensive menu named "${sanitizeName}".`,
+          sanitizeRequests ? sanitizeRequests : "",
+          targetCalories
+            ? `Target ${parseInt(targetCalories.toString())} calories daily.`
+            : "",
+          proteinGoal
+            ? `${parseInt(proteinGoal.toString())}g protein daily.`
+            : "",
+          carbGoal ? `${parseInt(carbGoal.toString())}g carbs daily.` : "",
+          fatGoal ? `${parseInt(fatGoal.toString())}g fats daily.` : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
       };
 
       const menu = await RecommendedMenuService.generateCustomMenu(
@@ -1032,9 +1048,12 @@ router.post(
         .map((ing: any) => `${ing.name} (${ing.quantity} ${ing.unit})`)
         .join(", ");
 
-      const prompt = `Create a personalized ${
-        preferences.duration_days
-      }-day meal plan using these available ingredients: ${ingredientsList}.
+      const sanitizedDuration = Math.max(
+        1,
+        Math.min(30, parseInt(preferences.duration_days?.toString() || "7"))
+      );
+
+      const prompt = `Create a personalized ${sanitizedDuration}-day meal plan using these available ingredients: ${ingredientsList}.
 
 Preferences:
 - Cuisine: ${preferences.cuisine}
@@ -1090,6 +1109,14 @@ Return in this JSON format:
     }
   ]
 }`;
+
+      if (!openai) {
+        return res.status(503).json({
+          success: false,
+          error:
+            "AI service is currently unavailable. Please add OPENAI_API_KEY to enable AI features.",
+        });
+      }
 
       const response = await openai.chat.completions.create({
         model: "gpt-4",

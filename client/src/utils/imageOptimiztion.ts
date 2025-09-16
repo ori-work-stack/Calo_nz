@@ -224,3 +224,31 @@ export function shouldCompressImage(
     resolve(true);
   });
 }
+
+export const processImage = async (imageUri: string): Promise<string> => {
+  try {
+    console.log("🔄 Processing image:", imageUri);
+
+    // If it's already a base64 data URL, extract the base64 part
+    if (imageUri.startsWith("data:image/")) {
+      const base64Data = imageUri.split(",")[1];
+      if (base64Data) {
+        console.log("✅ Image already in base64 format");
+        return base64Data;
+      }
+    }
+
+    // For file URIs, optimize and convert to base64
+    const optimizedBase64 = await optimizeImageForUpload(imageUri, {
+      maxWidth: 1024,
+      maxHeight: 1024,
+      quality: 0.85,
+      format: "jpeg",
+    });
+
+    return optimizedBase64;
+  } catch (error) {
+    console.error("❌ Error processing image:", error);
+    throw error;
+  }
+};
