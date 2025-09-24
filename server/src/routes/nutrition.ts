@@ -1134,6 +1134,31 @@ router.get(
         orderBy: {
           created_at: "desc",
         },
+        select: {
+          meal_id: true,
+          meal_name: true,
+          meal_period: true,
+          image_url: true,
+          created_at: true,
+          upload_time: true,
+          calories: true,
+          protein_g: true,
+          carbs_g: true,
+          fats_g: true,
+          fiber_g: true,
+          sugar_g: true,
+          sodium_mg: true,
+          liquids_ml: true,
+          ingredients: true,
+          food_category: true,
+          cooking_method: true,
+          confidence: true,
+          taste_rating: true,
+          satiety_rating: true,
+          energy_rating: true,
+          heaviness_rating: true,
+          is_favorite: true,
+        },
       });
 
       console.log("✅ Retrieved", meals.length, "meal history items");

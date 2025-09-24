@@ -316,7 +316,10 @@ export const AIRecommendationsSection: React.FC<
   const latestRecommendation = filteredRecommendations[0];
 
   const renderEmptyState = () => (
-    <Animated.View entering={FadeInUp.delay(300)} style={[styles.emptyState, { backgroundColor: colors.card }]}>
+    <Animated.View
+      entering={FadeInUp.delay(300)}
+      style={[styles.emptyState, { backgroundColor: colors.card }]}
+    >
       <LinearGradient
         colors={[`${colors.primary}1A`, `${colors.emerald500}0D`]}
         style={styles.emptyGradient}
@@ -324,7 +327,10 @@ export const AIRecommendationsSection: React.FC<
         <Animated.View entering={BounceIn.delay(500)}>
           <Brain size={48} color={colors.primary} />
         </Animated.View>
-        <Animated.Text entering={FadeInUp.delay(700)} style={[styles.emptyTitle, { color: colors.text }]}>
+        <Animated.Text
+          entering={FadeInUp.delay(700)}
+          style={[styles.emptyTitle, { color: colors.text }]}
+        >
           AI Learning Mode
         </Animated.Text>
         <Animated.Text
@@ -338,24 +344,128 @@ export const AIRecommendationsSection: React.FC<
     </Animated.View>
   );
 
+  const renderFullRecommendationsList = () => {
+    return (
+      <ScrollView
+        style={styles.fullListContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.fullListContent}
+      >
+        {filteredRecommendations.map((recommendation, index) => {
+          const priorityConfig = getPriorityConfig(
+            recommendation.priority_level,
+            colors
+          );
+          const extractedRecs = extractRecommendationsData(
+            recommendation.recommendations
+          );
+          const allTips = [
+            ...extractedRecs.nutrition_tips,
+            ...extractedRecs.meal_suggestions,
+            ...extractedRecs.goal_adjustments,
+            ...extractedRecs.behavioral_insights,
+          ];
+
+          if (allTips.length === 0) {
+            allTips.push(
+              `AI Analysis from ${new Date(
+                recommendation.date
+              ).toLocaleDateString()}`,
+              `Priority: ${recommendation.priority_level.toUpperCase()}`,
+              `Confidence: ${Math.round(
+                (recommendation.confidence_score || 0) * 100
+              )}%`
+            );
+          }
+
+          return (
+            <Animated.View
+              key={recommendation.id}
+              entering={FadeInUp.delay(index * 100)}
+              style={[
+                styles.cleanRecommendationCard,
+                { backgroundColor: colors.surface },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.headerLeft}>
+                  <View
+                    style={[
+                      styles.priorityDot,
+                      { backgroundColor: priorityConfig.colors[0] },
+                    ]}
+                  />
+                  <Text style={[styles.cardDate, { color: colors.text }]}>
+                    {new Date(recommendation.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.confidenceBadge,
+                    { backgroundColor: colors.background },
+                  ]}
+                >
+                  <Star size={12} color={colors.warning} />
+                  <Text
+                    style={[
+                      styles.confidenceScore,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {Math.round((recommendation.confidence_score || 0) * 100)}%
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  AI Insights & Recommendations
+                </Text>
+                <View style={styles.tipsContainer}>
+                  {allTips.map((tip, tipIndex) => (
+                    <View key={tipIndex} style={styles.tipRow}>
+                      <View
+                        style={[
+                          styles.tipBullet,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.tipText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {tip}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
   const renderRecommendationPreview = () => {
     if (!latestRecommendation) {
       return renderEmptyState();
     }
 
-    console.log("🎯 Rendering preview for:", latestRecommendation.id);
-
     const priorityConfig = getPriorityConfig(
       latestRecommendation.priority_level,
       colors
     );
-
-    // Use the helper function to extract recommendations
     const extractedRecs = extractRecommendationsData(
       latestRecommendation.recommendations
     );
-
-    // Get all tips from all categories
     const allTips = [
       ...extractedRecs.nutrition_tips,
       ...extractedRecs.meal_suggestions,
@@ -363,132 +473,134 @@ export const AIRecommendationsSection: React.FC<
       ...extractedRecs.behavioral_insights,
     ];
 
-    console.log(
-      "📝 All tips for preview:",
-      allTips.length,
-      allTips.slice(0, 2)
-    );
-
-    // If no tips found, create fallback content with recommendation metadata
     if (allTips.length === 0) {
       allTips.push(
-        `AI Recommendation from ${new Date(
+        `AI Analysis from ${new Date(
           latestRecommendation.date
         ).toLocaleDateString()}`,
-        `Priority: ${latestRecommendation.priority_level.toUpperCase()} | Confidence: ${Math.round(
+        `Priority: ${latestRecommendation.priority_level.toUpperCase()}`,
+        `Confidence: ${Math.round(
           (latestRecommendation.confidence_score || 0) * 100
-        )}%`,
-        "Your AI assistant is analyzing your patterns",
-        "Personalized recommendations are being generated based on your data"
+        )}%`
       );
     }
 
     return (
-      <Animated.View entering={FadeInUp} style={[styles.previewContainer, { backgroundColor: colors.surface }]}>
+      <TouchableOpacity
+        style={[styles.previewContainer, { backgroundColor: colors.surface }]}
+        onPress={() => setShowModal(true)}
+        activeOpacity={0.95}
+      >
         <LinearGradient
-          colors={[colors.surface, colors.background, colors.surface]}
+          colors={[colors.surface, colors.background]}
           style={styles.previewGradient}
         >
-          {/* Header with Priority and Confidence */}
-          <Animated.View entering={SlideInRight} style={styles.previewHeader}>
-            <LinearGradient
-              colors={priorityConfig.colors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.priorityBadge}
-            >
-              <priorityConfig.icon size={12} color="white" />
-              <Text style={styles.priorityBadgeText}>
-                {latestRecommendation.priority_level.toUpperCase()}
-              </Text>
-            </LinearGradient>
+          {/* Header */}
+          <View style={styles.previewHeader}>
+            <View style={styles.previewHeaderLeft}>
+              <LinearGradient
+                colors={priorityConfig.colors}
+                style={styles.previewPriorityBadge}
+              >
+                <priorityConfig.icon size={12} color="white" />
+                <Text style={styles.previewPriorityText}>
+                  {latestRecommendation.priority_level.toUpperCase()}
+                </Text>
+              </LinearGradient>
 
-            <View style={styles.confidenceContainer}>
-              <Animated.View entering={ZoomIn.delay(200)}>
-                <Star size={14} color={colors.warning} />
-              </Animated.View>
-              <Text style={[styles.confidenceText, { color: colors.text }]}>
-                {Math.round((latestRecommendation.confidence_score || 0) * 100)}
-                %
-              </Text>
+              <View style={styles.previewConfidenceContainer}>
+                <Star size={12} color={colors.warning} />
+                <Text
+                  style={[
+                    styles.previewConfidenceText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {Math.round(
+                    (latestRecommendation.confidence_score || 0) * 100
+                  )}
+                  %
+                </Text>
+              </View>
             </View>
-          </Animated.View>
+
+            <View style={styles.previewViewAllButton}>
+              <ChevronRight size={16} color={colors.primary} />
+            </View>
+          </View>
 
           {/* AI Badge */}
-          <Animated.View entering={FadeIn.delay(300)} style={styles.aiBadge}>
-            <LinearGradient
-              colors={[colors.primary, colors.emerald600]}
-              style={styles.aiBadgeGradient}
-            >
-              <Sparkles size={10} color="white" />
-              <Text style={styles.aiBadgeText}>AI POWERED</Text>
-            </LinearGradient>
-          </Animated.View>
+          <LinearGradient
+            colors={[colors.primary, colors.emerald600]}
+            style={styles.previewAiBadge}
+          >
+            <Sparkles size={8} color="white" />
+            <Text style={styles.previewAiText}>AI INSIGHTS</Text>
+          </LinearGradient>
 
-          {/* Preview Content - Show first 2 tips */}
+          {/* Content Preview */}
           <View style={styles.previewContent}>
             {allTips.slice(0, 2).map((tip, index) => (
-              <Animated.View
-                key={index}
-                entering={SlideInLeft.delay(400 + index * 100)}
-                style={styles.tipPreview}
-              >
+              <View key={index} style={styles.previewTipRow}>
                 <LinearGradient
-                  colors={[colors.primary, colors.emerald600]}
-                  style={styles.tipBullet}
+                  colors={priorityConfig.colors}
+                  style={styles.previewTipBullet}
                 >
-                  <Zap size={6} color="white" />
+                  <View style={styles.previewTipBulletInner} />
                 </LinearGradient>
-                <Text style={[styles.tipText, { color: colors.text }]} numberOfLines={1}>
+                <Text
+                  style={[styles.previewTipText, { color: colors.text }]}
+                  numberOfLines={2}
+                >
                   {tip}
                 </Text>
-              </Animated.View>
+              </View>
             ))}
 
             {allTips.length > 2 && (
-              <Animated.View
-                entering={FadeIn.delay(600)}
-                style={styles.moreIndicator}
-              >
-                <Text style={[styles.moreText, { color: colors.primary }]}>
+              <View style={styles.previewMoreIndicator}>
+                <Text
+                  style={[styles.previewMoreText, { color: colors.primary }]}
+                >
                   +{allTips.length - 2} more insights
                 </Text>
                 <ArrowRight size={12} color={colors.primary} />
-              </Animated.View>
+              </View>
             )}
           </View>
 
           {/* Footer */}
-          <Animated.View
-            entering={FadeInUp.delay(800)}
+          <View
             style={[styles.previewFooter, { borderTopColor: colors.border }]}
           >
-            <View style={styles.dateContainer}>
-              <Clock size={12} color={colors.primary} />
-              <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+            <View style={styles.previewDateContainer}>
+              <Clock size={10} color={colors.textTertiary} />
+              <Text
+                style={[styles.previewDateText, { color: colors.textTertiary }]}
+              >
                 {new Date(latestRecommendation.date).toLocaleDateString(
                   "en-US",
                   {
-                    weekday: "short",
                     month: "short",
                     day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
                   }
                 )}
               </Text>
             </View>
 
-            {filteredRecommendations.length > 1 && (
-              <TouchableOpacity
-                onPress={() => setShowModal(true)}
-                style={styles.viewAllButton}
+            <View style={styles.previewViewAllContainer}>
+              <Text
+                style={[styles.previewViewAllText, { color: colors.primary }]}
               >
-                <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
-                <Eye size={12} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </Animated.View>
+                View All
+              </Text>
+              <Eye size={12} color={colors.primary} />
+            </View>
+          </View>
         </LinearGradient>
-      </Animated.View>
+      </TouchableOpacity>
     );
   };
 
@@ -496,7 +608,10 @@ export const AIRecommendationsSection: React.FC<
     const extractedRecs = extractRecommendationsData(
       recommendation.recommendations
     );
-    const priorityConfig = getPriorityConfig(recommendation.priority_level, colors);
+    const priorityConfig = getPriorityConfig(
+      recommendation.priority_level,
+      colors
+    );
 
     const sections = [
       {
@@ -527,7 +642,10 @@ export const AIRecommendationsSection: React.FC<
 
     return (
       <ScrollView
-        style={[styles.fullRecommendationContainer, { backgroundColor: colors.background }]}
+        style={[
+          styles.fullRecommendationContainer,
+          { backgroundColor: colors.background },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -572,7 +690,10 @@ export const AIRecommendationsSection: React.FC<
                 <Animated.View
                   key={section.key}
                   entering={FadeInUp.delay(sectionIndex * 200)}
-                  style={[styles.recommendationSection, { backgroundColor: colors.surface }]}
+                  style={[
+                    styles.recommendationSection,
+                    { backgroundColor: colors.surface },
+                  ]}
                 >
                   <LinearGradient
                     colors={[colors.surface, colors.background]}
@@ -586,8 +707,17 @@ export const AIRecommendationsSection: React.FC<
                         <section.config.icon size={16} color="white" />
                       </LinearGradient>
                       <View style={styles.sectionTitleContainer}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
-                        <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                        <Text
+                          style={[styles.sectionTitle, { color: colors.text }]}
+                        >
+                          {section.title}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.sectionCount,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
                           {section.items.length} insights
                         </Text>
                       </View>
@@ -609,7 +739,11 @@ export const AIRecommendationsSection: React.FC<
                             <View style={styles.itemBulletInner} />
                           </LinearGradient>
                           <View style={styles.itemContent}>
-                            <Text style={[styles.itemText, { color: colors.text }]}>{item}</Text>
+                            <Text
+                              style={[styles.itemText, { color: colors.text }]}
+                            >
+                              {item}
+                            </Text>
                           </View>
                         </Animated.View>
                       ))}
@@ -623,8 +757,8 @@ export const AIRecommendationsSection: React.FC<
     );
   };
 
-  // Completely new list design using cards with better spacing and visual hierarchy
-  const renderNewStyleList = () => (
+  // Apple-style list with refined design
+  const renderAppleStyleList = () => (
     <ScrollView
       style={[styles.newListContainer, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
@@ -675,24 +809,36 @@ export const AIRecommendationsSection: React.FC<
                 <View style={styles.newCardTopRow}>
                   <View style={styles.newCardDateSection}>
                     <Text style={[styles.newCardDay, { color: colors.text }]}>
-                      {new Date(recommendation.date).toLocaleDateString("en-US", {
-                        day: "numeric",
-                      })}
+                      {new Date(recommendation.date).toLocaleDateString(
+                        "en-US",
+                        {
+                          day: "numeric",
+                        }
+                      )}
                     </Text>
-                    <Text style={[styles.newCardMonth, { color: colors.textSecondary }]}>
-                      {new Date(recommendation.date).toLocaleDateString("en-US", {
-                        month: "short",
-                      })}
+                    <Text
+                      style={[
+                        styles.newCardMonth,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {new Date(recommendation.date).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                        }
+                      )}
                     </Text>
                   </View>
-                  
+
                   <LinearGradient
                     colors={priorityConfig.colors}
                     style={styles.newCardPriorityFloat}
                   >
                     <priorityConfig.icon size={12} color="white" />
                     <Text style={styles.newCardPriorityText}>
-                      {recommendation.priority_level.charAt(0).toUpperCase() + recommendation.priority_level.slice(1)}
+                      {recommendation.priority_level.charAt(0).toUpperCase() +
+                        recommendation.priority_level.slice(1)}
                     </Text>
                   </LinearGradient>
                 </View>
@@ -709,8 +855,14 @@ export const AIRecommendationsSection: React.FC<
 
                   <View style={styles.newCardConfidence}>
                     <Star size={10} color={colors.warning} />
-                    <Text style={[styles.newCardConfidenceText, { color: colors.textSecondary }]}>
-                      {Math.round((recommendation.confidence_score || 0) * 100)}% confidence
+                    <Text
+                      style={[
+                        styles.newCardConfidenceText,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {Math.round((recommendation.confidence_score || 0) * 100)}
+                      % confidence
                     </Text>
                   </View>
                 </View>
@@ -718,15 +870,25 @@ export const AIRecommendationsSection: React.FC<
 
               {/* Main Content Preview */}
               <View style={styles.newCardContent}>
-                <Text style={[styles.newCardPreviewTitle, { color: colors.text }]}>
+                <Text
+                  style={[styles.newCardPreviewTitle, { color: colors.text }]}
+                >
                   Latest Insights
                 </Text>
-                
+
                 {allTips.slice(0, 2).map((tip, tipIndex) => (
                   <View key={tipIndex} style={styles.newCardTipRow}>
-                    <View style={[styles.newCardTipDot, { backgroundColor: colors.primary }]} />
-                    <Text 
-                      style={[styles.newCardTipText, { color: colors.textSecondary }]} 
+                    <View
+                      style={[
+                        styles.newCardTipDot,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.newCardTipText,
+                        { color: colors.textSecondary },
+                      ]}
                       numberOfLines={2}
                     >
                       {tip}
@@ -736,7 +898,12 @@ export const AIRecommendationsSection: React.FC<
 
                 {allTips.length > 2 && (
                   <View style={styles.newCardMoreSection}>
-                    <Text style={[styles.newCardMoreText, { color: colors.primary }]}>
+                    <Text
+                      style={[
+                        styles.newCardMoreText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       +{allTips.length - 2} more insights
                     </Text>
                   </View>
@@ -744,10 +911,20 @@ export const AIRecommendationsSection: React.FC<
               </View>
 
               {/* Card Footer */}
-              <View style={[styles.newCardFooter, { borderTopColor: colors.border }]}>
+              <View
+                style={[
+                  styles.newCardFooter,
+                  { borderTopColor: colors.border },
+                ]}
+              >
                 <View style={styles.newCardFooterLeft}>
                   <Clock size={10} color={colors.textTertiary} />
-                  <Text style={[styles.newCardFooterTime, { color: colors.textTertiary }]}>
+                  <Text
+                    style={[
+                      styles.newCardFooterTime,
+                      { color: colors.textTertiary },
+                    ]}
+                  >
                     {new Date(recommendation.date).toLocaleDateString("en-US", {
                       weekday: "short",
                       hour: "numeric",
@@ -757,7 +934,12 @@ export const AIRecommendationsSection: React.FC<
                 </View>
 
                 <View style={styles.newCardFooterRight}>
-                  <Text style={[styles.newCardFooterAction, { color: colors.primary }]}>
+                  <Text
+                    style={[
+                      styles.newCardFooterAction,
+                      { color: colors.primary },
+                    ]}
+                  >
                     View Details
                   </Text>
                   <ChevronRight size={12} color={colors.primary} />
@@ -771,43 +953,40 @@ export const AIRecommendationsSection: React.FC<
   );
 
   return (
-    <Animated.View entering={FadeInUp} style={[styles.section, { shadowColor: colors.primary }]}>
+    <Animated.View
+      entering={FadeInUp}
+      style={[styles.section, { shadowColor: colors.primary }]}
+    >
       <LinearGradient
         colors={[colors.surface, colors.background, colors.surface]}
         style={styles.sectionGradient}
       >
-        {/* Compact Header */}
+        {/* Clean Header */}
         <Animated.View entering={SlideInRight.delay(100)} style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.titleContainer}>
-              <LinearGradient
-                colors={[colors.primary, colors.emerald600]}
-                style={styles.titleIcon}
+              <View
+                style={[
+                  styles.titleIcon,
+                  { backgroundColor: colors.primary + "20" },
+                ]}
               >
-                <Brain size={16} color="white" />
-              </LinearGradient>
+                <Brain size={16} color={colors.primary} />
+              </View>
               <View>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>AI Insights</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  AI Insights
+                </Text>
+                <Text
+                  style={[
+                    styles.sectionSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   {filteredRecommendations.length} recommendations
                 </Text>
               </View>
             </View>
-
-            {filteredRecommendations.length > 0 && (
-              <AnimatedTouchableOpacity
-                entering={ZoomIn.delay(300)}
-                style={styles.headerViewAllButton}
-                onPress={() => setShowModal(true)}
-              >
-                <LinearGradient
-                  colors={[colors.primary, colors.emerald600]}
-                  style={styles.headerViewAllGradient}
-                >
-                  <ChevronRight size={14} color="white" />
-                </LinearGradient>
-              </AnimatedTouchableOpacity>
-            )}
           </View>
         </Animated.View>
 
@@ -815,31 +994,69 @@ export const AIRecommendationsSection: React.FC<
         {renderRecommendationPreview()}
       </LinearGradient>
 
-      {/* Full Recommendations Modal with New List Design */}
+      {/* Full Recommendations Modal with Apple-style design */}
       <Modal
         visible={showModal}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <LinearGradient
-            colors={[colors.primary, colors.emerald600]}
-            style={styles.modalHeaderGradient}
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          {/* Apple-style modal header */}
+          <View
+            style={[
+              styles.appleModalHeader,
+              { backgroundColor: colors.surface },
+            ]}
           >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>AI Recommendations</Text>
+            <View style={styles.appleModalHandle} />
+
+            <View style={styles.appleModalHeaderContent}>
               <TouchableOpacity
                 onPress={() => setShowModal(false)}
-                style={styles.modalCloseButton}
+                style={[
+                  styles.appleModalCloseButton,
+                  { backgroundColor: colors.card },
+                ]}
               >
-                <X size={20} color="white" />
+                <X size={16} color={colors.text} />
               </TouchableOpacity>
-            </View>
-          </LinearGradient>
 
-          {/* Use the new list design */}
-          {renderNewStyleList()}
+              <View style={styles.appleModalTitleContainer}>
+                <LinearGradient
+                  colors={[colors.primary, colors.emerald600]}
+                  style={styles.appleModalTitleIcon}
+                >
+                  <Brain size={16} color="white" />
+                </LinearGradient>
+                <View>
+                  <Text
+                    style={[styles.appleModalTitle, { color: colors.text }]}
+                  >
+                    AI Recommendations
+                  </Text>
+                  <Text
+                    style={[
+                      styles.appleModalSubtitle,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {filteredRecommendations.length} insights available
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ width: 32 }} />
+            </View>
+          </View>
+
+          {/* Enhanced list with Apple design */}
+          {renderAppleStyleList()}
         </View>
       </Modal>
 
@@ -850,7 +1067,12 @@ export const AIRecommendationsSection: React.FC<
         presentationStyle="pageSheet"
         onRequestClose={() => setSelectedRecommendation(null)}
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={styles.individualModalHeader}>
             <TouchableOpacity
               onPress={() => setSelectedRecommendation(null)}
@@ -956,131 +1178,235 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Preview Container
-  previewContainer: {
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
+  // Full Recommendations List
+  fullListContainer: {
+    flex: 1,
   },
-  previewGradient: {
+  fullListContent: {
     padding: 16,
+    paddingBottom: 32,
   },
-  previewHeader: {
+  cleanRecommendationCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-  priorityBadge: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
+    gap: 8,
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cardDate: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  confidenceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     gap: 4,
+  },
+  confidenceScore: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  cardContent: {
+    gap: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  tipsContainer: {
+    gap: 8,
+  },
+  tipRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  tipBullet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 6,
+    flexShrink: 0,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+
+  // Preview Container
+  previewContainer: {
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    marginBottom: 8,
+  },
+  previewGradient: {
+    padding: 20,
+  },
+  previewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  previewHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  previewPriorityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  previewPriorityText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "white",
+    letterSpacing: 0.5,
+  },
+  previewConfidenceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  previewConfidenceText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  previewViewAllButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewAiBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  previewAiText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "white",
+    letterSpacing: 0.8,
+  },
+  previewContent: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  previewTipRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  previewTipBullet: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
   },
-  priorityBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "white",
-    letterSpacing: 0.3,
+  previewTipBulletInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "white",
   },
-  confidenceContainer: {
+  previewTipText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  previewMoreIndicator: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    paddingLeft: 32,
+    marginTop: 4,
   },
-  confidenceText: {
+  previewMoreText: {
     fontSize: 12,
-    fontWeight: "600",
-  },
-  aiBadge: {
-    alignSelf: "flex-start",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  aiBadgeGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 4,
-  },
-  aiBadgeText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: "white",
-    letterSpacing: 0.8,
-  },
-  previewContent: {
-    gap: 10,
-    marginBottom: 12,
-  },
-  tipPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  tipBullet: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "500",
-  },
-  moreIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingLeft: 26,
-  },
-  moreText: {
-    fontSize: 11,
     fontWeight: "600",
   },
   previewFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
   },
-  dateContainer: {
+  previewDateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
-  dateText: {
+  previewDateText: {
     fontSize: 11,
     fontWeight: "500",
   },
-  viewAllButton: {
+  previewViewAllContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
-  viewAllText: {
-    fontSize: 11,
+  previewViewAllText: {
+    fontSize: 12,
     fontWeight: "600",
   },
 
@@ -1088,27 +1414,70 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
   },
-  modalHeaderGradient: {
-    paddingTop: 50,
+
+  // Apple-style Modal Header
+  appleModalHeader: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "white",
-  },
-  modalCloseButton: {
+  appleModalHandle: {
     width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    height: 5,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 3,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  appleModalHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+  },
+  appleModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  appleModalTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+    justifyContent: "center",
+    marginHorizontal: 20,
+  },
+  appleModalTitleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  appleModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  appleModalSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: 2,
   },
 
   // NEW LIST DESIGN STYLES

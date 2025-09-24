@@ -1,9 +1,14 @@
-
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Trash2, RefreshCw, Save } from 'lucide-react-native';
-import { useTheme } from '@/src/context/ThemeContext';
-import { useTranslation } from 'react-i18next';
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { Trash2, RefreshCw, Save } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 interface ActionButtonsProps {
   onDelete: () => void;
@@ -37,7 +42,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           <>
             <Save size={20} color="#FFFFFF" />
             <Text style={styles.saveButtonText}>
-              {t('camera.saveMeal') || 'Save Meal'}
+              {t("camera.saveMeal") || "Save Meal"}
             </Text>
           </>
         )}
@@ -46,19 +51,25 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
       {/* Action Buttons Row */}
       <View style={styles.actionButtonsRow}>
         <TouchableOpacity
-          style={[styles.deleteButton, { backgroundColor: colors.background, borderColor: '#EF4444' }]}
+          style={[
+            styles.deleteButton,
+            { backgroundColor: colors.background, borderColor: "#EF4444" },
+          ]}
           onPress={onDelete}
         >
           <Trash2 size={18} color="#EF4444" />
           <Text style={styles.deleteButtonText}>
-            {t('common.delete') || 'Delete'}
+            {t("common.delete") || "Delete"}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.reanalyzeButton,
-            { backgroundColor: colors.background, borderColor: colors.emerald500 },
+            {
+              backgroundColor: colors.background,
+              borderColor: colors.emerald500,
+            },
             isUpdating && styles.buttonDisabled,
           ]}
           onPress={onReAnalyze}
@@ -69,8 +80,12 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           ) : (
             <RefreshCw size={18} color={colors.emerald500} />
           )}
-          <Text style={[styles.reanalyzeButtonText, { color: colors.emerald500 }]}>
-            {isUpdating ? t('common.updating') || 'Updating...' : t('camera.reanalyze') || 'Re-analyze'}
+          <Text
+            style={[styles.reanalyzeButtonText, { color: colors.emerald500 }]}
+          >
+            {isUpdating
+              ? t("common.updating") || "Updating..."
+              : t("camera.reanalyze") || "Re-analyze"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -80,60 +95,63 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 16,
-    marginBottom: 24,
+    gap: 12,
+    marginBottom: 20,
   },
   saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    gap: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: -0.24,
   },
   actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
+    flexDirection: "row",
+    gap: 8,
   },
   deleteButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
   },
   deleteButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: "400",
+    color: "#FF3B30",
+    letterSpacing: -0.24,
   },
   reanalyzeButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
   },
   reanalyzeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: "400",
+    letterSpacing: -0.24,
   },
   buttonDisabled: {
     opacity: 0.6,

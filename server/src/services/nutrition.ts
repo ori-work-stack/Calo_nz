@@ -9,6 +9,9 @@ import { asJsonObject, mapExistingMealToPrismaInput } from "../utils/nutrition";
 const userStatsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+// Cache for meals data
+const mealsCache = new Map<string, { data: any[]; timestamp: number }>();
+
 function transformMealForClient(meal: any) {
   const additives = meal.additives_json || {};
   const feedback = additives.feedback || {};
@@ -64,6 +67,8 @@ function transformMealForClient(meal: any) {
     satiety_rating: feedback.satietyRating || 0,
     energy_rating: feedback.energyRating || 0,
     heaviness_rating: feedback.heavinessRating || 0,
+    meal_period: meal.meal_period || "other", // Ensure meal_period is included
+    mealPeriod: meal.meal_period || "other", // Also add camelCase version for compatibility
   };
 }
 
@@ -268,154 +273,103 @@ export class NutritionService {
 
   static async updateMeal(
     user_id: string,
-    updateData: {
-      meal_id: string;
-      updateText: string;
-      language?: string;
-    }
-  ) {
+    params: { meal_id: string; updateText: string; language?: string }
+  ): Promise<any> {
     try {
-      console.log("🔄 Updating meal with AI enhancement...");
+      console.log("🔄 Starting meal update process for meal:", params.meal_id);
 
-      // Get existing meal
+      // Find the existing meal
       const existingMeal = await prisma.meal.findFirst({
         where: {
-          meal_id: Number(updateData.meal_id),
+          meal_id: parseInt(params.meal_id),
           user_id,
         },
       });
 
       if (!existingMeal) {
-        throw new Error("Meal not found");
+        throw new Error("Meal not found or access denied");
       }
 
-      // Preserve all existing data and create complete analysis object
-      const originalAnalysis = {
-        name: existingMeal.meal_name ?? "Untitled Meal",
-        calories: Number(existingMeal.calories) || 0,
-        protein: Number(existingMeal.protein_g) || 0,
-        carbs: Number(existingMeal.carbs_g) || 0,
-        fat: Number(existingMeal.fats_g) || 0,
-        fiber: Number(existingMeal.fiber_g) || 0,
-        sugar: Number(existingMeal.sugar_g) || 0,
-        sodium: Number(existingMeal.sodium_mg) || 0,
-        ingredients: Array.isArray(existingMeal.ingredients)
-          ? existingMeal.ingredients
-          : [],
-        servingSize: existingMeal.serving_size_g || "1 serving",
-        cookingMethod: existingMeal.cooking_method || "Unknown",
-        healthNotes: existingMeal.health_risk_notes || "",
-        confidence: Number(existingMeal.confidence) || 1.0,
-        saturated_fats_g: Number(existingMeal.saturated_fats_g) || undefined,
-        polyunsaturated_fats_g:
-          Number(existingMeal.polyunsaturated_fats_g) || undefined,
-        monounsaturated_fats_g:
-          Number(existingMeal.monounsaturated_fats_g) || undefined,
-        omega_3_g: Number(existingMeal.omega_3_g) || undefined,
-        omega_6_g: Number(existingMeal.omega_6_g) || undefined,
-        soluble_fiber_g: Number(existingMeal.soluble_fiber_g) || undefined,
-        insoluble_fiber_g: Number(existingMeal.insoluble_fiber_g) || undefined,
-        cholesterol_mg: Number(existingMeal.cholesterol_mg) || undefined,
-        alcohol_g: Number(existingMeal.alcohol_g) || undefined,
-        caffeine_mg: Number(existingMeal.caffeine_mg) || undefined,
-        liquids_ml: Number(existingMeal.liquids_ml) || undefined,
-        serving_size_g: Number(existingMeal.serving_size_g) || undefined,
-        allergens_json: existingMeal.allergens_json || "",
-        vitamins_json: existingMeal.vitamins_json || "",
-        micronutrients_json: existingMeal.micronutrients_json || "",
-        glycemic_index: Number(existingMeal.glycemic_index) || undefined,
-        insulin_index: Number(existingMeal.insulin_index) || undefined,
-        food_category: existingMeal.food_category || "",
-        processing_level: existingMeal.processing_level || "",
-        cooking_method: existingMeal.cooking_method || "",
-        additives_json: existingMeal.additives_json || "",
-        health_risk_notes: existingMeal.health_risk_notes || undefined,
-      };
+      console.log("📝 Found existing meal:", existingMeal.meal_name);
 
-      // Add timeout to update analysis
-      const updatedAnalysis = await Promise.race([
-        OpenAIService.updateMealAnalysis(
-          originalAnalysis,
-          updateData.updateText,
-          updateData.language || "english"
-        ),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Update timeout after 30 seconds")),
-            30000
-          )
-        ),
-      ]);
+      // Get the existing image base64 from the database
+      let imageBase64 = "";
+      if (existingMeal.image_url) {
+        // Extract base64 from data URL if present
+        if (existingMeal.image_url.startsWith("data:image/")) {
+          const commaIndex = existingMeal.image_url.indexOf(",");
+          if (commaIndex !== -1) {
+            imageBase64 = existingMeal.image_url.substring(commaIndex + 1);
+          }
+        } else {
+          imageBase64 = existingMeal.image_url;
+        }
+      }
 
-      // Update meal in database - preserve all existing fields that aren't updated
+      if (!imageBase64) {
+        throw new Error("No image data found for this meal");
+      }
+
+      console.log("🖼️ Retrieved image data for analysis");
+
+      // Prepare existing meal data as "edited ingredients" for context
+      const existingIngredients = [];
+      if (existingMeal.ingredients) {
+        try {
+          const parsedIngredients =
+            typeof existingMeal.ingredients === "string"
+              ? JSON.parse(existingMeal.ingredients)
+              : existingMeal.ingredients;
+
+          if (Array.isArray(parsedIngredients)) {
+            existingIngredients.push(...parsedIngredients);
+          }
+        } catch (error) {
+          console.warn("Failed to parse existing ingredients:", error);
+        }
+      }
+
+      // Call the AI analysis with the update text and existing context
+      const analysisResult = await this.analyzeMeal(user_id, {
+        imageBase64,
+        language: params.language || "english",
+        date: new Date().toISOString().split("T")[0],
+        updateText: params.updateText,
+        editedIngredients: existingIngredients,
+        mealPeriod: existingMeal.meal_period || "other", // Preserve existing meal period
+      });
+
+      if (!analysisResult.success || !analysisResult.data) {
+        throw new Error("Analysis failed during update");
+      }
+
+      console.log("✅ AI analysis completed for update");
+
+      // Prepare the updated meal data
+      const updatedMealData = mapMealDataToPrismaFields(
+        analysisResult.data,
+        user_id,
+        imageBase64,
+        undefined,
+        existingMeal.meal_period || "other" // Ensure meal_period is preserved
+      );
+
+      // Update the meal in the database
       const updatedMeal = await prisma.meal.update({
         where: {
-          meal_id: Number(updateData.meal_id),
+          meal_id: parseInt(params.meal_id),
         },
         data: {
-          // Core fields that can be updated
-          meal_name: updatedAnalysis.name,
-          calories: updatedAnalysis.calories,
-          protein_g: updatedAnalysis.protein,
-          carbs_g: updatedAnalysis.carbs,
-          fats_g: updatedAnalysis.fat,
-          fiber_g: updatedAnalysis.fiber ?? existingMeal.fiber_g,
-          sugar_g: updatedAnalysis.sugar ?? existingMeal.sugar_g,
-          sodium_mg: updatedAnalysis.sodium ?? existingMeal.sodium_mg,
-          confidence: updatedAnalysis.confidence,
-          ingredients: updatedAnalysis.ingredients || existingMeal.ingredients,
-          // Also update any related fields
-          serving_size_g:
-            updatedAnalysis.serving_size_g || existingMeal.serving_size_g,
-          cooking_method:
-            updatedAnalysis.cookingMethod || existingMeal.cooking_method,
-          health_risk_notes:
-            updatedAnalysis.healthNotes || existingMeal.health_risk_notes,
-
-          // Preserve detailed nutrition fields if not provided in update
-          saturated_fats_g:
-            updatedAnalysis.saturated_fats_g ?? existingMeal.saturated_fats_g,
-          polyunsaturated_fats_g:
-            updatedAnalysis.polyunsaturated_fats_g ??
-            existingMeal.polyunsaturated_fats_g,
-          monounsaturated_fats_g:
-            updatedAnalysis.monounsaturated_fats_g ??
-            existingMeal.monounsaturated_fats_g,
-          omega_3_g: updatedAnalysis.omega_3_g ?? existingMeal.omega_3_g,
-          omega_6_g: updatedAnalysis.omega_6_g ?? existingMeal.omega_6_g,
-          soluble_fiber_g:
-            updatedAnalysis.soluble_fiber_g ?? existingMeal.soluble_fiber_g,
-          insoluble_fiber_g:
-            updatedAnalysis.insoluble_fiber_g ?? existingMeal.insoluble_fiber_g,
-          cholesterol_mg:
-            updatedAnalysis.cholesterol_mg ?? existingMeal.cholesterol_mg,
-          alcohol_g: updatedAnalysis.alcohol_g ?? existingMeal.alcohol_g,
-          caffeine_mg: updatedAnalysis.caffeine_mg ?? existingMeal.caffeine_mg,
-          liquids_ml: updatedAnalysis.liquids_ml ?? existingMeal.liquids_ml,
-          allergens_json:
-            updatedAnalysis.allergens_json ?? existingMeal.allergens_json,
-          vitamins_json:
-            updatedAnalysis.vitamins_json ?? existingMeal.vitamins_json,
-          micronutrients_json:
-            updatedAnalysis.micronutrients_json ??
-            existingMeal.micronutrients_json,
-          glycemic_index:
-            updatedAnalysis.glycemic_index ?? existingMeal.glycemic_index,
-          insulin_index:
-            updatedAnalysis.insulin_index ?? existingMeal.insulin_index,
-          food_category:
-            updatedAnalysis.food_category ?? existingMeal.food_category,
-          processing_level:
-            updatedAnalysis.processing_level ?? existingMeal.processing_level,
-          additives_json:
-            updatedAnalysis.additives_json ?? existingMeal.additives_json,
-
-          // System fields
+          ...updatedMealData,
           updated_at: new Date(),
         },
       });
 
-      console.log("✅ Meal updated successfully");
+      console.log("🎉 Meal updated successfully");
+
+      // Clear relevant caches
+      this.clearUserMealsCaches(user_id);
+
       return updatedMeal;
     } catch (error) {
       console.error("💥 Error updating meal:", error);
@@ -445,14 +399,19 @@ export class NutritionService {
     }
   }
 
-  static async getUserMeals(user_id: string, offset = 0, limit = 100) {
+  static async getUserMeals(
+    user_id: string,
+    offset: number = 0,
+    limit: number = 100
+  ): Promise<any[]> {
     try {
-      // Add caching for frequently accessed meals
-      const cacheKey = `meals_${user_id}_${offset}_${limit}`;
-      const cached = userStatsCache.get(cacheKey);
+      console.log(`📱 Fetching meals for user: ${user_id}`);
+
+      const cacheKey = `user_meals_${user_id}_${offset}_${limit}`;
+      const cached = mealsCache.get(cacheKey);
 
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log("🔄 Using cached meals data");
+        console.log("🎯 Returning cached meals");
         return cached.data;
       }
 
@@ -468,7 +427,7 @@ export class NutritionService {
           upload_time: true,
           analysis_status: true,
           meal_name: true,
-          meal_period: true,
+          meal_period: true, // Include meal_period in the select statement
           calories: true,
           protein_g: true,
           carbs_g: true,
@@ -505,17 +464,58 @@ export class NutritionService {
         },
       });
 
-      const transformedMeals = meals.map(transformMealForClient);
+      const processedMeals = meals.map((meal) => ({
+        ...meal,
+        // Ensure backwards compatibility
+        id: meal.meal_id?.toString(),
+        name: meal.meal_name,
+        imageUrl: meal.image_url,
+        userId: meal.user_id,
+        uploadTime: meal.upload_time,
+        createdAt: meal.created_at,
 
-      // Cache the result
-      userStatsCache.set(cacheKey, {
-        data: transformedMeals,
+        // Meal period - ensure it's included
+        meal_period: meal.meal_period || "other",
+        mealPeriod: meal.meal_period || "other", // Also add camelCase version for compatibility
+
+        // Nutrition data with backwards compatibility
+        protein: meal.protein_g,
+        carbs: meal.carbs_g,
+        fat: meal.fats_g,
+        fats: meal.fats_g,
+        fiber: meal.fiber_g,
+        sugar: meal.sugar_g,
+        sodium: meal.sodium_mg,
+
+        // Parse ingredients if stored as JSON
+        ingredients:
+          typeof meal.ingredients === "string"
+            ? JSON.parse(meal.ingredients || "[]")
+            : meal.ingredients || [],
+
+        // Ratings and preferences
+        tasteRating: meal.taste_rating || 0,
+        satietyRating: meal.satiety_rating || 0,
+        energyRating: meal.energy_rating || 0,
+        heavinessRating: meal.heaviness_rating || 0,
+        isFavorite: meal.is_favorite || false,
+
+        // Additional fields
+        description: meal.description,
+        confidence: meal.confidence,
+        analysisStatus: meal.analysis_status,
+      }));
+
+      // Cache the results
+      mealsCache.set(cacheKey, {
+        data: processedMeals,
         timestamp: Date.now(),
       });
 
-      return transformedMeals;
+      console.log(`✅ Retrieved ${processedMeals.length} meals for user`);
+      return processedMeals;
     } catch (error) {
-      console.error("💥 Error fetching meals:", error);
+      console.error("💥 Error fetching user meals:", error);
       throw new Error("Failed to fetch meals");
     }
   }
@@ -937,9 +937,26 @@ export class NutritionService {
     );
   }
 
+  // Helper method to clear user-specific meal caches
+  private static clearUserMealsCaches(user_id: string) {
+    const keysToDelete: string[] = [];
+
+    for (const [key] of mealsCache) {
+      if (key.includes(user_id)) {
+        keysToDelete.push(key);
+      }
+    }
+
+    keysToDelete.forEach((key) => mealsCache.delete(key));
+    console.log(
+      `🧹 Cleared ${keysToDelete.length} meal cache entries for user ${user_id}`
+    );
+  }
+
   // Method to clear all caches
   static clearAllCaches() {
     userStatsCache.clear();
+    mealsCache.clear();
     console.log("🧹 All nutrition service caches cleared");
   }
 }

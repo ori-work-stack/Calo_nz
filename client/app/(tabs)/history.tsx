@@ -67,6 +67,11 @@ import {
   PieChart,
   List,
   Settings,
+  Sun,
+  Sunrise,
+  Sunset,
+  Moon,
+  Coffee,
 } from "lucide-react-native";
 import LoadingScreen from "@/components/LoadingScreen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -113,7 +118,7 @@ const NUTRITION_ICONS = {
   protein: {
     icon: Dumbbell,
     name: "nutrition.protein",
-    color: "#3b82f6",
+    color: "#8b5cf6",
     unit: "g",
   },
   carbs: { icon: Wheat, name: "nutrition.carbs", color: "#10b981", unit: "g" },
@@ -121,53 +126,130 @@ const NUTRITION_ICONS = {
   fiber: {
     icon: TreePine,
     name: "nutrition.fiber",
-    color: "#8b5cf6",
+    color: "#6366f1",
     unit: "g",
   },
   sugar: { icon: Candy, name: "nutrition.sugar", color: "#f97316", unit: "g" },
   sodium: {
     icon: Beaker,
     name: "nutrition.sodium",
-    color: "#6b7280",
+    color: "#64748b",
     unit: "mg",
   },
 };
 
-// Helper function to get meal type background color
-const getMealTypeBackgroundColor = (mealPeriod: string): string => {
-  switch (mealPeriod) {
-    case "breakfast":
-      return "#F0FDFA"; // Light teal
-    case "lunch":
-      return "#E6FFFA"; // Mid teal
-    case "dinner":
-      return "#CCFBF1"; // Dark teal
-    case "snack":
-      return "#F7FFFE"; // Super light teal
-    case "late_night":
-      return "#ECFDF5"; // Light green teal
-    case "other":
-    default:
-      return "#FEF3E2"; // Light orange for "other"
-  }
-};
+// Clean iOS-style meal period colors with theme support
+const getMealPeriodStyle = (
+  mealPeriod: string,
+  colors: any,
+  isDark: boolean
+) => {
+  const baseStyles = {
+    breakfast: {
+      light: {
+        backgroundColor: colors.background,
+        cardBackground: "#FFFBEB", // Very light warm yellow
+        borderColor: "#F59E0B", // Soft golden yellow
+        iconColor: "#F59E0B",
+        textColor: "#D97706", // Warm amber text
+      },
+      dark: {
+        backgroundColor: colors.surface,
+        cardBackground: "#1F1611", // Deep warm brown
+        borderColor: "#FCD34D", // Bright golden yellow
+        iconColor: "#FCD34D",
+        textColor: "#FEF3C7", // Light cream text
+      },
+      icon: Sunrise,
+    },
+    lunch: {
+      light: {
+        backgroundColor: colors.background,
+        cardBackground: "#FDF2F8", // Very light pink-rose
+        borderColor: "#EC4899", // Soft pink
+        iconColor: "#EC4899",
+        textColor: "#BE185D", // Deep rose
+      },
+      dark: {
+        backgroundColor: colors.surface,
+        cardBackground: "#1F0A14", // Deep rose-brown
+        borderColor: "#F472B6", // Bright pink
+        iconColor: "#F472B6",
+        textColor: "#FECACA", // Light pink text
+      },
+      icon: Sun,
+    },
+    dinner: {
+      light: {
+        backgroundColor: colors.background,
+        cardBackground: "#F0FDF4", // Very light sage green
+        borderColor: "#10B981", // Soft emerald
+        iconColor: "#10B981",
+        textColor: "#047857", // Deep green
+      },
+      dark: {
+        backgroundColor: colors.surface,
+        cardBackground: "#022C22", // Deep forest green
+        borderColor: "#34D399", // Bright emerald
+        iconColor: "#34D399",
+        textColor: "#A7F3D0", // Light mint text
+      },
+      icon: Sunset,
+    },
+    snack: {
+      light: {
+        backgroundColor: colors.background,
+        cardBackground: "#FEF3E2", // Very light peach
+        borderColor: "#F97316", // Soft orange
+        iconColor: "#F97316",
+        textColor: "#EA580C", // Deep orange
+      },
+      dark: {
+        backgroundColor: colors.surface,
+        cardBackground: "#1C1006", // Deep orange-brown
+        borderColor: "#FB923C", // Bright orange
+        iconColor: "#FB923C",
+        textColor: "#FED7AA", // Light peach text
+      },
+      icon: Apple,
+    },
+    late_night: {
+      light: {
+        backgroundColor: colors.background,
+        cardBackground: "#F0F9FF", // Very light blue
+        borderColor: "#0284C7", // Deep sky blue
+        iconColor: "#0284C7",
+        textColor: "#0369A1", // Darker blue
+      },
+      dark: {
+        backgroundColor: colors.surface,
+        cardBackground: "#0A1628", // Deep navy blue
+        borderColor: "#38BDF8", // Bright sky blue
+        iconColor: "#38BDF8",
+        textColor: "#BAE6FD", // Light blue text
+      },
+      icon: Moon,
+    },
+  };
 
-const getMealTypeBorderColor = (mealPeriod: string): string => {
-  switch (mealPeriod) {
-    case "breakfast":
-      return "#14B8A6";
-    case "lunch":
-      return "#0891B2";
-    case "dinner":
-      return "#0E7490";
-    case "snack":
-      return "#5EEAD4";
-    case "late_night":
-      return "#2DD4BF";
-    case "other":
-    default:
-      return "#6B7280";
+  const mealType = mealPeriod?.toLowerCase().replace(/\s+/g, "_") || "other";
+  const style = baseStyles[mealType as keyof typeof baseStyles];
+
+  if (!style) {
+    return {
+      backgroundColor: colors.surface,
+      cardBackground: colors.background, // Default pastel background
+      borderColor: colors.border,
+      iconColor: colors.icon,
+      textColor: colors.text,
+      icon: Coffee,
+    };
   }
+
+  return {
+    ...style[isDark ? "dark" : "light"],
+    icon: style.icon,
+  };
 };
 
 // Enhanced Swipeable Meal Card Component
@@ -183,42 +265,60 @@ const SwipeableMealCard = ({
   const dispatch = useDispatch<AppDispatch>();
   const [isExpanded, setIsExpanded] = useState(false);
   const [savingRatings, setSavingRatings] = useState(false);
-  const [ratings, setRatings] = useState({
+  const [localMealData, setLocalMealData] = useState({
     taste_rating: meal.taste_rating || 0,
     satiety_rating: meal.satiety_rating || 0,
     energy_rating: meal.energy_rating || 0,
     heaviness_rating: meal.heaviness_rating || 0,
+    is_favorite: meal.is_favorite || false,
   });
   const { currentLanguage } = useLanguage();
   const isRTL = currentLanguage === "he";
   const { refreshMealData, immediateRefresh } = useMealDataRefresh();
 
   const animatedHeight = useState(new Animated.Value(0))[0];
+  const mealPeriodStyle = getMealPeriodStyle(
+    meal.meal_period || meal.mealPeriod || "other",
+    colors,
+    isDark
+  );
+  const MealIcon = mealPeriodStyle.icon;
 
   useEffect(() => {
     Animated.timing(animatedHeight, {
       toValue: isExpanded ? 1 : 0,
-      duration: 300,
+      duration: 400,
       useNativeDriver: false,
     }).start();
   }, [isExpanded]);
 
   useEffect(() => {
-    setRatings({
+    setLocalMealData({
       taste_rating: meal.taste_rating || 0,
       satiety_rating: meal.satiety_rating || 0,
       energy_rating: meal.energy_rating || 0,
       heaviness_rating: meal.heaviness_rating || 0,
+      is_favorite: meal.is_favorite || false,
     });
   }, [
     meal.taste_rating,
     meal.satiety_rating,
     meal.energy_rating,
     meal.heaviness_rating,
+    meal.is_favorite,
   ]);
 
   const handleRatingChange = (key: string, value: number) => {
-    setRatings((prev) => ({ ...prev, [key]: value }));
+    setLocalMealData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleToggleFavorite = async () => {
+    try {
+      setLocalMealData((prev) => ({ ...prev, is_favorite: !prev.is_favorite }));
+      await onToggleFavorite(meal.id || meal.meal_id?.toString());
+    } catch (error) {
+      setLocalMealData((prev) => ({ ...prev, is_favorite: !prev.is_favorite }));
+    }
   };
 
   const handleSaveRatings = async () => {
@@ -231,20 +331,16 @@ const SwipeableMealCard = ({
         saveMealFeedback({
           mealId,
           feedback: {
-            tasteRating: ratings.taste_rating,
-            satietyRating: ratings.satiety_rating,
-            energyRating: ratings.energy_rating,
-            heavinessRating: ratings.heaviness_rating,
+            tasteRating: localMealData.taste_rating,
+            satietyRating: localMealData.satiety_rating,
+            energyRating: localMealData.energy_rating,
+            heavinessRating: localMealData.heaviness_rating,
           },
         })
       ).unwrap();
 
       if (result) {
         Alert.alert(t("common.success"), t("history.messages.ratingsSaved"));
-        meal.taste_rating = ratings.taste_rating;
-        meal.satiety_rating = ratings.satiety_rating;
-        meal.energy_rating = ratings.energy_rating;
-        meal.heaviness_rating = ratings.heaviness_rating;
         immediateRefresh();
       }
     } catch (error) {
@@ -256,18 +352,13 @@ const SwipeableMealCard = ({
   };
 
   const renderLeftActions = () => (
-    <View
-      style={[
-        styles.swipeActionContainer,
-        { backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.swipeActionContainer]}>
       <TouchableOpacity
-        style={[styles.swipeAction, { backgroundColor: colors.emerald }]}
+        style={[styles.swipeAction, { backgroundColor: "#10b981" }]}
         onPress={() => onDuplicate(meal.id || meal.meal_id?.toString())}
       >
-        <Copy size={20} color={colors.background} />
-        <Text style={[styles.swipeActionText, { color: colors.background }]}>
+        <Copy size={22} color="#ffffff" />
+        <Text style={[styles.swipeActionText, { color: "#ffffff" }]}>
           {t("history.actions.copy")}
         </Text>
       </TouchableOpacity>
@@ -275,18 +366,13 @@ const SwipeableMealCard = ({
   );
 
   const renderRightActions = () => (
-    <View
-      style={[
-        styles.swipeActionContainer,
-        { backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.swipeActionContainer]}>
       <TouchableOpacity
-        style={[styles.swipeAction, { backgroundColor: colors.error }]}
+        style={[styles.swipeAction, { backgroundColor: "#ef4444" }]}
         onPress={() => onDelete(meal.id || meal.meal_id?.toString())}
       >
-        <Trash2 size={20} color={colors.background} />
-        <Text style={[styles.swipeActionText, { color: colors.background }]}>
+        <Trash2 size={22} color="#ffffff" />
+        <Text style={[styles.swipeActionText, { color: "#ffffff" }]}>
           {t("history.actions.delete")}
         </Text>
       </TouchableOpacity>
@@ -307,9 +393,9 @@ const SwipeableMealCard = ({
             activeOpacity={0.7}
           >
             <Star
-              size={18}
-              color={star <= rating ? colors.warning : colors.border}
-              fill={star <= rating ? colors.warning : "transparent"}
+              size={20}
+              color={star <= rating ? "#fbbf24" : "#d1d5db"}
+              fill={star <= rating ? "#fbbf24" : "transparent"}
             />
           </TouchableOpacity>
         ))}
@@ -434,9 +520,7 @@ const SwipeableMealCard = ({
   };
 
   return (
-    <View
-      style={[styles.swipeContainer, { backgroundColor: colors.background }]}
-    >
+    <View style={styles.swipeContainer}>
       <Swipeable
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
@@ -447,11 +531,7 @@ const SwipeableMealCard = ({
           style={[
             styles.modernMealCard,
             {
-              backgroundColor: getMealTypeBackgroundColor(
-                meal.meal_period || "other"
-              ),
-              borderColor: colors.border,
-              shadowColor: colors.shadow,
+              backgroundColor: mealPeriodStyle.borderColor,
             },
           ]}
         >
@@ -470,47 +550,47 @@ const SwipeableMealCard = ({
                 <View
                   style={[
                     styles.imagePlaceholder,
-                    { backgroundColor: colors.surface },
+                    { backgroundColor: mealPeriodStyle.backgroundColor },
                   ]}
                 >
-                  <Camera size={24} color={colors.emerald} />
+                  <Camera size={28} color={mealPeriodStyle.iconColor} />
                 </View>
               )}
 
-              {meal.is_favorite && (
+              {localMealData.is_favorite && (
                 <View
-                  style={[
-                    styles.heartOverlay,
-                    { backgroundColor: colors.emerald },
-                  ]}
+                  style={[styles.heartOverlay, { backgroundColor: "#ef4444" }]}
                 >
-                  <Heart
-                    size={14}
-                    color={colors.background}
-                    fill={colors.emerald}
-                  />
+                  <Heart size={16} color="#ffffff" fill="#ef4444" />
                 </View>
               )}
             </View>
 
             <View style={styles.cardInfo}>
               <View style={styles.mealHeader}>
-                <Text style={styles.mealName} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.mealName,
+                    { color: mealPeriodStyle.textColor },
+                  ]}
+                  numberOfLines={1}
+                >
                   {meal.meal_name || meal.name || t("common.unknown_meal")}
                 </Text>
                 <View
                   style={[
                     styles.mealTypeBadge,
                     {
-                      backgroundColor: getMealTypeBorderColor(
-                        meal.meal_period || "other"
-                      ),
+                      backgroundColor: mealPeriodStyle.borderColor,
                     },
                   ]}
                 >
+                  <MealIcon size={14} color="#ffffff" />
                   <Text style={styles.mealTypeText}>
-                    {(meal.meal_period || "other").charAt(0).toUpperCase() +
-                      (meal.meal_period || "other").slice(1)}
+                    {(meal.meal_period || meal.mealPeriod || "other")
+                      .charAt(0)
+                      .toUpperCase() +
+                      (meal.meal_period || meal.mealPeriod || "other").slice(1)}
                   </Text>
                 </View>
               </View>
@@ -519,19 +599,25 @@ const SwipeableMealCard = ({
                 <View
                   style={[
                     styles.caloriesBadge,
-                    { backgroundColor: colors.emerald + "15" },
+                    { backgroundColor: mealPeriodStyle.backgroundColor },
                   ]}
                 >
-                  <Flame size={12} color={colors.emerald} />
+                  <Flame size={14} color={mealPeriodStyle.iconColor} />
                   <Text
-                    style={[styles.caloriesText, { color: colors.emerald }]}
+                    style={[
+                      styles.caloriesText,
+                      { color: mealPeriodStyle.textColor },
+                    ]}
                   >
                     {Math.round(meal.calories || 0)} {t("nutrition.calories")}
                   </Text>
                 </View>
 
                 <Text
-                  style={[styles.mealDate, { color: colors.textSecondary }]}
+                  style={[
+                    styles.mealDate,
+                    { color: mealPeriodStyle.textColor },
+                  ]}
                 >
                   {new Date(
                     meal.created_at || meal.upload_time
@@ -539,17 +625,19 @@ const SwipeableMealCard = ({
                 </Text>
               </View>
 
-              {(meal.taste_rating || 0) > 0 && (
+              {localMealData.taste_rating > 0 && (
                 <View style={styles.ratingRow}>
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      size={12}
+                      size={14}
                       color={
-                        i < meal.taste_rating ? colors.warning : colors.border
+                        i < localMealData.taste_rating ? "#fbbf24" : "#d1d5db"
                       }
                       fill={
-                        i < meal.taste_rating ? colors.warning : "transparent"
+                        i < localMealData.taste_rating
+                          ? "#fbbf24"
+                          : "transparent"
                       }
                     />
                   ))}
@@ -558,24 +646,22 @@ const SwipeableMealCard = ({
             </View>
 
             <TouchableOpacity
-              onPress={() =>
-                onToggleFavorite(meal.id || meal.meal_id?.toString())
-              }
+              onPress={handleToggleFavorite}
               style={styles.favoriteButton}
               activeOpacity={0.7}
             >
               <Heart
-                size={18}
-                color={meal.is_favorite ? colors.emerald : colors.icon}
-                fill={meal.is_favorite ? colors.emerald : "transparent"}
+                size={20}
+                color={localMealData.is_favorite ? "#ef4444" : "#9ca3af"}
+                fill={localMealData.is_favorite ? "#ef4444" : "transparent"}
               />
             </TouchableOpacity>
 
             <View style={styles.expandButton}>
               {isExpanded ? (
-                <ChevronUp size={16} color={colors.icon} />
+                <ChevronUp size={18} color={mealPeriodStyle.iconColor} />
               ) : (
-                <ChevronDown size={16} color={colors.icon} />
+                <ChevronDown size={18} color={mealPeriodStyle.iconColor} />
               )}
             </View>
           </TouchableOpacity>
@@ -587,7 +673,7 @@ const SwipeableMealCard = ({
                 opacity: animatedHeight,
                 maxHeight: animatedHeight.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, 800],
+                  outputRange: [0, 1000],
                 }),
               },
             ]}
@@ -596,11 +682,16 @@ const SwipeableMealCard = ({
               <View
                 style={[
                   styles.expandedContent,
-                  { borderTopColor: colors.border },
+                  { backgroundColor: mealPeriodStyle.borderColor },
                 ]}
               >
                 <View style={styles.nutritionSection}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: mealPeriodStyle.textColor },
+                    ]}
+                  >
                     {t("history.nutritionInfo")}
                   </Text>
                   <View style={styles.nutritionGrid}>
@@ -612,22 +703,26 @@ const SwipeableMealCard = ({
                           key={key}
                           style={[
                             styles.nutritionCard,
-                            { backgroundColor: colors.surface },
+                            {
+                              backgroundColor:
+                                mealPeriodStyle.cardBackground ||
+                                mealPeriodStyle.backgroundColor,
+                            },
                           ]}
                         >
                           <View style={styles.nutritionCardHeader}>
                             <View
                               style={[
                                 styles.nutritionIconContainer,
-                                { backgroundColor: config.color + "15" },
+                                { backgroundColor: config.color + "20" },
                               ]}
                             >
-                              <IconComponent size={14} color={config.color} />
+                              <IconComponent size={16} color={config.color} />
                             </View>
                             <Text
                               style={[
                                 styles.nutritionCardName,
-                                { color: colors.textSecondary },
+                                { color: mealPeriodStyle.textColor },
                               ]}
                             >
                               {t(config.name)}
@@ -636,7 +731,7 @@ const SwipeableMealCard = ({
                           <Text
                             style={[
                               styles.nutritionCardValue,
-                              { color: colors.text },
+                              { color: mealPeriodStyle.textColor },
                             ]}
                           >
                             {value} {config.unit}
@@ -651,7 +746,10 @@ const SwipeableMealCard = ({
                   <View style={styles.ingredientsSection}>
                     <View style={styles.ingredientsSectionHeader}>
                       <Text
-                        style={[styles.sectionTitle, { color: colors.text }]}
+                        style={[
+                          styles.sectionTitle,
+                          { color: mealPeriodStyle.textColor },
+                        ]}
                       >
                         {t("history.ingredients")} ({ingredients.length})
                       </Text>
@@ -659,17 +757,23 @@ const SwipeableMealCard = ({
                         <TouchableOpacity
                           style={[
                             styles.addToShoppingButton,
-                            { backgroundColor: colors.emerald + "15" },
+                            {
+                              backgroundColor:
+                                mealPeriodStyle.borderColor + "20",
+                            },
                           ]}
                           onPress={() =>
                             handleAddIngredientsToShopping(ingredients)
                           }
                         >
-                          <ShoppingCart size={16} color={colors.emerald} />
+                          <ShoppingCart
+                            size={16}
+                            color={mealPeriodStyle.borderColor}
+                          />
                           <Text
                             style={[
                               styles.addToShoppingText,
-                              { color: colors.emerald },
+                              { color: mealPeriodStyle.borderColor },
                             ]}
                           >
                             {t("history.addToShopping")}
@@ -696,8 +800,7 @@ const SwipeableMealCard = ({
                             style={[
                               styles.ingredientChip,
                               {
-                                backgroundColor: colors.emerald + "15",
-                                borderColor: colors.emerald + "20",
+                                backgroundColor: mealPeriodStyle.cardBackground,
                               },
                             ]}
                             onPress={() =>
@@ -709,12 +812,15 @@ const SwipeableMealCard = ({
                             <Text
                               style={[
                                 styles.ingredientText,
-                                { color: colors.emerald },
+                                { color: mealPeriodStyle.textColor },
                               ]}
                             >
                               {ingredientName}
                             </Text>
-                            <Plus size={12} color={colors.emerald} />
+                            <Plus
+                              size={12}
+                              color={mealPeriodStyle.iconColor}
+                            />
                           </TouchableOpacity>
                         );
                       })}
@@ -723,7 +829,12 @@ const SwipeableMealCard = ({
                 )}
 
                 <View style={styles.ratingSection}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: mealPeriodStyle.textColor },
+                    ]}
+                  >
                     {t("history.rateExperience")}
                   </Text>
 
@@ -754,19 +865,24 @@ const SwipeableMealCard = ({
                         key={key}
                         style={[
                           styles.ratingItem,
-                          { backgroundColor: colors.surface },
+                          { backgroundColor: mealPeriodStyle.backgroundColor },
                         ]}
                       >
                         <View style={styles.ratingItemHeader}>
                           <Text style={styles.ratingEmoji}>{icon}</Text>
                           <Text
-                            style={[styles.ratingLabel, { color: colors.text }]}
+                            style={[
+                              styles.ratingLabel,
+                              { color: mealPeriodStyle.textColor },
+                            ]}
                           >
                             {t(label)}
                           </Text>
                         </View>
                         {renderStarRating(
-                          ratings[key as keyof typeof ratings],
+                          localMealData[
+                            key as keyof typeof localMealData
+                          ] as number,
                           (rating) => handleRatingChange(key, rating)
                         )}
                       </View>
@@ -776,25 +892,19 @@ const SwipeableMealCard = ({
                   <TouchableOpacity
                     style={[
                       styles.saveButton,
-                      { backgroundColor: colors.emerald },
+                      { backgroundColor: mealPeriodStyle.borderColor },
                     ]}
                     onPress={handleSaveRatings}
                     disabled={savingRatings}
                     activeOpacity={0.8}
                   >
                     {savingRatings ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.background}
-                      />
+                      <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
                       <>
-                        <Award size={16} color={colors.background} />
+                        <Award size={18} color="#ffffff" />
                         <Text
-                          style={[
-                            styles.saveButtonText,
-                            { color: colors.background },
-                          ]}
+                          style={[styles.saveButtonText, { color: "#ffffff" }]}
                         >
                           {t("history.saveRatings")}
                         </Text>
@@ -849,19 +959,11 @@ export default function HistoryScreen() {
   const handleToggleFavorite = useCallback(
     async (mealId: string) => {
       try {
-        const mealToUpdate = meals.find(
-          (m) => (m.id || m.meal_id?.toString()) === mealId
-        );
-        if (mealToUpdate) {
-          mealToUpdate.is_favorite = !mealToUpdate.is_favorite;
-        }
-
         const result = await dispatch(toggleMealFavorite(mealId)).unwrap();
-
         if (result) {
           Alert.alert(
             t("common.success"),
-            mealToUpdate?.is_favorite
+            result.isFavorite
               ? t("history.messages.addedToFavorites")
               : t("history.messages.removedFromFavorites")
           );
@@ -869,19 +971,13 @@ export default function HistoryScreen() {
         }
       } catch (error) {
         console.error("Failed to toggle favorite:", error);
-        const mealToRevert = meals.find(
-          (m) => (m.id || m.meal_id?.toString()) === mealId
-        );
-        if (mealToRevert) {
-          mealToRevert.is_favorite = !mealToRevert.is_favorite;
-        }
         Alert.alert(
           t("common.error"),
           t("history.messages.favoriteUpdateFailed")
         );
       }
     },
-    [dispatch, meals, refreshMealData, t]
+    [dispatch, refreshMealData, t]
   );
 
   const handleDuplicateMeal = useCallback(
@@ -1061,11 +1157,9 @@ export default function HistoryScreen() {
   const renderItem = ({ item }: { item: any }) => {
     if (item.type === "insights") {
       return (
-        <View
-          style={[styles.insightsCard, { backgroundColor: colors.background }]}
-        >
+        <View style={styles.insightsCard}>
           <LinearGradient
-            colors={[colors.emerald, colors.emerald600]}
+            colors={[colors.primary, colors.emerald600, colors.emerald700]}
             style={styles.insightsGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -1163,22 +1257,14 @@ export default function HistoryScreen() {
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
-        {/* Modern Header */}
-        <View
-          style={[
-            styles.modernHeader,
-            {
-              backgroundColor: colors.surface,
-              borderBottomColor: colors.border,
-            },
-          ]}
+        {/* Clean Header */}
+        <LinearGradient
+          colors={[colors.primary, colors.emerald600, colors.emerald700]}
+          style={styles.modernHeader}
         >
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
-              <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-                {t("greetings.morning")}
-              </Text>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>
+              <Text style={[styles.headerTitle, { color: "#ffffff" }]}>
                 {t("history.title")}
               </Text>
             </View>
@@ -1187,16 +1273,16 @@ export default function HistoryScreen() {
               <TouchableOpacity
                 style={[
                   styles.viewModeButton,
-                  { backgroundColor: colors.card },
+                  { backgroundColor: "rgba(255,255,255,0.2)" },
                 ]}
                 onPress={() =>
                   setViewMode(viewMode === "list" ? "grid" : "list")
                 }
               >
                 {viewMode === "list" ? (
-                  <BarChart3 size={18} color={colors.emerald} />
+                  <BarChart3 size={20} color="#ffffff" />
                 ) : (
-                  <List size={18} color={colors.emerald} />
+                  <List size={20} color="#ffffff" />
                 )}
               </TouchableOpacity>
             </View>
@@ -1204,25 +1290,30 @@ export default function HistoryScreen() {
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
-              <Search size={18} color={colors.icon} />
+            <View
+              style={[
+                styles.searchBar,
+                { backgroundColor: "rgba(255,255,255,0.15)" },
+              ]}
+            >
+              <Search size={20} color="rgba(255,255,255,0.8)" />
               <TextInput
-                style={[styles.searchInput, { color: colors.text }]}
+                style={[styles.searchInput, { color: "#ffffff" }]}
                 placeholder={t("history.searchPlaceholder")}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor="rgba(255,255,255,0.6)"
               />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.filterButton,
-                { backgroundColor: colors.emerald + "20" },
+                { backgroundColor: "rgba(255,255,255,0.2)" },
               ]}
               onPress={() => setShowFilters(true)}
             >
-              <Filter size={18} color={colors.emerald} />
+              <Filter size={20} color="#ffffff" />
             </TouchableOpacity>
           </View>
 
@@ -1235,6 +1326,7 @@ export default function HistoryScreen() {
           >
             {CATEGORIES.map((category) => {
               const isSelected = filters.category === category.key;
+              const IconComponent = category.icon;
               return (
                 <TouchableOpacity
                   key={category.key}
@@ -1242,9 +1334,8 @@ export default function HistoryScreen() {
                     styles.categoryPill,
                     {
                       backgroundColor: isSelected
-                        ? colors.emerald
-                        : colors.card,
-                      borderColor: isSelected ? colors.emerald : colors.border,
+                        ? "rgba(255,255,255,0.25)"
+                        : "rgba(255,255,255,0.1)",
                     },
                   ]}
                   onPress={() =>
@@ -1254,10 +1345,14 @@ export default function HistoryScreen() {
                     }))
                   }
                 >
+                  <IconComponent size={14} color="#ffffff" />
                   <Text
                     style={[
                       styles.categoryPillText,
-                      { color: isSelected ? colors.background : colors.text },
+                      {
+                        color: "#ffffff",
+                        fontWeight: isSelected ? "700" : "600",
+                      },
                     ]}
                   >
                     {t(category.label)}
@@ -1266,7 +1361,7 @@ export default function HistoryScreen() {
               );
             })}
           </ScrollView>
-        </View>
+        </LinearGradient>
 
         {listData.length > 0 ? (
           <FlatList
@@ -1371,9 +1466,6 @@ export default function HistoryScreen() {
                               backgroundColor: isSelected
                                 ? colors.emerald + "15"
                                 : colors.card,
-                              borderColor: isSelected
-                                ? colors.emerald
-                                : colors.border,
                             },
                           ]}
                           onPress={() =>
@@ -1424,9 +1516,6 @@ export default function HistoryScreen() {
                               backgroundColor: isSelected
                                 ? colors.emerald + "15"
                                 : colors.card,
-                              borderColor: isSelected
-                                ? colors.emerald
-                                : colors.border,
                             },
                           ]}
                           onPress={() =>
@@ -1466,9 +1555,6 @@ export default function HistoryScreen() {
                         backgroundColor: filters.showFavoritesOnly
                           ? colors.emerald + "15"
                           : colors.card,
-                        borderColor: filters.showFavoritesOnly
-                          ? colors.emerald
-                          : colors.border,
                       },
                     ]}
                     onPress={() =>
@@ -1544,7 +1630,6 @@ export default function HistoryScreen() {
                       styles.resetButton,
                       {
                         backgroundColor: colors.card,
-                        borderColor: colors.border,
                       },
                     ]}
                     onPress={() =>
@@ -1595,33 +1680,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Modern Header
+  // Clean Header
   modernHeader: {
     paddingTop: 10,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    elevation: 2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderBottomColor: "#E5E7EB",
   },
 
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 20,
   },
 
   headerLeft: {
     flex: 1,
-  },
-
-  greeting: {
-    fontSize: 14,
-    marginBottom: 4,
-    fontWeight: "500",
   },
 
   headerTitle: {
@@ -1636,9 +1712,9 @@ const styles = StyleSheet.create({
   },
 
   viewModeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1655,9 +1731,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 15,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    height: 48,
+    height: 44,
     gap: 12,
   },
 
@@ -1667,9 +1743,9 @@ const styles = StyleSheet.create({
   },
 
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1685,14 +1761,22 @@ const styles = StyleSheet.create({
   },
 
   categoryPill: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 6,
+    minHeight: 40,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   categoryPillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
 
@@ -1701,31 +1785,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 10,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
 
   insightsGradient: {
-    padding: 20,
+    padding: 24,
   },
 
   insightsHeader: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
   insightsTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     marginBottom: 4,
+    color: "#ffffff",
   },
 
   insightsSubtitle: {
     fontSize: 14,
     opacity: 0.9,
+    color: "#ffffff",
   },
 
   insightsGrid: {
@@ -1739,37 +1825,34 @@ const styles = StyleSheet.create({
   },
 
   insightValue: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 28,
+    fontWeight: "900",
     marginBottom: 4,
+    color: "#ffffff",
   },
 
   insightLabel: {
-    fontSize: 12,
+    fontSize: 11,
     opacity: 0.9,
     fontWeight: "600",
     textAlign: "center",
+    color: "#ffffff",
   },
 
   // Modern Meal Card
   swipeContainer: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginVertical: 6,
   },
 
   modernMealCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: "hidden",
-    borderWidth: 1,
-    elevation: 3,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
   },
 
   cardContent: {
     flexDirection: "row",
-    padding: 16,
+    padding: 20,
     alignItems: "center",
   },
 
@@ -1779,26 +1862,26 @@ const styles = StyleSheet.create({
   },
 
   cardImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
 
   imagePlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
 
   heartOverlay: {
     position: "absolute",
-    top: -6,
-    right: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1806,30 +1889,34 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
   },
+
   mealHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
   },
+
   mealName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0F172A",
+    fontSize: 18,
+    fontWeight: "700",
     flex: 1,
     marginRight: 8,
   },
+
   mealTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    minWidth: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
   },
+
   mealTypeText: {
     color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "600",
-    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "700",
     textTransform: "capitalize",
   },
 
@@ -1843,39 +1930,40 @@ const styles = StyleSheet.create({
   caloriesBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
   },
 
   caloriesText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   mealDate: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   ratingRow: {
     flexDirection: "row",
-    gap: 2,
+    gap: 3,
+    marginTop: 4,
   },
 
   favoriteButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
   },
 
   expandButton: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1891,15 +1979,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     minWidth: "100%",
-    borderRadius: 20,
+    borderRadius: 24,
   },
 
   swipeActionText: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 6,
   },
 
   // Expanded Section
@@ -1908,163 +1996,161 @@ const styles = StyleSheet.create({
   },
 
   expandedContent: {
-    padding: 16,
+    padding: 20,
     paddingTop: 0,
-    borderTopWidth: 1,
   },
 
   nutritionSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 16,
   },
 
   nutritionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 12,
   },
 
   nutritionCard: {
     flex: 1,
     minWidth: "30%",
-    padding: 12,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     alignItems: "center",
   },
 
   nutritionCardHeader: {
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
   nutritionIconContainer: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
 
   nutritionCardName: {
-    fontSize: 10,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     textAlign: "center",
   },
 
   nutritionCardValue: {
-    fontSize: 13,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
   },
 
   // Ingredients
   ingredientsSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
   ingredientsSectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
 
   ingredientsScrollContainer: {
     paddingRight: 16,
-    gap: 8,
+    gap: 10,
   },
 
   ingredientChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginRight: 8,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    marginRight: 10,
+    gap: 8,
   },
 
   ingredientText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   addToShoppingButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
   },
 
   addToShoppingText: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   // Ratings
   ratingSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
   ratingsContainer: {
-    gap: 12,
-    marginBottom: 16,
+    gap: 16,
+    marginBottom: 20,
   },
 
   ratingItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 14,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
   },
 
   ratingItemHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
 
   ratingEmoji: {
-    fontSize: 18,
+    fontSize: 20,
   },
 
   ratingLabel: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   starContainer: {
     flexDirection: "row",
-    gap: 2,
+    gap: 4,
   },
 
   starButton: {
-    padding: 4,
+    padding: 6,
   },
 
   saveButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    gap: 10,
   },
 
   saveButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
   },
 
   // Lists
