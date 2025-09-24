@@ -733,26 +733,29 @@ export default function StatisticsScreen() {
       const response = await api.get("/recommendations");
       console.log("📊 AI Recommendations Response:", response.data);
 
-      if (response.data.success && response.data.data) {
-        // Transform single object into array format expected by component
-        const singleRecommendation = {
-          id: Date.now().toString(), // Generate a temporary ID
-          date: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          is_read: false,
-          recommendations: {
-            nutrition_tips: response.data.nutrition_tips || [],
-            meal_suggestions: response.data.meal_suggestions || [],
-            goal_adjustments: response.data.goal_adjustments || [],
-            behavioral_insights: response.data.behavioral_insights || [],
-          },
-          priority_level: response.data.data.priority_level || "medium",
-          confidence_score: response.data.data.confidence_score || 0,
-        };
-        console.log("WHAT THE FUCK",response.data.nutrition_tips);
+      if (response.data.success && Array.isArray(response.data.data)) {
+        // Transform the actual server data
+        const transformedRecommendations = response.data.data.map(
+          (rec: any) => ({
+            id: rec.id,
+            date: rec.date,
+            created_at: rec.created_at,
+            is_read: rec.is_read,
+            recommendations: rec.recommendations, // Keep the actual recommendations object from server
+            priority_level: rec.priority_level,
+            confidence_score: rec.confidence_score,
+            based_on: rec.based_on,
+            user_id: rec.user_id,
+          })
+        );
 
-        setAiRecommendations([singleRecommendation]); // Wrap in array
+        console.log(
+          "✅ Transformed AI recommendations:",
+          transformedRecommendations
+        );
+        setAiRecommendations(transformedRecommendations);
       } else {
+        console.log("⚠️ No AI recommendations data found");
         setAiRecommendations([]);
       }
     } catch (error) {

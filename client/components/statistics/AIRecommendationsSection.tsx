@@ -36,6 +36,7 @@ import Animated, {
   BounceIn,
   ZoomIn,
 } from "react-native-reanimated";
+import { useTheme } from "@/src/context/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
@@ -59,59 +60,59 @@ interface AIRecommendationsSectionProps {
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
 
-const getPriorityConfig = (priority: string) => {
+const getPriorityConfig = (priority: string, colors: any) => {
   switch (priority) {
     case "high":
       return {
-        colors: ["#FF6B6B", "#FF5252", "#FF1744"],
-        shadowColor: "#FF5252",
+        colors: [colors.error, "#FF5252", "#FF1744"],
+        shadowColor: colors.error,
         icon: AlertCircle,
-        glow: "rgba(255, 107, 107, 0.3)",
+        glow: `${colors.error}30`,
       };
     case "medium":
       return {
-        colors: ["#FFB74D", "#FF9800", "#F57C00"],
-        shadowColor: "#FF9800",
+        colors: [colors.warning, "#FF9800", "#F57C00"],
+        shadowColor: colors.warning,
         icon: Info,
-        glow: "rgba(255, 183, 77, 0.3)",
+        glow: `${colors.warning}30`,
       };
     case "low":
       return {
-        colors: ["#66BB6A", "#4CAF50", "#388E3C"],
-        shadowColor: "#4CAF50",
+        colors: [colors.success, colors.emerald500, colors.emerald600],
+        shadowColor: colors.success,
         icon: CheckCircle,
-        glow: "rgba(102, 187, 106, 0.3)",
+        glow: `${colors.success}30`,
       };
     default:
       return {
-        colors: ["#90A4AE", "#607D8B", "#455A64"],
-        shadowColor: "#607D8B",
+        colors: [colors.textSecondary, colors.muted, colors.textTertiary],
+        shadowColor: colors.textSecondary,
         icon: Info,
-        glow: "rgba(144, 164, 174, 0.3)",
+        glow: `${colors.textSecondary}30`,
       };
   }
 };
 
-const getRecommendationConfig = (type: string) => {
+const getRecommendationConfig = (type: string, colors: any) => {
   const configs = {
     nutrition_tips: {
       icon: Lightbulb,
-      gradient: ["#FFD54F", "#FFC107", "#FF8F00"],
+      gradient: [colors.emerald400, colors.emerald500, colors.emerald600],
       title: "Smart Nutrition",
     },
     meal_suggestions: {
       icon: Target,
-      gradient: ["#81C784", "#66BB6A", "#4CAF50"],
+      gradient: [colors.success, colors.emerald500, colors.emerald600],
       title: "Meal Ideas",
     },
     goal_adjustments: {
       icon: TrendingUp,
-      gradient: ["#64B5F6", "#42A5F5", "#1976D2"],
+      gradient: [colors.info, colors.primary, colors.emerald700],
       title: "Goal Optimization",
     },
     behavioral_insights: {
       icon: Brain,
-      gradient: ["#BA68C8", "#AB47BC", "#8E24AA"],
+      gradient: [colors.primary, colors.emerald600, colors.emerald700],
       title: "Behavior Analysis",
     },
   };
@@ -215,6 +216,43 @@ const extractRecommendationsData = (recData: any) => {
     });
   }
 
+  // If all arrays are still empty, check if there's actual data that we can use
+  const allEmpty =
+    extractedData.nutrition_tips.length === 0 &&
+    extractedData.meal_suggestions.length === 0 &&
+    extractedData.goal_adjustments.length === 0 &&
+    extractedData.behavioral_insights.length === 0;
+
+  if (allEmpty && recData && typeof recData === "object") {
+    // Try to extract any string values as general recommendations
+    const allValues: string[] = [];
+    const extractStrings = (obj: any, path: string = "") => {
+      if (typeof obj === "string" && obj.trim().length > 10) {
+        allValues.push(obj);
+      } else if (Array.isArray(obj)) {
+        obj.forEach((item) => extractStrings(item, path));
+      } else if (typeof obj === "object" && obj !== null) {
+        Object.entries(obj).forEach(([key, value]) => {
+          extractStrings(value, path ? `${path}.${key}` : key);
+        });
+      }
+    };
+
+    extractStrings(recData);
+
+    if (allValues.length > 0) {
+      // Distribute the found strings across categories
+      const quarter = Math.ceil(allValues.length / 4);
+      extractedData.nutrition_tips = allValues.slice(0, quarter);
+      extractedData.meal_suggestions = allValues.slice(quarter, quarter * 2);
+      extractedData.goal_adjustments = allValues.slice(
+        quarter * 2,
+        quarter * 3
+      );
+      extractedData.behavioral_insights = allValues.slice(quarter * 3);
+    }
+  }
+
   console.log("✅ Extracted recommendation data:", extractedData);
   return extractedData;
 };
@@ -222,6 +260,7 @@ const extractRecommendationsData = (recData: any) => {
 export const AIRecommendationsSection: React.FC<
   AIRecommendationsSectionProps
 > = ({ recommendations = [], period }) => {
+  const { colors } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<AIRecommendation | null>(null);
@@ -277,20 +316,20 @@ export const AIRecommendationsSection: React.FC<
   const latestRecommendation = filteredRecommendations[0];
 
   const renderEmptyState = () => (
-    <Animated.View entering={FadeInUp.delay(300)} style={styles.emptyState}>
+    <Animated.View entering={FadeInUp.delay(300)} style={[styles.emptyState, { backgroundColor: colors.card }]}>
       <LinearGradient
-        colors={["rgba(108, 99, 255, 0.1)", "rgba(255, 107, 107, 0.05)"]}
+        colors={[`${colors.primary}1A`, `${colors.emerald500}0D`]}
         style={styles.emptyGradient}
       >
         <Animated.View entering={BounceIn.delay(500)}>
-          <Brain size={48} color="#6C63FF" />
+          <Brain size={48} color={colors.primary} />
         </Animated.View>
-        <Animated.Text entering={FadeInUp.delay(700)} style={styles.emptyTitle}>
+        <Animated.Text entering={FadeInUp.delay(700)} style={[styles.emptyTitle, { color: colors.text }]}>
           AI Learning Mode
         </Animated.Text>
         <Animated.Text
           entering={FadeInUp.delay(900)}
-          style={styles.emptySubtitle}
+          style={[styles.emptySubtitle, { color: colors.textSecondary }]}
         >
           Keep tracking your meals and activities.{"\n"}AI recommendations will
           appear here soon!
@@ -307,7 +346,8 @@ export const AIRecommendationsSection: React.FC<
     console.log("🎯 Rendering preview for:", latestRecommendation.id);
 
     const priorityConfig = getPriorityConfig(
-      latestRecommendation.priority_level
+      latestRecommendation.priority_level,
+      colors
     );
 
     // Use the helper function to extract recommendations
@@ -329,18 +369,24 @@ export const AIRecommendationsSection: React.FC<
       allTips.slice(0, 2)
     );
 
-    // If no tips found, create fallback content
+    // If no tips found, create fallback content with recommendation metadata
     if (allTips.length === 0) {
       allTips.push(
+        `AI Recommendation from ${new Date(
+          latestRecommendation.date
+        ).toLocaleDateString()}`,
+        `Priority: ${latestRecommendation.priority_level.toUpperCase()} | Confidence: ${Math.round(
+          (latestRecommendation.confidence_score || 0) * 100
+        )}%`,
         "Your AI assistant is analyzing your patterns",
-        "Personalized recommendations are being generated"
+        "Personalized recommendations are being generated based on your data"
       );
     }
 
     return (
-      <Animated.View entering={FadeInUp} style={styles.previewContainer}>
+      <Animated.View entering={FadeInUp} style={[styles.previewContainer, { backgroundColor: colors.surface }]}>
         <LinearGradient
-          colors={["#FFFFFF", "#F8F9FF", "#FFFFFF"]}
+          colors={[colors.surface, colors.background, colors.surface]}
           style={styles.previewGradient}
         >
           {/* Header with Priority and Confidence */}
@@ -359,9 +405,9 @@ export const AIRecommendationsSection: React.FC<
 
             <View style={styles.confidenceContainer}>
               <Animated.View entering={ZoomIn.delay(200)}>
-                <Star size={14} color="#FFD700" />
+                <Star size={14} color={colors.warning} />
               </Animated.View>
-              <Text style={styles.confidenceText}>
+              <Text style={[styles.confidenceText, { color: colors.text }]}>
                 {Math.round((latestRecommendation.confidence_score || 0) * 100)}
                 %
               </Text>
@@ -371,7 +417,7 @@ export const AIRecommendationsSection: React.FC<
           {/* AI Badge */}
           <Animated.View entering={FadeIn.delay(300)} style={styles.aiBadge}>
             <LinearGradient
-              colors={["#6C63FF", "#4F46E5", "#3730A3"]}
+              colors={[colors.primary, colors.emerald600]}
               style={styles.aiBadgeGradient}
             >
               <Sparkles size={10} color="white" />
@@ -388,12 +434,12 @@ export const AIRecommendationsSection: React.FC<
                 style={styles.tipPreview}
               >
                 <LinearGradient
-                  colors={["#6C63FF", "#4F46E5"]}
+                  colors={[colors.primary, colors.emerald600]}
                   style={styles.tipBullet}
                 >
                   <Zap size={6} color="white" />
                 </LinearGradient>
-                <Text style={styles.tipText} numberOfLines={1}>
+                <Text style={[styles.tipText, { color: colors.text }]} numberOfLines={1}>
                   {tip}
                 </Text>
               </Animated.View>
@@ -404,10 +450,10 @@ export const AIRecommendationsSection: React.FC<
                 entering={FadeIn.delay(600)}
                 style={styles.moreIndicator}
               >
-                <Text style={styles.moreText}>
+                <Text style={[styles.moreText, { color: colors.primary }]}>
                   +{allTips.length - 2} more insights
                 </Text>
-                <ArrowRight size={12} color="#6C63FF" />
+                <ArrowRight size={12} color={colors.primary} />
               </Animated.View>
             )}
           </View>
@@ -415,11 +461,11 @@ export const AIRecommendationsSection: React.FC<
           {/* Footer */}
           <Animated.View
             entering={FadeInUp.delay(800)}
-            style={styles.previewFooter}
+            style={[styles.previewFooter, { borderTopColor: colors.border }]}
           >
             <View style={styles.dateContainer}>
-              <Clock size={12} color="#8B5CF6" />
-              <Text style={styles.dateText}>
+              <Clock size={12} color={colors.primary} />
+              <Text style={[styles.dateText, { color: colors.textSecondary }]}>
                 {new Date(latestRecommendation.date).toLocaleDateString(
                   "en-US",
                   {
@@ -436,8 +482,8 @@ export const AIRecommendationsSection: React.FC<
                 onPress={() => setShowModal(true)}
                 style={styles.viewAllButton}
               >
-                <Text style={styles.viewAllText}>View All</Text>
-                <Eye size={12} color="#6C63FF" />
+                <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+                <Eye size={12} color={colors.primary} />
               </TouchableOpacity>
             )}
           </Animated.View>
@@ -450,38 +496,38 @@ export const AIRecommendationsSection: React.FC<
     const extractedRecs = extractRecommendationsData(
       recommendation.recommendations
     );
-    const priorityConfig = getPriorityConfig(recommendation.priority_level);
+    const priorityConfig = getPriorityConfig(recommendation.priority_level, colors);
 
     const sections = [
       {
         key: "nutrition_tips",
         title: "Smart Nutrition Tips",
         items: extractedRecs.nutrition_tips || [],
-        config: getRecommendationConfig("nutrition_tips"),
+        config: getRecommendationConfig("nutrition_tips", colors),
       },
       {
         key: "meal_suggestions",
         title: "Personalized Meal Ideas",
         items: extractedRecs.meal_suggestions || [],
-        config: getRecommendationConfig("meal_suggestions"),
+        config: getRecommendationConfig("meal_suggestions", colors),
       },
       {
         key: "goal_adjustments",
         title: "Goal Optimization",
         items: extractedRecs.goal_adjustments || [],
-        config: getRecommendationConfig("goal_adjustments"),
+        config: getRecommendationConfig("goal_adjustments", colors),
       },
       {
         key: "behavioral_insights",
         title: "Behavior Analysis",
         items: extractedRecs.behavioral_insights || [],
-        config: getRecommendationConfig("behavioral_insights"),
+        config: getRecommendationConfig("behavioral_insights", colors),
       },
     ];
 
     return (
       <ScrollView
-        style={styles.fullRecommendationContainer}
+        style={[styles.fullRecommendationContainer, { backgroundColor: colors.background }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -526,10 +572,10 @@ export const AIRecommendationsSection: React.FC<
                 <Animated.View
                   key={section.key}
                   entering={FadeInUp.delay(sectionIndex * 200)}
-                  style={styles.recommendationSection}
+                  style={[styles.recommendationSection, { backgroundColor: colors.surface }]}
                 >
                   <LinearGradient
-                    colors={["#FFFFFF", "#FAFBFF"]}
+                    colors={[colors.surface, colors.background]}
                     style={styles.sectionGradient}
                   >
                     <View style={styles.sectionHeader}>
@@ -540,8 +586,8 @@ export const AIRecommendationsSection: React.FC<
                         <section.config.icon size={16} color="white" />
                       </LinearGradient>
                       <View style={styles.sectionTitleContainer}>
-                        <Text style={styles.sectionTitle}>{section.title}</Text>
-                        <Text style={styles.sectionCount}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+                        <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
                           {section.items.length} insights
                         </Text>
                       </View>
@@ -563,7 +609,7 @@ export const AIRecommendationsSection: React.FC<
                             <View style={styles.itemBulletInner} />
                           </LinearGradient>
                           <View style={styles.itemContent}>
-                            <Text style={styles.itemText}>{item}</Text>
+                            <Text style={[styles.itemText, { color: colors.text }]}>{item}</Text>
                           </View>
                         </Animated.View>
                       ))}
@@ -577,10 +623,157 @@ export const AIRecommendationsSection: React.FC<
     );
   };
 
+  // Completely new list design using cards with better spacing and visual hierarchy
+  const renderNewStyleList = () => (
+    <ScrollView
+      style={[styles.newListContainer, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.newListContent}
+    >
+      {filteredRecommendations.map((recommendation, index) => {
+        const priorityConfig = getPriorityConfig(
+          recommendation.priority_level,
+          colors
+        );
+        const extractedRecs = extractRecommendationsData(
+          recommendation.recommendations
+        );
+        const allTips = [
+          ...extractedRecs.nutrition_tips,
+          ...extractedRecs.meal_suggestions,
+          ...extractedRecs.goal_adjustments,
+          ...extractedRecs.behavioral_insights,
+        ];
+
+        // Fallback if no tips - show meaningful information
+        if (allTips.length === 0) {
+          allTips.push(
+            `AI Analysis completed on ${new Date(
+              recommendation.date
+            ).toLocaleDateString()}`,
+            `Priority Level: ${recommendation.priority_level.toUpperCase()}`,
+            `Confidence Score: ${Math.round(
+              (recommendation.confidence_score || 0) * 100
+            )}%`,
+            "Detailed insights are being processed"
+          );
+        }
+
+        return (
+          <Animated.View
+            key={recommendation.id}
+            entering={FadeInUp.delay(index * 100)}
+            style={[styles.newListCard, { backgroundColor: colors.surface }]}
+          >
+            <TouchableOpacity
+              onPress={() => setSelectedRecommendation(recommendation)}
+              style={styles.newListCardTouchable}
+              activeOpacity={0.7}
+            >
+              {/* Card Header with floating priority badge */}
+              <View style={styles.newCardHeader}>
+                <View style={styles.newCardTopRow}>
+                  <View style={styles.newCardDateSection}>
+                    <Text style={[styles.newCardDay, { color: colors.text }]}>
+                      {new Date(recommendation.date).toLocaleDateString("en-US", {
+                        day: "numeric",
+                      })}
+                    </Text>
+                    <Text style={[styles.newCardMonth, { color: colors.textSecondary }]}>
+                      {new Date(recommendation.date).toLocaleDateString("en-US", {
+                        month: "short",
+                      })}
+                    </Text>
+                  </View>
+                  
+                  <LinearGradient
+                    colors={priorityConfig.colors}
+                    style={styles.newCardPriorityFloat}
+                  >
+                    <priorityConfig.icon size={12} color="white" />
+                    <Text style={styles.newCardPriorityText}>
+                      {recommendation.priority_level.charAt(0).toUpperCase() + recommendation.priority_level.slice(1)}
+                    </Text>
+                  </LinearGradient>
+                </View>
+
+                {/* AI Badge and Confidence Score */}
+                <View style={styles.newCardBadgeRow}>
+                  <LinearGradient
+                    colors={[colors.primary, colors.emerald600]}
+                    style={styles.newCardAiBadge}
+                  >
+                    <Sparkles size={8} color="white" />
+                    <Text style={styles.newCardAiText}>AI</Text>
+                  </LinearGradient>
+
+                  <View style={styles.newCardConfidence}>
+                    <Star size={10} color={colors.warning} />
+                    <Text style={[styles.newCardConfidenceText, { color: colors.textSecondary }]}>
+                      {Math.round((recommendation.confidence_score || 0) * 100)}% confidence
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Main Content Preview */}
+              <View style={styles.newCardContent}>
+                <Text style={[styles.newCardPreviewTitle, { color: colors.text }]}>
+                  Latest Insights
+                </Text>
+                
+                {allTips.slice(0, 2).map((tip, tipIndex) => (
+                  <View key={tipIndex} style={styles.newCardTipRow}>
+                    <View style={[styles.newCardTipDot, { backgroundColor: colors.primary }]} />
+                    <Text 
+                      style={[styles.newCardTipText, { color: colors.textSecondary }]} 
+                      numberOfLines={2}
+                    >
+                      {tip}
+                    </Text>
+                  </View>
+                ))}
+
+                {allTips.length > 2 && (
+                  <View style={styles.newCardMoreSection}>
+                    <Text style={[styles.newCardMoreText, { color: colors.primary }]}>
+                      +{allTips.length - 2} more insights
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Card Footer */}
+              <View style={[styles.newCardFooter, { borderTopColor: colors.border }]}>
+                <View style={styles.newCardFooterLeft}>
+                  <Clock size={10} color={colors.textTertiary} />
+                  <Text style={[styles.newCardFooterTime, { color: colors.textTertiary }]}>
+                    {new Date(recommendation.date).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+
+                <View style={styles.newCardFooterRight}>
+                  <Text style={[styles.newCardFooterAction, { color: colors.primary }]}>
+                    View Details
+                  </Text>
+                  <ChevronRight size={12} color={colors.primary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        );
+      })}
+    </ScrollView>
+  );
+
   return (
-    <Animated.View entering={FadeInUp} style={styles.section}>
+    <Animated.View entering={FadeInUp} style={[styles.section, { shadowColor: colors.primary }]}>
       <LinearGradient
-        colors={["#FFFFFF", "#F8F9FF", "#FFFFFF"]}
+        colors={[colors.surface, colors.background, colors.surface]}
         style={styles.sectionGradient}
       >
         {/* Compact Header */}
@@ -588,14 +781,14 @@ export const AIRecommendationsSection: React.FC<
           <View style={styles.headerContent}>
             <View style={styles.titleContainer}>
               <LinearGradient
-                colors={["#6C63FF", "#4F46E5"]}
+                colors={[colors.primary, colors.emerald600]}
                 style={styles.titleIcon}
               >
                 <Brain size={16} color="white" />
               </LinearGradient>
               <View>
-                <Text style={styles.sectionTitle}>AI Insights</Text>
-                <Text style={styles.sectionSubtitle}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>AI Insights</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
                   {filteredRecommendations.length} recommendations
                 </Text>
               </View>
@@ -608,7 +801,7 @@ export const AIRecommendationsSection: React.FC<
                 onPress={() => setShowModal(true)}
               >
                 <LinearGradient
-                  colors={["#6C63FF", "#4F46E5"]}
+                  colors={[colors.primary, colors.emerald600]}
                   style={styles.headerViewAllGradient}
                 >
                   <ChevronRight size={14} color="white" />
@@ -622,16 +815,16 @@ export const AIRecommendationsSection: React.FC<
         {renderRecommendationPreview()}
       </LinearGradient>
 
-      {/* Full Recommendations Modal */}
+      {/* Full Recommendations Modal with New List Design */}
       <Modal
         visible={showModal}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <LinearGradient
-            colors={["#6C63FF", "#4F46E5"]}
+            colors={[colors.primary, colors.emerald600]}
             style={styles.modalHeaderGradient}
           >
             <View style={styles.modalHeader}>
@@ -645,89 +838,8 @@ export const AIRecommendationsSection: React.FC<
             </View>
           </LinearGradient>
 
-          <ScrollView
-            style={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {filteredRecommendations.map((recommendation, index) => {
-              const priorityConfig = getPriorityConfig(
-                recommendation.priority_level
-              );
-              const extractedRecs = extractRecommendationsData(
-                recommendation.recommendations
-              );
-              const allTips = [
-                ...extractedRecs.nutrition_tips,
-                ...extractedRecs.meal_suggestions,
-                ...extractedRecs.goal_adjustments,
-                ...extractedRecs.behavioral_insights,
-              ];
-
-              // Fallback if no tips
-              if (allTips.length === 0) {
-                allTips.push("AI insights available for this date");
-              }
-
-              return (
-                <Animated.View
-                  key={recommendation.id}
-                  entering={FadeInUp.delay(index * 100)}
-                >
-                  <TouchableOpacity
-                    style={styles.recommendationListItem}
-                    onPress={() => setSelectedRecommendation(recommendation)}
-                  >
-                    <LinearGradient
-                      colors={["#FFFFFF", "#F8F9FF"]}
-                      style={styles.listItemGradient}
-                    >
-                      <View style={styles.listItemHeader}>
-                        <View style={styles.listItemDateContainer}>
-                          <Text style={styles.listItemDate}>
-                            {new Date(recommendation.date).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                              }
-                            )}
-                          </Text>
-                          <LinearGradient
-                            colors={priorityConfig.colors}
-                            style={styles.listItemPriority}
-                          >
-                            <priorityConfig.icon size={10} color="white" />
-                          </LinearGradient>
-                        </View>
-                        <View style={styles.listItemArrow}>
-                          <ChevronRight size={16} color="#6C63FF" />
-                        </View>
-                      </View>
-
-                      <Text style={styles.listItemPreview} numberOfLines={2}>
-                        {allTips[0] || "Personalized insights available"}
-                      </Text>
-
-                      <View style={styles.listItemFooter}>
-                        <View style={styles.listItemScore}>
-                          <Star size={10} color="#FFD700" />
-                          <Text style={styles.listItemScoreText}>
-                            {Math.round(
-                              (recommendation.confidence_score || 0) * 100
-                            )}
-                            %
-                          </Text>
-                        </View>
-                        <Text style={styles.listItemCount}>
-                          {allTips.length} insights
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </Animated.View>
-              );
-            })}
-          </ScrollView>
+          {/* Use the new list design */}
+          {renderNewStyleList()}
         </View>
       </Modal>
 
@@ -738,14 +850,14 @@ export const AIRecommendationsSection: React.FC<
         presentationStyle="pageSheet"
         onRequestClose={() => setSelectedRecommendation(null)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={styles.individualModalHeader}>
             <TouchableOpacity
               onPress={() => setSelectedRecommendation(null)}
               style={styles.individualModalClose}
             >
               <LinearGradient
-                colors={["#6C63FF", "#4F46E5"]}
+                colors={[colors.primary, colors.emerald600]}
                 style={styles.individualModalCloseGradient}
               >
                 <X size={16} color="white" />
@@ -767,7 +879,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "#6C63FF",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 20,
@@ -795,7 +906,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#6C63FF",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -804,12 +914,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1a1a1a",
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: "#6B7280",
     marginTop: 1,
     fontWeight: "500",
   },
@@ -838,13 +946,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1a1a1a",
     marginTop: 12,
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: "#6B7280",
     textAlign: "center",
     marginTop: 6,
     lineHeight: 20,
@@ -896,7 +1002,6 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#1a1a1a",
   },
   aiBadge: {
     alignSelf: "flex-start",
@@ -932,7 +1037,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#6C63FF",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -942,7 +1046,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
-    color: "#1a1a1a",
     fontWeight: "500",
   },
   moreIndicator: {
@@ -953,7 +1056,6 @@ const styles = StyleSheet.create({
   },
   moreText: {
     fontSize: 11,
-    color: "#6C63FF",
     fontWeight: "600",
   },
   previewFooter: {
@@ -962,7 +1064,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
   },
   dateContainer: {
     flexDirection: "row",
@@ -971,7 +1072,6 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: "#6B7280",
     fontWeight: "500",
   },
   viewAllButton: {
@@ -981,14 +1081,12 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 11,
-    color: "#6C63FF",
     fontWeight: "600",
   },
 
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: "#F8F9FF",
   },
   modalHeaderGradient: {
     paddingTop: 50,
@@ -1012,81 +1110,160 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
 
-  // List Item Styles
-  recommendationListItem: {
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: "hidden",
+  // NEW LIST DESIGN STYLES
+  newListContainer: {
+    flex: 1,
+  },
+  newListContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  newListCard: {
+    marginBottom: 16,
+    borderRadius: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: "hidden",
+  },
+  newListCardTouchable: {
+    padding: 20,
+  },
+  newCardHeader: {
+    marginBottom: 16,
+  },
+  newCardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  newCardDateSection: {
+    alignItems: "center",
+  },
+  newCardDay: {
+    fontSize: 24,
+    fontWeight: "800",
+    lineHeight: 28,
+  },
+  newCardMonth: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  newCardPriorityFloat: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 4,
   },
-  listItemGradient: {
-    padding: 14,
+  newCardPriorityText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "white",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
-  listItemHeader: {
+  newCardBadgeRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
   },
-  listItemDateContainer: {
+  newCardAiBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  listItemDate: {
+  newCardAiText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "white",
+    letterSpacing: 0.5,
+  },
+  newCardConfidence: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  newCardConfidenceText: {
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  newCardContent: {
+    marginBottom: 16,
+  },
+  newCardPreviewTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a1a",
+    marginBottom: 8,
+    letterSpacing: -0.2,
   },
-  listItemPriority: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+  newCardTipRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+    paddingRight: 8,
   },
-  listItemArrow: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(108, 99, 255, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
+  newCardTipDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 6,
+    marginRight: 10,
+    flexShrink: 0,
   },
-  listItemPreview: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#4B5563",
-    marginBottom: 10,
+  newCardTipText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "400",
   },
-  listItemFooter: {
+  newCardMoreSection: {
+    marginTop: 4,
+    paddingLeft: 14,
+  },
+  newCardMoreText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  newCardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingTop: 16,
+    borderTopWidth: 1,
   },
-  listItemScore: {
+  newCardFooterLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
   },
-  listItemScoreText: {
-    fontSize: 11,
-    color: "#6B7280",
+  newCardFooterTime: {
+    fontSize: 10,
     fontWeight: "500",
   },
-  listItemCount: {
+  newCardFooterRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  newCardFooterAction: {
     fontSize: 11,
-    color: "#9CA3AF",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   // Individual Modal
@@ -1198,7 +1375,6 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     fontSize: 11,
-    color: "#6B7280",
     fontWeight: "500",
     marginTop: 1,
   },
@@ -1235,7 +1411,6 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 14,
     lineHeight: 19,
-    color: "#1a1a1a",
     fontWeight: "500",
   },
 });
