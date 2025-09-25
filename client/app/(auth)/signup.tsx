@@ -5,15 +5,14 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   ActivityIndicator,
   Platform,
   Dimensions,
   KeyboardAvoidingView,
   SafeAreaView,
+  StatusBar,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -38,6 +37,8 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedPrivacyPolicy, setAcceptedPrivacyPolicy] = useState(false);
 
   const validateEmail = (email: string) => {
@@ -112,378 +113,361 @@ export default function SignUpScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    backgroundContainer: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    },
-    gradientBackground: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      top: 0,
-      height: height * 1.2,
-    },
-    // Main white cloud base - larger and positioned better
-    content: {
-      flex: 1,
-      paddingHorizontal: 24,
-      paddingTop: 60,
-      justifyContent: "center",
-      zIndex: 10,
-    },
     header: {
+      paddingTop: Platform.OS === "ios" ? 50 : 30,
+      paddingHorizontal: 24,
+      paddingBottom: 20,
+      flexDirection: "row",
       alignItems: "center",
-      marginBottom: 50,
     },
-    profileContainer: {
-      width: 90,
-      height: 90,
-      borderRadius: 45,
-      backgroundColor: colors.surface,
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0, 0, 0, 0.05)",
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 24,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 8,
     },
-    profileIcon: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#1C1C1E",
+      textAlign: "center",
+      marginRight: 36,
+    },
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingBottom: 32,
+    },
+    logoSection: {
+      alignItems: "center",
+      marginBottom: 40,
+      marginTop: 20,
+    },
+    logoContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
       backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
+      marginBottom: 16,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
     },
     title: {
       fontSize: 28,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
+      fontWeight: "700",
+      color: "#1C1C1E",
       textAlign: "center",
+      marginBottom: 8,
     },
     subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
+      fontSize: 17,
+      color: "#8E8E93",
       textAlign: "center",
     },
     formContainer: {
-      backgroundColor: colors.surface,
-      borderRadius: 25,
-      padding: 24,
+      gap: 16,
     },
     inputContainer: {
-      marginBottom: 20,
+      backgroundColor: "white",
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderWidth: 1,
+      borderColor: "#E5E5EA",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     label: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
-      color: colors.text,
+      color: "#8E8E93",
       marginBottom: 8,
-      textAlign: isRTL ? "right" : "left",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
     },
     input: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      fontSize: 16,
-      color: colors.text,
-      textAlign: isRTL ? "right" : "left",
+      fontSize: 17,
+      color: "#1C1C1E",
+      paddingVertical: 0,
     },
-    forgotPassword: {
-      alignSelf: isRTL ? "flex-start" : "flex-end",
-      marginTop: 8,
-      marginBottom: 24,
-    },
-    forgotPasswordText: {
-      color: colors.primary,
-      fontSize: 14,
-      fontWeight: "600",
-    },
-    signInButton: {
-      borderRadius: 12,
-      overflow: "hidden",
-      marginBottom: 20,
-    },
-    signInGradient: {
-      paddingVertical: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      backgroundColor: colors.primary,
-    },
-    signInButtonText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
-    },
-    socialContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      gap: 12,
-      marginVertical: 20,
-    },
-    socialButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.background,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    footer: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      justifyContent: "center",
-      alignItems: "center",
-      paddingVertical: 20,
-    },
-    footerText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
-    linkText: {
-      fontSize: 14,
-      color: colors.primary,
-      fontWeight: "600",
-      marginLeft: isRTL ? 0 : 4,
-      marginRight: isRTL ? 4 : 0,
-    },
-    loadingContainer: {
+    passwordContainer: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
     },
-    loadingText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
-    },
-
-    scrollView: {
+    passwordInput: {
       flex: 1,
+      fontSize: 17,
+      color: "#1C1C1E",
+      paddingVertical: 0,
     },
-
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+    eyeButton: {
+      padding: 4,
     },
-    privacyPolicyContainer: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+    privacyContainer: {
+      flexDirection: "row",
       alignItems: "flex-start",
-      marginBottom: 24,
+      backgroundColor: "white",
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: "#E5E5EA",
+      marginTop: 8,
     },
     checkbox: {
       width: 20,
       height: 20,
       borderWidth: 2,
-      borderColor: colors.border,
+      borderColor: "#C7C7CC",
       borderRadius: 4,
-      marginRight: isRTL ? 0 : 10,
-      marginLeft: isRTL ? 10 : 0,
+      marginRight: 12,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: acceptedPrivacyPolicy
-        ? colors.primary
-        : colors.background,
+      backgroundColor: acceptedPrivacyPolicy ? colors.primary : "transparent",
     },
     privacyText: {
-      fontSize: 13,
-      color: colors.textSecondary,
+      fontSize: 15,
+      color: "#8E8E93",
       flex: 1,
-      lineHeight: 18,
+      lineHeight: 20,
     },
     privacyLink: {
       color: colors.primary,
-      fontWeight: "600",
+      fontWeight: "500",
     },
     signUpButton: {
+      backgroundColor: colors.primary,
       borderRadius: 12,
-      overflow: "hidden",
-      marginBottom: 20,
-    },
-    signUpGradient: {
       paddingVertical: 16,
       alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      backgroundColor: colors.primary,
+      marginTop: 24,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    signUpButtonDisabled: {
+      opacity: 0.6,
     },
     signUpButtonText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "white",
+      letterSpacing: 0.5,
+    },
+    footer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 24,
+    },
+    footerText: {
+      fontSize: 15,
+      color: "#8E8E93",
+    },
+    linkText: {
+      fontSize: 15,
+      color: colors.primary,
+      fontWeight: "500",
+      marginLeft: 4,
+    },
+    loadingContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    loadingText: {
+      color: "white",
+      fontSize: 17,
+      fontWeight: "600",
     },
   });
+
+  const isFormValid = () => {
+    return (
+      name.trim() &&
+      email.trim() &&
+      password.trim() &&
+      confirmPassword.trim() &&
+      password === confirmPassword &&
+      validateEmail(email) &&
+      acceptedPrivacyPolicy
+    );
+  };
 
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={[colors.primary, colors.emerald200]}
-          style={styles.gradientBackground}
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
         />
+
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={20} color="#1C1C1E" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Sign Up</Text>
+        </View>
+
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <ScrollView
-            style={styles.scrollView}
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.content}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons
-                  name={isRTL ? "chevron-forward" : "chevron-back"}
-                  size={20}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
+            <View style={styles.logoSection}>
+              <View style={styles.logoContainer}>
+                <Ionicons name="nutrition" size={40} color="white" />
+              </View>
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>
+                Join Calo and start your journey
+              </Text>
+            </View>
 
-              <View style={styles.header}>
-                <Text style={styles.title}>{t("auth.sign_up")}</Text>
-                <Text style={styles.subtitle}>{t("auth.create_account")}</Text>
+            <View style={styles.formContainer}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#C7C7CC"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                />
               </View>
 
-              <View style={styles.formContainer}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("auth.full_name")}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t("auth.name")}
-                    placeholderTextColor={colors.textSecondary}
-                    value={name}
-                    onChangeText={setName}
-                    editable={!isLoading}
-                  />
-                </View>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#C7C7CC"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                />
+              </View>
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("auth.email")}</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.passwordContainer}>
                   <TextInput
-                    style={styles.input}
-                    placeholder={t("auth.enter_email")}
-                    placeholderTextColor={colors.textSecondary}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    editable={!isLoading}
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("auth.password")}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t("auth.enter_password")}
-                    placeholderTextColor={colors.textSecondary}
+                    style={styles.passwordInput}
+                    placeholder="Create a password"
+                    placeholderTextColor="#C7C7CC"
                     value={password}
                     onChangeText={setPassword}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
                     editable={!isLoading}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color="#C7C7CC"
+                    />
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("auth.confirm_password")}</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <View style={styles.passwordContainer}>
                   <TextInput
-                    style={styles.input}
-                    placeholder={t("auth.enter_password_again")}
-                    placeholderTextColor={colors.textSecondary}
+                    style={styles.passwordInput}
+                    placeholder="Confirm your password"
+                    placeholderTextColor="#C7C7CC"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
-                    secureTextEntry
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
                     editable={!isLoading}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color="#C7C7CC"
+                    />
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <TouchableOpacity
-                  style={styles.privacyPolicyContainer}
-                  onPress={() =>
-                    setAcceptedPrivacyPolicy(!acceptedPrivacyPolicy)
-                  }
-                >
-                  <View style={styles.checkbox}>
-                    {acceptedPrivacyPolicy && (
-                      <Ionicons
-                        name="checkmark"
-                        size={12}
-                        color={colors.surface}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.privacyText}>
-                    {t("auth.privacy_agree")}{" "}
-                    <Text style={styles.privacyLink}>{t("privacy.title")}</Text>
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.signUpButton}
-                  onPress={handleSignUp}
-                  disabled={isLoading}
-                >
-                  <View style={styles.signUpGradient}>
-                    {isLoading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator
-                          size="small"
-                          color={colors.surface}
-                        />
-                        <Text style={styles.loadingText}>
-                          {t("auth.loading.creating_account")}
-                        </Text>
-                      </View>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="person-add"
-                          size={18}
-                          color={colors.surface}
-                        />
-                        <Text style={styles.signUpButtonText}>
-                          {t("auth.create")}
-                        </Text>
-                      </>
-                    )}
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.footer}>
-                  <Text style={styles.footerText}>{t("auth.has_account")}</Text>
-                  <Link href="/signin" asChild>
-                    <TouchableOpacity>
-                      <Text style={styles.linkText}>{t("auth.sign_in")}</Text>
-                    </TouchableOpacity>
-                  </Link>
+              <TouchableOpacity
+                style={styles.privacyContainer}
+                onPress={() => setAcceptedPrivacyPolicy(!acceptedPrivacyPolicy)}
+              >
+                <View style={styles.checkbox}>
+                  {acceptedPrivacyPolicy && (
+                    <Ionicons name="checkmark" size={12} color="white" />
+                  )}
                 </View>
+                <Text style={styles.privacyText}>
+                  I agree to the{" "}
+                  <Text style={styles.privacyLink}>Terms of Service</Text> and{" "}
+                  <Text style={styles.privacyLink}>Privacy Policy</Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.signUpButton,
+                  (!isFormValid() || isLoading) && styles.signUpButtonDisabled,
+                ]}
+                onPress={handleSignUp}
+                disabled={!isFormValid() || isLoading}
+              >
+                {isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="white" />
+                    <Text style={styles.loadingText}>Creating account...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.signUpButtonText}>Create Account</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Already have an account?</Text>
+                <Link href="/(auth)/signin" asChild>
+                  <TouchableOpacity>
+                    <Text style={styles.linkText}>Sign In</Text>
+                  </TouchableOpacity>
+                </Link>
               </View>
             </View>
           </ScrollView>

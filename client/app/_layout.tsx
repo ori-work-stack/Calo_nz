@@ -212,6 +212,13 @@ function useHelpContent(): { title: string; description: string } | undefined {
           "Complete your health profile to receive personalized nutrition recommendations."
         ),
       },
+      "/welcome": {
+        title: safeT("tabs.welcome", "Welcome"),
+        description: safeT(
+          "tabs.welcome_description",
+          "Welcome to Calo Health! Your personal nutrition companion that helps you track meals, monitor your health goals, and get personalized nutrition recommendations. Start your journey to a healthier lifestyle today."
+        ),
+      },
     };
 
     return (
@@ -269,9 +276,10 @@ const AppContent = React.memo(() => {
         return;
       }
 
-      // If not authenticated, redirect to signin (except for auth routes and public routes)
+      // If not authenticated, redirect to welcome page first (except if already in auth routes)
       if (!isAuthenticated) {
         const authRoutes = [
+          "welcome",
           "signin",
           "signup",
           "email-verification",
@@ -280,9 +288,10 @@ const AppContent = React.memo(() => {
           "reset-password-verify",
         ];
 
+        // If not in any auth route, redirect to welcome
         if (!authRoutes.some((route) => currentPath.includes(route))) {
-          console.log("🚦 Not authenticated - redirecting to signin");
-          router.replace("/(auth)/signin");
+          console.log("🚦 Not authenticated - redirecting to welcome page");
+          router.replace("/(auth)/welcome");
         }
         return;
       }

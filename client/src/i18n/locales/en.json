@@ -172,9 +172,11 @@
     "food_scanner_description": "Scan barcodes or upload food images to get instant nutrition information. Perfect for packaged foods and restaurant meals. The scanner works best with clear, well-lit images.",
     "ai_chat": "AI Chat",
     "ai_chat_description": "Chat with your personal AI nutrition assistant. Ask questions about food, get meal recommendations, and receive personalized advice based on your goals and dietary preferences.",
-    "recommended_menus": "Recommended Menus",
+    "recommended_menus": "Menus",
     "recommended_menus_description": "Discover personalized meal plans created just for you. Based on your dietary preferences, goals, and restrictions, these menus help you maintain a balanced and enjoyable diet.",
     "meal_plans": "Meal Plans",
+    "welcome": "Welcome",
+    "welcome_description": "Welcome to Calo Health! Your personal nutrition companion that helps you track meals, monitor your health goals, and get personalized nutrition recommendations. Start your journey to a healthier lifestyle today.",
     "questionnaire": "Questionnaire",
     "questionnaire_description": "Complete your health profile to receive personalized nutrition recommendations. This questionnaire helps us understand your goals, lifestyle, and dietary needs."
   },
@@ -1320,5 +1322,191 @@
   },
   "health": {
     "insights": "Health Insights"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "intro": "Please read these Terms of Service carefully before using Calo Health. By accessing or using our service, you agree to be bound by these terms.",
+    "lastUpdated": "Last updated",
+    "updateDate": "December 15, 2024",
+    "sections": {
+      "acceptance_of_terms": {
+        "title": "1. Acceptance of Terms",
+        "content": "By downloading, installing, accessing, or using the Calo Health mobile application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our service."
+      },
+      "description_of_service": {
+        "title": "2. Description of Service",
+        "content": "Calo Health is a nutrition tracking and health monitoring mobile application that provides personalized meal planning, nutritional analysis, AI-powered recommendations, and health insights. Our service includes but is not limited to meal logging, calorie tracking, nutritional information, and health goal monitoring."
+      },
+      "user_accounts": {
+        "title": "3. User Accounts and Registration",
+        "content": "To access certain features of Calo Health, you must create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to provide accurate, current, and complete information during registration and to update such information to keep it accurate, current, and complete."
+      },
+      "acceptable_use": {
+        "title": "4. Acceptable Use Policy",
+        "content": "You agree to use Calo Health only for lawful purposes and in accordance with these Terms of Service. You are prohibited from:",
+        "subsections": [
+          {
+            "title": "Prohibited Activities",
+            "content": "The following activities are strictly prohibited:",
+            "items": [
+              "Using the service for any unlawful purpose or to solicit others to perform unlawful acts",
+              "Violating any international, federal, provincial, or local regulations, rules, laws, or ordinances",
+              "Transmitting or uploading any content that infringes upon another's rights",
+              "Transmitting any material that contains viruses, trojan horses, worms, or any other harmful computer code",
+              "Interfering with or circumventing security features of the service",
+              "Engaging in any automated use of the system without express written consent",
+              "Using the service to harass, abuse, insult, harm, defame, slander, disparage, intimidate, or discriminate"
+            ]
+          }
+        ]
+      },
+      "subscription_and_payment": {
+        "title": "5. Subscription and Payment Terms",
+        "content": "Calo Health offers both free and premium subscription services. Premium features require payment of applicable fees.",
+        "subsections": [
+          {
+            "title": "Payment Processing",
+            "content": "All payments are processed securely through third-party payment processors. By providing payment information, you represent and warrant that you are authorized to use the payment method.",
+            "items": [
+              "Subscription fees are billed in advance on a recurring basis",
+              "You authorize us to charge your payment method for all fees incurred",
+              "All fees are non-refundable unless otherwise stated",
+              "We reserve the right to change subscription fees with 30 days notice"
+            ]
+          },
+          {
+            "title": "Cancellation Policy",
+            "content": "You may cancel your subscription at any time through your account settings. Cancellation will be effective at the end of your current billing period.",
+            "items": [
+              "No refunds will be provided for unused portions of subscription periods",
+              "Access to premium features will continue until the end of your current billing cycle",
+              "You may reactivate your subscription at any time"
+            ]
+          }
+        ]
+      },
+      "intellectual_property": {
+        "title": "6. Intellectual Property Rights",
+        "content": "The Calo Health service and its original content, features, and functionality are and will remain the exclusive property of Calo Health and its licensors. The service is protected by copyright, trademark, and other laws. Our trademarks and trade dress may not be used in connection with any product or service without our prior written consent."
+      },
+      "user_content": {
+        "title": "7. User Content and Data",
+        "content": "You retain ownership of any content you submit, post, or display on or through the service. By submitting content, you grant us a worldwide, non-exclusive, royalty-free license to use, reproduce, and distribute your content in connection with the service.",
+        "subsections": [
+          {
+            "title": "Content Responsibility",
+            "content": "You are solely responsible for your content and the consequences of submitting it. You represent and warrant that:",
+            "items": [
+              "You own or have the necessary rights to use and authorize us to use your content",
+              "Your content does not infringe upon the rights of any third party",
+              "Your content does not violate any applicable laws or regulations",
+              "Your content does not contain any harmful, offensive, or inappropriate material"
+            ]
+          }
+        ]
+      },
+      "disclaimers": {
+        "title": "8. Disclaimers and Health Information",
+        "content": "Calo Health is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.",
+        "subsections": [
+          {
+            "title": "Medical Disclaimer",
+            "content": "Important health and medical information disclaimers:",
+            "items": [
+              "The information provided is for educational and informational purposes only",
+              "Never disregard professional medical advice because of something you have read in the app",
+              "If you think you may have a medical emergency, call your doctor immediately",
+              "Nutritional information may not be 100% accurate and should be used as estimates only",
+              "Individual results may vary and are not guaranteed"
+            ]
+          },
+          {
+            "title": "Service Availability",
+            "content": "We make no warranties regarding service availability or performance:",
+            "items": [
+              "The service is provided on an 'as is' and 'as available' basis",
+              "We do not warrant that the service will be uninterrupted or error-free",
+              "We reserve the right to modify or discontinue the service at any time",
+              "We are not responsible for any data loss or service interruptions"
+            ]
+          }
+        ]
+      },
+      "limitation_of_liability": {
+        "title": "9. Limitation of Liability",
+        "content": "To the fullest extent permitted by applicable law, Calo Health shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues.",
+        "subsections": [
+          {
+            "title": "Damage Limitations",
+            "content": "Our liability is limited in the following ways:",
+            "items": [
+              "We are not liable for any damages resulting from use or inability to use the service",
+              "We are not liable for any damages resulting from unauthorized access to your data",
+              "Our total liability shall not exceed the amount paid by you in the 12 months preceding the claim",
+              "Some jurisdictions do not allow limitation of liability, so these limitations may not apply to you"
+            ]
+          }
+        ]
+      },
+      "indemnification": {
+        "title": "10. Indemnification",
+        "content": "You agree to defend, indemnify, and hold harmless Calo Health, its officers, directors, employees, and agents from and against any and all claims, damages, obligations, losses, liabilities, costs, or debt, and expenses (including but not limited to attorney's fees) arising from your use of the service or violation of these terms."
+      },
+      "termination": {
+        "title": "11. Termination",
+        "content": "We may terminate or suspend your account and bar access to the service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever, including without limitation if you breach the Terms of Service.",
+        "subsections": [
+          {
+            "title": "Termination Effects",
+            "content": "Upon termination, the following will occur:",
+            "items": [
+              "Your right to use the service will cease immediately",
+              "We may delete your account and all related data",
+              "You will lose access to any premium features or content",
+              "Provisions that should survive termination will remain in effect"
+            ]
+          }
+        ]
+      },
+      "governing_law": {
+        "title": "12. Governing Law and Jurisdiction",
+        "content": "These Terms of Service shall be interpreted and governed by the laws of Israel, without regard to conflict of law provisions. Any legal action or proceeding arising under these terms will be brought exclusively in the competent courts of Tel Aviv, Israel."
+      },
+      "changes_to_terms": {
+        "title": "13. Changes to Terms of Service",
+        "content": "We reserve the right to modify or replace these Terms of Service at any time. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion. By continuing to access or use our service after any revisions become effective, you agree to be bound by the revised terms."
+      },
+      "contact_information": {
+        "title": "14. Contact Information",
+        "content": "If you have any questions about these Terms of Service, please contact us at support@calohealth.com or through the contact information provided in the app. We will respond to your inquiry within a reasonable timeframe."
+      }
+    },
+    "footer": {
+      "title": "Related Documents",
+      "subtitle": "Access our other important legal documents and support resources",
+      "privacy_policy_link": "Privacy Policy",
+      "contact_support": "Contact Support"
+    }
+  },
+  "welcome": {
+    "appName": "Calo",
+    "tagline": "Your personal nutrition companion\nTrack, analyze, and optimize your diet",
+    "buttons": {
+      "getStarted": "Get Started",
+      "signIn": "Sign In"
+    },
+    "footer": {
+      "agreementText": "By continuing, you agree to our",
+      "termsOfService": "Terms of Service",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy"
+    },
+    "features": {
+      "track": "Track your daily nutrition",
+      "analyze": "Get AI-powered insights",
+      "optimize": "Achieve your health goals"
+    },
+    "subtitle": "Start your journey to better health",
+    "description": "Discover personalized nutrition recommendations, track your meals with AI assistance, and achieve your wellness goals with Calo Health."
   }
 }

@@ -11,8 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  StatusBar,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -58,7 +58,11 @@ export default function ForgotPasswordScreen() {
           [
             {
               text: t("common.ok"),
-              onPress: () => router.back(),
+              onPress: () =>
+                router.push({
+                  pathname: "/(auth)/reset-password-verify",
+                  params: { email },
+                }),
             },
           ]
         );
@@ -80,241 +84,199 @@ export default function ForgotPasswordScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    backgroundContainer: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+    header: {
+      paddingTop: Platform.OS === "ios" ? 50 : 30,
+      paddingHorizontal: 24,
+      paddingBottom: 20,
+      flexDirection: "row",
+      alignItems: "center",
     },
-    gradientBackground: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      top: 0,
-      height: height * 1.2,
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0, 0, 0, 0.05)",
+      alignItems: "center",
+      justifyContent: "center",
     },
-    // Main white cloud base - larger and positioned better
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#1C1C1E",
+      textAlign: "center",
+      marginRight: 36,
+    },
     content: {
       flex: 1,
       paddingHorizontal: 24,
-      paddingTop: 60,
       justifyContent: "center",
-      zIndex: 10,
     },
-    header: {
+    logoSection: {
       alignItems: "center",
-      marginBottom: 50,
+      marginBottom: 48,
     },
-    profileContainer: {
-      width: 90,
-      height: 90,
-      borderRadius: 45,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 24,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    profileIcon: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+    logoContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
       backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
+      marginBottom: 16,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
     },
     title: {
       fontSize: 28,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
+      fontWeight: "700",
+      color: "#1C1C1E",
       textAlign: "center",
+      marginBottom: 8,
     },
     subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
+      fontSize: 17,
+      color: "#8E8E93",
       textAlign: "center",
+      lineHeight: 24,
+      paddingHorizontal: 20,
     },
     formContainer: {
-      backgroundColor: colors.surface,
-      borderRadius: 25,
+      backgroundColor: "white",
+      borderRadius: 16,
       padding: 24,
+      marginTop: 32,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 5,
     },
     inputContainer: {
-      marginBottom: 20,
-    },
-    label: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: colors.text,
-      marginBottom: 8,
-      textAlign: isRTL ? "right" : "left",
-    },
-    input: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      fontSize: 16,
-      color: colors.text,
-      textAlign: isRTL ? "right" : "left",
-    },
-    forgotPassword: {
-      alignSelf: isRTL ? "flex-start" : "flex-end",
-      marginTop: 8,
       marginBottom: 24,
     },
-    forgotPasswordText: {
-      color: colors.primary,
-      fontSize: 14,
+    label: {
+      fontSize: 13,
       fontWeight: "600",
+      color: "#8E8E93",
+      marginBottom: 8,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
     },
-    signInButton: {
+    input: {
+      backgroundColor: "#F8F9FA",
       borderRadius: 12,
-      overflow: "hidden",
-      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: "#E5E5EA",
+      padding: 16,
+      fontSize: 17,
+      color: "#1C1C1E",
     },
-    signInGradient: {
+    sendButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
       paddingVertical: 16,
       alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
     },
-    signInButtonText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
+    sendButtonDisabled: {
+      opacity: 0.6,
     },
-    socialContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      gap: 12,
-      marginVertical: 20,
-    },
-    socialButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.background,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    footer: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      justifyContent: "center",
-      alignItems: "center",
-      paddingVertical: 20,
-    },
-    footerText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
-    linkText: {
-      fontSize: 14,
-      color: colors.primary,
+    sendButtonText: {
+      fontSize: 17,
       fontWeight: "600",
-      marginLeft: isRTL ? 0 : 4,
-      marginRight: isRTL ? 4 : 0,
+      color: "white",
+      letterSpacing: 0.5,
     },
     loadingContainer: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
+      gap: 8,
     },
     loadingText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
+      color: "white",
+      fontSize: 17,
+      fontWeight: "600",
     },
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.emerald200]}
-        style={styles.gradientBackground}
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
       />
+
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={20} color="#1C1C1E" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Reset Password</Text>
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.content}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons
-              name={isRTL ? "chevron-forward" : "chevron-back"}
-              size={20}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <View style={styles.icon}>
-                <Ionicons name="lock-closed" size={22} color={colors.surface} />
-              </View>
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="lock-closed" size={40} color="white" />
             </View>
-            <Text style={styles.title}>
-              {t("auth.forgot_password_page.title")}
-            </Text>
+            <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
-              {t("auth.forgot_password_page.enter_email")}
+              Enter your email address and we'll send you instructions to reset
+              your password
             </Text>
           </View>
 
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t("auth.email")}</Text>
+              <Text style={styles.label}>Email</Text>
               <TextInput
                 style={styles.input}
-                placeholder={t("auth.enter_email")}
-                placeholderTextColor={colors.textSecondary}
+                placeholder="Enter your email"
+                placeholderTextColor="#C7C7CC"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 editable={!isLoading}
               />
             </View>
 
             <TouchableOpacity
-              style={styles.sendButton}
+              style={[
+                styles.sendButton,
+                (!email.trim() || !validateEmail(email) || isLoading) &&
+                  styles.sendButtonDisabled,
+              ]}
               onPress={handleForgotPassword}
-              disabled={isLoading}
+              disabled={!email.trim() || !validateEmail(email) || isLoading}
             >
-              <View style={styles.sendGradient}>
-                {isLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator color={colors.surface} size="small" />
-                    <Text style={styles.loadingText}>
-                      {t("common.loading")}
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <Ionicons name="mail" size={18} color={colors.surface} />
-                    <Text style={styles.sendButtonText}>
-                      {t("auth.forgot_password_page.send_reset")}
-                    </Text>
-                  </>
-                )}
-              </View>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="white" size="small" />
+                  <Text style={styles.loadingText}>Sending...</Text>
+                </View>
+              ) : (
+                <Text style={styles.sendButtonText}>
+                  Send Reset Instructions
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

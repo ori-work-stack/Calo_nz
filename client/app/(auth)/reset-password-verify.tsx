@@ -7,13 +7,20 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { userAPI } from "@/src/services/api";
-import { Shield, ArrowLeft, RefreshCw } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const { width, height } = Dimensions.get("window");
 
 export default function ResetPasswordVerifyScreen() {
   const { t } = useTranslation();
@@ -90,10 +97,6 @@ export default function ResetPasswordVerifyScreen() {
   const handleVerifyCode = async (verificationCode?: string) => {
     // Use the passed code or current state
     const codeToVerify = verificationCode || code.join("");
-
-    console.log("🔒 Verification code received:", verificationCode);
-    console.log("🔒 Code from state:", code.join(""));
-    console.log("🔒 Final code to verify:", codeToVerify);
 
     if (!codeToVerify || codeToVerify.length !== 6) {
       Alert.alert("Error", "Please enter the complete 6-digit code");
@@ -208,223 +211,191 @@ export default function ResetPasswordVerifyScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    containerRTL: {
-      writingDirection: "rtl",
-    },
-    backgroundAccent: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: "35%",
-      backgroundColor: "#f0fdf4",
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
-    },
     header: {
-      paddingTop: 60,
-      paddingHorizontal: 20,
-      marginBottom: 20,
-      zIndex: 2,
+      paddingTop: Platform.OS === "ios" ? 50 : 30,
+      paddingHorizontal: 24,
+      paddingBottom: 20,
+      flexDirection: "row",
+      alignItems: "center",
     },
     backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.primary + "20",
-      justifyContent: "center",
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0, 0, 0, 0.05)",
       alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#1C1C1E",
+      textAlign: "center",
+      marginRight: 36,
     },
     content: {
       flex: 1,
-      padding: 24,
+      paddingHorizontal: 24,
       justifyContent: "center",
-      zIndex: 1,
     },
-    headerSection: {
-      marginBottom: 48,
+    logoSection: {
       alignItems: "center",
+      marginBottom: 48,
     },
-    iconContainer: {
+    logoContainer: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.primary + "40",
-      justifyContent: "center",
+      backgroundColor: colors.primary,
       alignItems: "center",
-      marginBottom: 24,
+      justifyContent: "center",
+      marginBottom: 16,
       shadowColor: colors.primary,
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-      shadowOpacity: 0.3,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
       shadowRadius: 8,
-      elevation: 4,
+      elevation: 5,
     },
     title: {
-      fontSize: 36,
+      fontSize: 28,
       fontWeight: "700",
-      color: colors.text,
-      marginBottom: 8,
-      letterSpacing: -0.5,
+      color: "#1C1C1E",
       textAlign: "center",
-    },
-    titleRTL: {
-      textAlign: "right",
+      marginBottom: 8,
     },
     subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      fontWeight: "500",
+      fontSize: 17,
+      color: "#8E8E93",
       textAlign: "center",
       lineHeight: 24,
       paddingHorizontal: 20,
-    },
-    subtitleRTL: {
-      textAlign: "right",
     },
     emailText: {
       fontWeight: "600",
       color: colors.primary,
     },
-    form: {
-      flex: 1,
-      maxHeight: 400,
-    },
-    codeContainer: {
-      marginBottom: 32,
+    formContainer: {
+      backgroundColor: "white",
+      borderRadius: 16,
+      padding: 24,
+      marginTop: 32,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 5,
     },
     codeLabel: {
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: "600",
-      color: colors.text,
+      color: "#1C1C1E",
       textAlign: "center",
-      marginBottom: 16,
+      marginBottom: 24,
     },
-    codeInputs: {
+    codeContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 10,
-    },
-    codeInputsRTL: {
-      flexDirection: "row-reverse",
+      marginBottom: 32,
     },
     codeInput: {
       width: 45,
       height: 55,
       borderRadius: 12,
-      backgroundColor: colors.surface,
+      backgroundColor: "#F8F9FA",
       borderWidth: 2,
-      borderColor: colors.border,
+      borderColor: "#E5E5EA",
       fontSize: 24,
-      fontWeight: "bold",
-      color: colors.text,
+      fontWeight: "700",
+      color: "#1C1C1E",
       textAlign: "center",
-      shadowColor: colors.primary,
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
     },
     codeInputFilled: {
       borderColor: colors.primary,
+      backgroundColor: "white",
     },
     verifyButton: {
       backgroundColor: colors.primary,
-      borderRadius: 16,
-      padding: 18,
+      borderRadius: 12,
+      paddingVertical: 16,
       alignItems: "center",
-      shadowColor: colors.primary,
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
       marginBottom: 24,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
     },
     verifyButtonDisabled: {
-      opacity: 0.5,
-    },
-    verifyButtonContent: {
-      flexDirection: "row",
-      alignItems: "center",
+      opacity: 0.6,
     },
     verifyButtonText: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: "#ffffff",
-      marginLeft: 8,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "white",
       letterSpacing: 0.5,
     },
     resendContainer: {
       alignItems: "center",
-      marginBottom: 32,
     },
-    timerText: {
-      fontSize: 14,
-      color: colors.textSecondary,
+    resendText: {
+      fontSize: 15,
+      color: "#8E8E93",
+      marginBottom: 12,
       textAlign: "center",
-      fontWeight: "500",
     },
     resendButton: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    resendButtonContent: {
-      flexDirection: "row",
-      alignItems: "center",
+      paddingVertical: 8,
+      paddingHorizontal: 16,
     },
     resendButtonText: {
-      fontSize: 14,
-      fontWeight: "600",
+      fontSize: 15,
       color: colors.primary,
-      marginLeft: 6,
+      fontWeight: "500",
+    },
+    resendDisabledText: {
+      fontSize: 15,
+      color: "#C7C7CC",
     },
   });
 
   return (
-    <View style={[styles.container]}>
-      <View style={styles.backgroundAccent} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
+      />
 
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color={colors.primary} />
+          <Ionicons name="chevron-back" size={20} color="#1C1C1E" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Verify Code</Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.headerSection}>
-          <View style={styles.iconContainer}>
-            <Shield size={32} color={colors.primary} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.content}>
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="shield-checkmark" size={40} color="white" />
+            </View>
+            <Text style={styles.title}>Verify Reset Code</Text>
+            <Text style={styles.subtitle}>
+              We've sent a 6-digit code to{"\n"}
+              <Text style={styles.emailText}>{email}</Text>
+            </Text>
           </View>
 
-          <Text style={[styles.title, isRTL && styles.titleRTL]}>
-            Verify Reset Code
-          </Text>
-
-          <Text style={[styles.subtitle, isRTL && styles.subtitleRTL]}>
-            We've sent a 6-digit code to {"\n"}
-            <Text style={styles.emailText}>{email}</Text>
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.codeContainer}>
-            <Text style={styles.codeLabel}>Enter Reset Code</Text>
-            <View style={[styles.codeInputs, isRTL && styles.codeInputsRTL]}>
+          <View style={styles.formContainer}>
+            <Text style={styles.codeLabel}>Enter reset code</Text>
+            <View style={styles.codeContainer}>
               {code.map((digit, index) => (
                 <TextInput
                   key={index}
@@ -444,60 +415,47 @@ export default function ResetPasswordVerifyScreen() {
                 />
               ))}
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={[
-              styles.verifyButton,
-              (!code.every((c) => c !== "") || isLoading) &&
-                styles.verifyButtonDisabled,
-            ]}
-            onPress={() => {
-              const fullCode = code.join("");
-              if (fullCode.length === 6) {
-                handleVerifyCode(fullCode);
-              }
-            }}
-            disabled={!code.every((c) => c !== "") || isLoading}
-          >
-            <View style={styles.verifyButtonContent}>
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" size="small" />
+            <TouchableOpacity
+              style={[
+                styles.verifyButton,
+                (!code.every((c) => c !== "") || isLoading) &&
+                  styles.verifyButtonDisabled,
+              ]}
+              onPress={() => {
+                const fullCode = code.join("");
+                if (fullCode.length === 6) {
+                  handleVerifyCode(fullCode);
+                }
+              }}
+              disabled={!code.every((c) => c !== "") || isLoading}
+            >
+              <Text style={styles.verifyButtonText}>
+                {isLoading ? "Verifying..." : "Verify Code"}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Didn't receive the code?</Text>
+              {canResend ? (
+                <TouchableOpacity
+                  style={styles.resendButton}
+                  onPress={handleResendCode}
+                  disabled={resendLoading}
+                >
+                  <Text style={styles.resendButtonText}>
+                    {resendLoading ? "Sending..." : "Resend Code"}
+                  </Text>
+                </TouchableOpacity>
               ) : (
-                <>
-                  <Shield size={20} color="#ffffff" />
-                  <Text style={styles.verifyButtonText}>Verify Code</Text>
-                </>
+                <Text style={styles.resendDisabledText}>
+                  Resend in {formatTime(timeLeft)}
+                </Text>
               )}
             </View>
-          </TouchableOpacity>
-
-          <View style={styles.resendContainer}>
-            {!canResend ? (
-              <Text style={styles.timerText}>
-                Resend code in {formatTime(timeLeft)}
-              </Text>
-            ) : (
-              <TouchableOpacity
-                style={styles.resendButton}
-                onPress={handleResendCode}
-                disabled={resendLoading}
-              >
-                <View style={styles.resendButtonContent}>
-                  {resendLoading ? (
-                    <ActivityIndicator color={colors.primary} size="small" />
-                  ) : (
-                    <>
-                      <RefreshCw size={16} color={colors.primary} />
-                      <Text style={styles.resendButtonText}>Resend Code</Text>
-                    </>
-                  )}
-                </View>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

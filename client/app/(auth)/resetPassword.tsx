@@ -11,8 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  StatusBar,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -106,318 +106,272 @@ export default function ResetPasswordScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    gradientBackground: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      top: 0,
-      height: height * 0.5,
+    header: {
+      paddingTop: Platform.OS === "ios" ? 50 : 30,
+      paddingHorizontal: 24,
+      paddingBottom: 20,
+      flexDirection: "row",
+      alignItems: "center",
     },
-    cloudShape: {
-      position: "absolute",
-      backgroundColor: colors.surface,
-      borderRadius: 50,
-      opacity: 0.9,
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0, 0, 0, 0.05)",
+      alignItems: "center",
+      justifyContent: "center",
     },
-    cloud1: {
-      width: width * 0.7,
-      height: 100,
-      top: height * 0.15,
-      left: width * 0.15,
-      transform: [{ rotate: "10deg" }],
-    },
-    cloud2: {
-      width: width * 0.5,
-      height: 70,
-      top: height * 0.25,
-      right: -width * 0.05,
-      transform: [{ rotate: "-12deg" }],
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#1C1C1E",
+      textAlign: "center",
+      marginRight: 36,
     },
     content: {
       flex: 1,
       paddingHorizontal: 24,
-      paddingTop: 60,
       justifyContent: "center",
     },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
+    logoSection: {
       alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 30,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      marginBottom: 48,
     },
-    header: {
-      alignItems: "center",
-      marginBottom: 40,
-    },
-    iconContainer: {
+    logoContainer: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 24,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    icon: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
       backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
+      marginBottom: 16,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
     },
     title: {
-      fontSize: 24,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
+      fontSize: 28,
+      fontWeight: "700",
+      color: "#1C1C1E",
       textAlign: "center",
+      marginBottom: 8,
     },
     subtitle: {
-      fontSize: 14,
-      color: colors.textSecondary,
+      fontSize: 17,
+      color: "#8E8E93",
       textAlign: "center",
-      lineHeight: 20,
+      lineHeight: 24,
       paddingHorizontal: 20,
     },
     formContainer: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
+      backgroundColor: "white",
+      borderRadius: 16,
       padding: 24,
-      marginBottom: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
+      marginTop: 32,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowRadius: 8,
+      elevation: 5,
+      gap: 16,
     },
     inputContainer: {
-      marginBottom: 20,
-      position: "relative",
+      backgroundColor: "#F8F9FA",
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderWidth: 1,
+      borderColor: "#E5E5EA",
     },
     label: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
-      color: colors.text,
+      color: "#8E8E93",
       marginBottom: 8,
-      textAlign: isRTL ? "right" : "left",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
     },
-    input: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      paddingRight: 50,
-      fontSize: 16,
-      color: colors.text,
-      textAlign: isRTL ? "right" : "left",
+    passwordContainer: {
+      flexDirection: "row",
+      alignItems: "center",
     },
-    inputRTL: {
-      paddingLeft: 50,
-      paddingRight: 16,
+    passwordInput: {
+      flex: 1,
+      fontSize: 17,
+      color: "#1C1C1E",
+      paddingVertical: 0,
     },
     eyeButton: {
-      position: "absolute",
-      right: 15,
-      top: 42,
-      padding: 5,
-    },
-    eyeButtonRTL: {
-      left: 15,
-      right: "auto",
+      padding: 4,
     },
     resetButton: {
+      backgroundColor: colors.primary,
       borderRadius: 12,
-      overflow: "hidden",
-      marginTop: 10,
-    },
-    resetGradient: {
       paddingVertical: 16,
       alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      backgroundColor: colors.primary,
+      marginTop: 8,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    resetButtonDisabled: {
+      opacity: 0.6,
     },
     resetButtonText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
+      fontSize: 17,
+      fontWeight: "600",
+      color: "white",
+      letterSpacing: 0.5,
     },
-    passwordRequirements: {
-      backgroundColor: colors.background,
+    requirements: {
+      backgroundColor: "#F8F9FA",
       borderRadius: 12,
       padding: 16,
       borderLeftWidth: 4,
       borderLeftColor: colors.primary,
-      marginBottom: 10,
     },
     requirementsTitle: {
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: "600",
-      color: colors.text,
+      color: "#1C1C1E",
       marginBottom: 8,
     },
     requirementText: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      lineHeight: 16,
+      fontSize: 14,
+      color: "#8E8E93",
+      lineHeight: 20,
     },
     loadingContainer: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
+      gap: 8,
     },
     loadingText: {
-      color: colors.surface,
-      fontSize: 16,
-      fontWeight: "700",
-      marginLeft: isRTL ? 0 : 8,
-      marginRight: isRTL ? 8 : 0,
+      color: "white",
+      fontSize: 17,
+      fontWeight: "600",
     },
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.emerald200]}
-        style={styles.gradientBackground}
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
       />
 
-      <View style={[styles.cloudShape, styles.cloud1]} />
-      <View style={[styles.cloudShape, styles.cloud2]} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={20} color="#1C1C1E" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>New Password</Text>
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.content}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons
-              name={isRTL ? "chevron-forward" : "chevron-back"}
-              size={20}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <View style={styles.icon}>
-                <Ionicons name="key" size={22} color={colors.surface} />
-              </View>
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="key" size={40} color="white" />
             </View>
-            <Text style={styles.title}>
-              {t("auth.reset_password.reset_password_title")}
-            </Text>
+            <Text style={styles.title}>Create New Password</Text>
             <Text style={styles.subtitle}>
-              {t("auth.reset_password.enter_new_password")}
+              Your new password must be different from previously used passwords
             </Text>
           </View>
 
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                {t("auth.reset_password.new_password")}
-              </Text>
-              <TextInput
-                style={[styles.input, isRTL && styles.inputRTL]}
-                placeholder={t("auth.enter_password")}
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={18}
-                  color={colors.textSecondary}
+              <Text style={styles.label}>New Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#C7C7CC"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color="#C7C7CC"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                {t("auth.reset_password.confirm_new_password")}
-              </Text>
-              <TextInput
-                style={[styles.input, isRTL && styles.inputRTL]}
-                placeholder={t("auth.enter_password_again")}
-                placeholderTextColor={colors.textSecondary}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? "eye-off" : "eye"}
-                  size={18}
-                  color={colors.textSecondary}
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Confirm new password"
+                  placeholderTextColor="#C7C7CC"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color="#C7C7CC"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <View style={styles.passwordRequirements}>
+            <View style={styles.requirements}>
               <Text style={styles.requirementsTitle}>
-                {t("auth.reset_password.password_requirements")}:
+                Password Requirements:
               </Text>
               <Text style={styles.requirementText}>
-                • {t("auth.reset_password.password_requirement_length")}
+                • Must be at least 6 characters long
               </Text>
             </View>
 
             <TouchableOpacity
-              style={styles.resetButton}
+              style={[
+                styles.resetButton,
+                (!isFormValid() || isLoading) && styles.resetButtonDisabled,
+              ]}
               onPress={handleResetPassword}
               disabled={!isFormValid() || isLoading}
             >
-              <View style={styles.resetGradient}>
-                {isLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator color={colors.surface} size="small" />
-                    <Text style={styles.loadingText}>
-                      {t("common.loading")}
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <Ionicons name="key" size={18} color={colors.surface} />
-                    <Text style={styles.resetButtonText}>
-                      {t("auth.reset_password.title")}
-                    </Text>
-                  </>
-                )}
-              </View>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="white" size="small" />
+                  <Text style={styles.loadingText}>Updating...</Text>
+                </View>
+              ) : (
+                <Text style={styles.resetButtonText}>Reset Password</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
