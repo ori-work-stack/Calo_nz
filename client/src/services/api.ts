@@ -252,6 +252,63 @@ export const authAPI = {
   },
 };
 
+// Daily Goals API
+export const dailyGoalsAPI = {
+  async getDailyGoals(): Promise<any> {
+    try {
+      console.log("🎯 Fetching daily goals...");
+      const response = await api.get("/daily-goals");
+
+      if (response.data.success) {
+        console.log("✅ Daily goals fetched successfully");
+        return response.data;
+      }
+
+      throw new APIError(response.data.error || "Failed to fetch daily goals");
+    } catch (error) {
+      console.error("💥 Get daily goals error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while fetching daily goals");
+    }
+  },
+
+  async createDailyGoals(): Promise<any> {
+    try {
+      console.log("🎯 Creating daily goals...");
+      const response = await api.put("/daily-goals");
+
+      if (response.data.success) {
+        console.log("✅ Daily goals created successfully");
+        return response.data;
+      }
+
+      throw new APIError(response.data.error || "Failed to create daily goals");
+    } catch (error) {
+      console.error("💥 Create daily goals error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while creating daily goals");
+    }
+  },
+
+  async verifyDailyGoals(): Promise<any> {
+    try {
+      console.log("🔍 Verifying daily goals...");
+      const response = await api.get("/daily-goals/verify");
+
+      if (response.data.success) {
+        console.log("✅ Daily goals verified successfully");
+        return response.data;
+      }
+
+      throw new APIError(response.data.error || "Failed to verify daily goals");
+    } catch (error) {
+      console.error("💥 Verify daily goals error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while verifying daily goals");
+    }
+  },
+};
+
 // Enhanced nutrition API with better error handling
 export const nutritionAPI = {
   async analyzeMeal(
@@ -744,8 +801,8 @@ export const userAPI = {
   async getAIRecommendations(): Promise<any> {
     try {
       const response = await api.get("/recommendations/today");
-        console.log(response.data)
-        return response.data;
+      console.log(response.data);
+      return response.data;
     } catch (error) {
       console.error("Failed to fetch AI recommendations:", error);
       throw error; // Re-throw so calling code can handle it
