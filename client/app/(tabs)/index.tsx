@@ -13,77 +13,42 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
-  ActivityIndicator,
   Image,
   StatusBar,
-  I18nManager,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Target,
-  Flame,
-  Droplets,
-  Zap,
-  ChevronRight,
-  TrendingUp,
-  Clock,
-  Award,
-  Plus,
   Camera,
-  ChartBar as BarChart3,
-  Check,
-  Trophy,
-  Star,
-  Calendar,
-  Menu,
-  Minus,
-  Sunrise,
-  Sun,
-  Sunset,
-  Moon,
-  Coffee,
-  Utensils,
+  Target,
+  TrendingUp,
   ShoppingCart,
-  Bell,
-  Settings,
+  Trophy,
+  Flame,
+  Star,
+  ChevronRight,
+  Sun,
+  Coffee,
 } from "lucide-react-native";
 import { api, APIError } from "@/src/services/api";
-import { fetchMeals } from "../../src/store/mealSlice";
+import { fetchMeals } from "@/src/store/mealSlice";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import XPNotification from "@/components/XPNotification";
-import { Colors, EmeraldSpectrum } from "@/constants/Colors";
-import { getStatistics } from "@/src/store/calendarSlice";
 import { setUser } from "@/src/store/authSlice";
-import { useOptimizedSelector } from "../../src/utils/useOptimizedSelector";
+import { useOptimizedSelector } from "@/src/utils/useOptimizedSelector";
 import { useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/src/store";
 import CircularCaloriesProgress from "@/components/index/CircularCaloriesProgress";
 import ShoppingList from "@/components/ShoppingList";
-import { NotificationService } from "@/src/services/notifications";
 import { initializeStorageCleanup } from "@/src/utils/databaseCleanup";
 import WaterIntakeCard from "@/components/index/WaterIntake";
 
-// Enable RTL support
-I18nManager.allowRTL(true);
-
 const { width } = Dimensions.get("window");
-
-interface UserStats {
-  totalMeals: number;
-  totalCalories: number;
-  avgCaloriesPerDay: number;
-  streakDays: number;
-  xp?: number;
-  level?: number;
-  bestStreak?: number;
-}
 
 interface DailyGoals {
   calories: number;
@@ -96,20 +61,9 @@ interface DailyGoals {
   targetFat: number;
 }
 
-interface GoalProgress {
-  type: "calories" | "protein" | "water" | "steps";
-  current: number;
-  target: number;
-  unit: string;
-  color: string;
-  icon: React.ReactNode;
-  label: string;
-}
-
 const HomeScreen = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
 
-  // Move the useMemo selectors INSIDE the component
   const selectMealState = useMemo(
     () => (state: RootState) => ({
       meals: state.meal.meals,
@@ -129,16 +83,6 @@ const HomeScreen = React.memo(() => {
   const { user } = useOptimizedSelector(selectAuthState);
   const { colors, isDark } = useTheme();
 
-  // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL LOGIC
-  const [userStats, setUserStats] = useState<UserStats>({
-    totalMeals: 0,
-    totalCalories: 0,
-    avgCaloriesPerDay: 0,
-    streakDays: 0,
-    xp: 0,
-    level: 1,
-    bestStreak: 0,
-  });
   const [dailyGoals, setDailyGoals] = useState<DailyGoals>({
     calories: 0,
     protein: 0,
@@ -152,16 +96,13 @@ const HomeScreen = React.memo(() => {
   const [refreshing, setRefreshing] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+
   const [waterCups, setWaterCups] = useState(0);
   const [language, setLanguage] = useState<"he" | "en">("he");
-  const [waterSyncErrors, setWaterSyncErrors] = useState<string[]>([]);
-  const [waterSyncInProgress, setWaterSyncInProgress] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [userStatsLoading, setUserStatsLoading] = useState(false);
-  const [userStatsError, setUserStatsError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // XP Notification State
   const [showXPNotification, setShowXPNotification] = useState(false);
   const [xpNotificationData, setXPNotificationData] = useState<{
     xpGained: number;
@@ -170,27 +111,19 @@ const HomeScreen = React.memo(() => {
     newAchievements?: any[];
   }>({ xpGained: 0 });
 
-  // Shopping List State
   const [showShoppingList, setShowShoppingList] = useState(false);
 
   const handleOpenShoppingList = useCallback(() => {
-    console.log("Opening shopping list modal");
     setShowShoppingList(true);
   }, []);
 
   const handleCloseShoppingList = useCallback(() => {
-    console.log("Closing shopping list modal");
     setShowShoppingList(false);
   }, []);
 
-  const { t } = useTranslation();
+  const { t = (key: string) => key } = {};
   const { isRTL } = useLanguage();
 
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === "he" ? "en" : "he"));
-  };
-
-  // utils/formatTime.ts
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const year = date.getFullYear();
@@ -201,13 +134,10 @@ const HomeScreen = React.memo(() => {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
-  // Refs for preventing overlapping loads and caching
   const isLoadingRef = useRef(false);
   const lastDataLoadRef = useRef<number>(0);
-  const lastFocusTimeRef = useRef<number>(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const waterSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoized calculations to prevent unnecessary re-renders
   const processedMealsData = useMemo(() => {
     if (!meals || meals.length === 0) {
       return {
@@ -247,7 +177,6 @@ const HomeScreen = React.memo(() => {
     };
   }, [meals]);
 
-  // Update daily goals when processed data changes
   const updateDailyGoals = useCallback(() => {
     setDailyGoals((prev) => ({
       ...prev,
@@ -255,19 +184,14 @@ const HomeScreen = React.memo(() => {
     }));
   }, [processedMealsData.dailyTotals]);
 
-  // Load daily goals function
   const loadDailyGoals = useCallback(async () => {
     if (!user?.user_id) return;
 
     try {
-      console.log("🎯 Loading daily goals for user:", user.user_id);
-
-      // First try to get existing goals
       const { dailyGoalsAPI } = await import("@/src/services/api");
       const goalsResponse = await dailyGoalsAPI.getDailyGoals();
 
       if (goalsResponse.success && goalsResponse.data) {
-        console.log("✅ Daily goals loaded:", goalsResponse.data);
         setDailyGoals((prev) => ({
           ...prev,
           targetCalories: goalsResponse.data.calories || 2205,
@@ -276,12 +200,8 @@ const HomeScreen = React.memo(() => {
           targetFat: goalsResponse.data.fats_g || 60,
         }));
       } else {
-        // If no goals exist, create them
-        console.log("🎯 No goals found, creating new ones...");
         const createResponse = await dailyGoalsAPI.createDailyGoals();
-
         if (createResponse.success && createResponse.data) {
-          console.log("✅ Daily goals created:", createResponse.data);
           setDailyGoals((prev) => ({
             ...prev,
             targetCalories: createResponse.data.calories || 2205,
@@ -292,8 +212,7 @@ const HomeScreen = React.memo(() => {
         }
       }
     } catch (error) {
-      console.error("💥 Error loading daily goals:", error);
-      // Use default values if API fails
+      console.error("Error loading daily goals:", error);
       setDailyGoals((prev) => ({
         ...prev,
         targetCalories: 2205,
@@ -303,28 +222,100 @@ const HomeScreen = React.memo(() => {
       }));
     }
   }, [user?.user_id]);
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleIncrementWater = () => {
-    if (isUpdating || waterCups >= 10) return;
-    setIsUpdating(true);
-    setWaterCups((prev) => Math.min(prev + 1, 10));
-    setTimeout(() => setIsUpdating(false), 200);
-  };
+  const loadWaterIntake = useCallback(async () => {
+    if (!user?.user_id) return;
 
-  const handleDecrementWater = () => {
-    if (isUpdating || waterCups <= 0) return;
-    setIsUpdating(true);
-    setWaterCups((prev) => Math.max(prev - 1, 0));
-    setTimeout(() => setIsUpdating(false), 200);
-  };
-  // Optimized data loading with debouncing
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const response = await api.get(`/nutrition/water-intake/${today}`, {
+        signal: controller.signal,
+      });
+      if (response.data.success) {
+        const serverCups = response.data.data.cups_consumed || 0;
+        setWaterCups(serverCups);
+      }
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("Error loading water intake:", error);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }, [user?.user_id]);
+
+  const syncWaterWithServer = useCallback(
+    async (totalCups: number) => {
+      if (!user?.user_id) return;
+
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const response = await api.post("/nutrition/water-intake", {
+          cups_consumed: totalCups,
+          date: today,
+        });
+
+        if (response.data.success) {
+          if (
+            response.data.xpAwarded > 0 ||
+            response.data.newAchievements?.length > 0
+          ) {
+            setXPNotificationData({
+              xpGained: response.data.xpAwarded || 0,
+              leveledUp: response.data.leveledUp,
+              newLevel: response.data.newLevel,
+              newAchievements: response.data.newAchievements || [],
+            });
+            setShowXPNotification(true);
+          }
+        }
+      } catch (error: any) {
+        console.error("Error syncing water intake:", error);
+      }
+    },
+    [user?.user_id]
+  );
+
+  const incrementWater = useCallback(() => {
+    const goalMaxCups = 10;
+    if (waterCups >= goalMaxCups) return;
+
+    const newTotal = waterCups + 1;
+    setWaterCups(newTotal);
+
+    if (waterSyncTimeoutRef.current) {
+      clearTimeout(waterSyncTimeoutRef.current);
+    }
+
+    waterSyncTimeoutRef.current = setTimeout(() => {
+      syncWaterWithServer(newTotal);
+    }, 1000);
+  }, [waterCups, syncWaterWithServer]);
+
+  const decrementWater = useCallback(() => {
+    if (waterCups <= 0) return;
+
+    const newTotal = waterCups - 1;
+    setWaterCups(newTotal);
+
+    if (waterSyncTimeoutRef.current) {
+      clearTimeout(waterSyncTimeoutRef.current);
+    }
+
+    waterSyncTimeoutRef.current = setTimeout(() => {
+      syncWaterWithServer(newTotal);
+    }, 1000);
+  }, [waterCups, syncWaterWithServer]);
+
   const loadAllData = useCallback(
     async (force = false) => {
       if (!user?.user_id || isLoadingRef.current) return;
 
       const now = Date.now();
-      const MIN_RELOAD_INTERVAL = 30 * 1000; // 30 seconds minimum between loads
+      const MIN_RELOAD_INTERVAL = 30 * 1000;
 
       if (!force && now - lastDataLoadRef.current < MIN_RELOAD_INTERVAL) {
         return;
@@ -339,7 +330,6 @@ const HomeScreen = React.memo(() => {
           setTimeout(() => reject(new Error("Request timeout")), 15000)
         );
 
-        // Load both meals and daily goals
         const [mealsResult, goalsResult] = await Promise.allSettled([
           Promise.race([dispatch(fetchMeals()).unwrap(), timeoutPromise]),
           loadDailyGoals(),
@@ -371,267 +361,46 @@ const HomeScreen = React.memo(() => {
     [user?.user_id, dispatch, retryCount, loadDailyGoals]
   );
 
-  // Optimized refresh with proper state management
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
 
     setRefreshing(true);
     try {
       await loadAllData(true);
+      await loadWaterIntake();
     } finally {
       setRefreshing(false);
     }
-  }, [loadAllData, refreshing]);
+  }, [loadAllData, loadWaterIntake, refreshing]);
 
-  // Water tracking functions with optimistic updates
-  const [optimisticWaterCups, setOptimisticWaterCups] = useState(0);
-  const [pendingSyncActions, setPendingSyncActions] = useState<
-    Array<{ id: string; type: string; timestamp: number; targetValue?: number }>
-  >([]);
-
-  const loadWaterIntake = useCallback(async () => {
-    if (!user?.user_id) return;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      const response = await api.get(`/nutrition/water-intake/${today}`, {
-        signal: controller.signal,
-      });
-      if (response.data.success) {
-        const serverCups = response.data.data.cups_consumed || 0;
-        setWaterCups(serverCups);
-        setOptimisticWaterCups(serverCups);
-      }
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        console.log("Water intake request aborted");
-        return;
-      }
-      console.error("Error loading water intake:", error);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }, [user?.user_id]);
-
-  // Dummy showToast function if not provided elsewhere
-  const showToast = (message: string, type: "success" | "info" | "error") => {
-    console.log(`${type.toUpperCase()}: ${message}`);
-    // In a real app, this would use a toast library or component
-  };
-
-  // Dummy setUser function if not provided elsewhere
-  const setUserInState = (userData: any) => {
-    dispatch(setUser(userData));
-  };
-
-  const syncWaterWithServer = async (totalCups: number, actionId: string) => {
-    if (!user?.user_id) return;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      console.log(`💧 Syncing water intake: ${totalCups} cups for ${today}`);
-
-      const response = await api.post(
-        "/nutrition/water-intake",
-        {
-          cups_consumed: totalCups,
-          date: today,
-        },
-        {
-          signal: controller.signal,
-        }
-      );
-
-      if (response.data.success) {
-        console.log(`✅ Water intake synced successfully: ${totalCups} cups`);
-        setWaterCups(totalCups);
-
-        if (
-          response.data.xpAwarded > 0 ||
-          response.data.newAchievements?.length > 0
-        ) {
-          setXPNotificationData({
-            xpGained: response.data.xpAwarded || 0,
-            leveledUp: response.data.leveledUp,
-            newLevel: response.data.newLevel,
-            newAchievements: response.data.newAchievements || [],
-          });
-          setShowXPNotification(true);
-        }
-
-        setPendingSyncActions((prev) =>
-          prev.filter((action) => action.id !== actionId)
-        );
-
-        setWaterSyncErrors((prev) =>
-          prev.filter((error) => !error.includes(actionId))
-        );
-      } else {
-        throw new Error(
-          response.data.error || "Server returned success: false"
-        );
-      }
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        console.log("💧 Water sync request aborted");
-        return;
-      }
-      console.error("❌ Error syncing water intake:", error);
-
-      setWaterSyncErrors((prev) => [
-        ...prev,
-        `Sync failed for action ${actionId}: ${
-          error.message || "Unknown error"
-        }`,
-      ]);
-
-      setOptimisticWaterCups(waterCups);
-    } finally {
-      clearTimeout(timeoutId);
-      setWaterSyncInProgress(false);
-    }
-  };
-
-  // Water sync debouncing
-  const waterSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSyncRequestRef = useRef<number>(0);
-
-  const optimisticWaterUpdate = (delta: number) => {
-    const goalMaxCups = 10;
-    if (delta > 0 && optimisticWaterCups >= goalMaxCups) return;
-    if (delta < 0 && optimisticWaterCups <= 0) return;
-
-    const newTotal = Math.max(
-      0,
-      Math.min(goalMaxCups, optimisticWaterCups + delta)
-    );
-
-    setOptimisticWaterCups(newTotal);
-
-    if (waterSyncTimeoutRef.current) {
-      clearTimeout(waterSyncTimeoutRef.current);
-    }
-
-    const actionId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    lastSyncRequestRef.current = Date.now();
-
-    setPendingSyncActions([
-      {
-        id: actionId,
-        type: "water",
-        timestamp: Date.now(),
-        targetValue: newTotal,
-      },
-    ]);
-
-    waterSyncTimeoutRef.current = setTimeout(() => {
-      const timeSinceRequest = Date.now() - lastSyncRequestRef.current;
-      if (timeSinceRequest >= 800) {
-        syncWaterWithServer(newTotal, actionId);
-      }
-    }, 1000);
-  };
-
-  // Add button debouncing for water controls
-  const [buttonCooldown, setButtonCooldown] = useState(false);
-
-  const incrementWater = useCallback(() => {
-    if (buttonCooldown) return;
-    setButtonCooldown(true);
-    optimisticWaterUpdate(1);
-    setTimeout(() => setButtonCooldown(false), 200);
-  }, [optimisticWaterUpdate, buttonCooldown]);
-
-  const decrementWater = useCallback(() => {
-    if (buttonCooldown) return;
-    setButtonCooldown(true);
-    optimisticWaterUpdate(-1);
-    setTimeout(() => setButtonCooldown(false), 200);
-  }, [optimisticWaterUpdate, buttonCooldown]);
-
-  const retryFailedSyncs = () => {
-    pendingSyncActions.forEach((action) => {
-      syncWaterWithServer(action.targetValue || optimisticWaterCups, action.id);
-    });
-    setWaterSyncErrors([]);
-  };
-
-  const dismissWaterErrors = () => {
-    setWaterSyncErrors([]);
-  };
-
-  // Goal progress data
-  const goalProgress: GoalProgress[] = useMemo(
-    () => [
-      {
-        type: "calories",
-        current: dailyGoals.calories,
-        target: dailyGoals.targetCalories,
-        unit: t("meals.kcal") || "kcal",
-        color: "#10B981",
-        icon: <Flame size={24} color="#10B981" />,
-        label: t("meals.calories") || "Calories",
-      },
-      {
-        type: "protein",
-        current: dailyGoals.protein,
-        target: dailyGoals.targetProtein,
-        unit: "g",
-        color: "#059669",
-        icon: <Zap size={24} color="#059669" />,
-        label: t("meals.protein") || "Protein",
-      },
-      {
-        type: "water",
-        current: optimisticWaterCups * 250,
-        target: 2500,
-        unit: "ml",
-        color: "#06B6D4",
-        icon: <Droplets size={24} color="#06B6D4" />,
-        label: t("home.water") || "Water",
-      },
-    ],
-    [dailyGoals, optimisticWaterCups, t]
-  );
-
-  // Calculate time-based progress
-  const currentHour = new Date().getHours();
-
-  // Time-based greeting function with icons
   const getTimeBasedGreeting = () => {
     const currentHour = new Date().getHours();
 
     if (currentHour >= 5 && currentHour < 12) {
       return {
-        text: t("greetings.morning") || "Good Morning",
+        text: "Good Morning",
         icon: currentHour <= 7 ? Coffee : Sun,
         color: "#F59E0B",
         bgColor: "#FEF3C7",
       };
     } else if (currentHour >= 12 && currentHour < 17) {
       return {
-        text: t("greetings.afternoon") || "Good Afternoon",
-        icon: currentHour <= 13 ? Utensils : Sun,
+        text: "Good Afternoon",
+        icon: Sun,
         color: "#EAB308",
         bgColor: "#FEF9C3",
       };
     } else if (currentHour >= 17 && currentHour < 22) {
       return {
-        text: t("greetings.evening") || "Good Evening",
-        icon: Sunset,
+        text: "Good Evening",
+        icon: Sun,
         color: "#F97316",
         bgColor: "#FED7AA",
       };
     } else {
       return {
-        text: t("greetings.night") || "Good Night",
-        icon: Moon,
+        text: "Good Night",
+        icon: Sun,
         color: "#6366F1",
         bgColor: "#E0E7FF",
       };
@@ -641,16 +410,6 @@ const HomeScreen = React.memo(() => {
   const greeting = getTimeBasedGreeting();
   const IconComponent = greeting.icon;
 
-  const hoursLeft = 24 - currentHour;
-  const expectedCaloriesByNow = (goalProgress[0].target * currentHour) / 24;
-  const calorieStatus =
-    goalProgress[0].current > expectedCaloriesByNow
-      ? "ahead"
-      : goalProgress[0].current < expectedCaloriesByNow * 0.8
-      ? "behind"
-      : "onTrack";
-
-  // Get current date
   const getCurrentDate = () => {
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = {
@@ -661,12 +420,10 @@ const HomeScreen = React.memo(() => {
     return now.toLocaleDateString("en-US", options);
   };
 
-  // EFFECTS SECTION
   useEffect(() => {
     updateDailyGoals();
   }, [updateDailyGoals]);
 
-  // Initialize storage cleanup
   useEffect(() => {
     initializeStorageCleanup().catch((error) => {
       console.error("Failed to initialize storage cleanup:", error);
@@ -680,48 +437,18 @@ const HomeScreen = React.memo(() => {
     }
   }, [user?.user_id, loadAllData, initialLoading, loadWaterIntake]);
 
-  // Load daily goals when user changes
   useEffect(() => {
     if (user?.user_id) {
       loadDailyGoals();
     }
   }, [user?.user_id, loadDailyGoals]);
 
-  useEffect(() => {
-    setOptimisticWaterCups(waterCups);
-  }, [waterCups]);
-
-  // Cleanup effect for abort controllers
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!user?.user_id || initialLoading) return;
-
-      const now = Date.now();
-      const FOCUS_RELOAD_THROTTLE = 30 * 1000;
-
-      if (now - lastFocusTimeRef.current > FOCUS_RELOAD_THROTTLE) {
-        lastFocusTimeRef.current = now;
-        loadAllData();
-      }
-    }, [user?.user_id, initialLoading, loadAllData])
-  );
-
-  // NOW WE CAN HAVE CONDITIONAL LOGIC
   if (initialLoading) {
     return (
       <LoadingScreen text={isRTL ? "טוען מידע..." : "Loading your data..."} />
     );
   }
 
-  // Show error state with retry option
   if (dataError && retryCount > 0) {
     return (
       <View style={styles.errorContainer}>
@@ -764,7 +491,6 @@ const HomeScreen = React.memo(() => {
             />
           }
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.profileContainer}>
@@ -784,7 +510,6 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
 
-          {/* Greeting Card */}
           <View style={styles.greetingCard}>
             <LinearGradient
               colors={["#10B981", "#059669"]}
@@ -819,7 +544,6 @@ const HomeScreen = React.memo(() => {
             </LinearGradient>
           </View>
 
-          {/* Main Progress */}
           <View style={styles.progressSection}>
             <CircularCaloriesProgress
               calories={dailyGoals.calories}
@@ -828,14 +552,15 @@ const HomeScreen = React.memo(() => {
               size={240}
             />
           </View>
+
           <WaterIntakeCard
             currentCups={waterCups}
             maxCups={10}
-            onIncrement={handleIncrementWater}
-            onDecrement={handleDecrementWater}
+            onIncrement={incrementWater}
+            onDecrement={decrementWater}
             disabled={isUpdating}
           />
-          {/* Stats Cards */}
+
           <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>Your Progress</Text>
             <View style={styles.statsGrid}>
@@ -871,13 +596,12 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
 
-          {/* Quick Actions */}
           <View style={styles.actionsSection}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.actionsGrid}>
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => router.push("/(tabs)/camera")}
+                onPress={() => console.log("Navigate to camera")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}
@@ -889,7 +613,7 @@ const HomeScreen = React.memo(() => {
 
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => router.push("/(tabs)/food-scanner")}
+                onPress={() => console.log("Navigate to food scanner")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#EFF6FF" }]}
@@ -913,7 +637,7 @@ const HomeScreen = React.memo(() => {
 
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => router.push("/(tabs)/statistics")}
+                onPress={() => console.log("Navigate to statistics")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}
@@ -925,13 +649,12 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
 
-          {/* Recent Activity */}
           <View style={styles.activitySection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today's Meals</Text>
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => router.push("/(tabs)/history")}
+                onPress={() => console.log("View all meals")}
               >
                 <Text style={styles.viewAllText}>View All</Text>
                 <ChevronRight size={16} color="#10B981" />
@@ -941,7 +664,6 @@ const HomeScreen = React.memo(() => {
             <View style={styles.activityList}>
               {isLoading ? (
                 <View style={styles.activityItem}>
-                  <ActivityIndicator size="small" color="#10B981" />
                   <Text style={styles.activityTitle}>Loading meals...</Text>
                 </View>
               ) : processedMealsData.recentMeals.length > 0 ? (
@@ -953,7 +675,6 @@ const HomeScreen = React.memo(() => {
                       index === processedMealsData.recentMeals.length - 1 &&
                         styles.lastActivityItem,
                     ]}
-                    onPress={() => router.push("/(tabs)/history")}
                   >
                     <View
                       style={[
@@ -992,7 +713,7 @@ const HomeScreen = React.memo(() => {
                   </View>
                   <TouchableOpacity
                     style={styles.activityBadge}
-                    onPress={() => router.push("/(tabs)/camera")}
+                    onPress={() => console.log("Add meal")}
                   >
                     <Text style={styles.activityBadgeText}>Add Meal</Text>
                   </TouchableOpacity>
@@ -1001,11 +722,9 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
 
-          {/* Bottom Spacing */}
           <View style={styles.bottomSpacing} />
         </ScrollView>
 
-        {/* Shopping List Modal */}
         <ShoppingList
           visible={showShoppingList}
           onClose={handleCloseShoppingList}
@@ -1028,8 +747,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-
-  // Header Styles
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1070,22 +787,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#374151",
   },
-  headerRight: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F9FAFB",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
-  // Greeting Card
   greetingCard: {
     marginHorizontal: 20,
     marginBottom: 24,
@@ -1145,13 +846,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-
-  // Progress Section
   progressSection: {
     marginBottom: 32,
   },
-
-  // Stats Section
   statsSection: {
     paddingHorizontal: 20,
     marginBottom: 32,
@@ -1208,8 +905,6 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontWeight: "500",
   },
-
-  // Actions Section
   actionsSection: {
     paddingHorizontal: 20,
     marginBottom: 32,
@@ -1247,112 +942,6 @@ const styles = StyleSheet.create({
     color: "#374151",
     textAlign: "center",
   },
-  waterTrackingContainer: {
-    marginBottom: 8,
-  },
-  waterCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  waterTrackingHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  waterIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#E0F7FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  waterInfo: {
-    flex: 1,
-  },
-  waterTrackingTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  waterTrackingValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  waterTrackingTarget: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  waterBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F0FDF4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  waterBadgeText: {
-    fontSize: 16,
-  },
-  waterProgress: {
-    marginBottom: 16,
-  },
-  waterProgressBg: {
-    height: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 4,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  waterProgressFill: {
-    height: "100%",
-    backgroundColor: "#06B6D4",
-    borderRadius: 4,
-  },
-  waterProgressText: {
-    fontSize: 14,
-    color: "#06B6D4",
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  waterControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  waterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F0F9FF",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#06B6D4",
-  },
-  waterCupsDisplay: {
-    flex: 1,
-    alignItems: "center",
-    marginHorizontal: 20,
-  },
-  waterCupsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  // Activity Section
   activitySection: {
     paddingHorizontal: 20,
     marginBottom: 32,
@@ -1434,13 +1023,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#059669",
   },
-
-  // Bottom Spacing
   bottomSpacing: {
     height: 20,
   },
-
-  // Error States
   errorContainer: {
     flex: 1,
     justifyContent: "center",

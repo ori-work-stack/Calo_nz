@@ -36,7 +36,7 @@ import {
   Circle as XCircle,
   Award,
   Flame,
-  Edit,
+  CreditCard as Edit,
   Eye,
 } from "lucide-react-native";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -219,12 +219,10 @@ export default function CalendarScreen() {
 
     const days = [];
 
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
 
-    // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
         day
@@ -502,7 +500,10 @@ export default function CalendarScreen() {
       return;
     }
 
-    const elapsedDays = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const elapsedDays =
+      Math.floor(
+        (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
     const progress = Math.min((elapsedDays / menuDuration) * 100, 100);
     setMenuProgress(progress);
     setIsMenuComplete(false); // Reset if not yet completed
@@ -703,29 +704,18 @@ export default function CalendarScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={[styles.header, isRTL && styles.headerRTL]}>
-          <View style={[isRTL && styles.headerContentRTL]}>
-            <Text
-              style={[
-                styles.title,
-                { color: colors.text },
-                isRTL && styles.textRTL,
-              ]}
-            >
-              {t.title}
-            </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: colors.textSecondary },
-                isRTL && styles.textRTL,
-              ]}
-            >
-              {t.subtitle}
-            </Text>
+        {/* Modern Green Gradient Header */}
+        <LinearGradient
+          colors={["#10B981", "#059669", "#047857"]}
+          style={styles.modernHeader}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.headerTop}>
+            <Text style={styles.headerTitle}>{t.title}</Text>
           </View>
-        </View>
+          <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
+        </LinearGradient>
 
         {/* Statistics */}
         {renderStatistics()}
@@ -1392,6 +1382,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
   },
+  modernHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1442,6 +1456,7 @@ const styles = StyleSheet.create({
   },
   statsGradient: {
     padding: 20,
+    borderRadius: 16,
   },
   motivationalMessage: {
     fontSize: 18,
@@ -1480,8 +1495,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   gamificationContainer: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   gamificationHeader: {
     flexDirection: "row",
@@ -2187,5 +2207,4 @@ const styles = StyleSheet.create({
   headerContentRTL: {
     alignItems: "flex-end",
   },
-
 });

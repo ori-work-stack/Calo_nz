@@ -945,7 +945,7 @@ export class EnhancedDailyGoalsService {
         goalsToday: goalsToday.length,
         allUsers,
       };
-    } catch (error) { 
+    } catch (error) {
       console.error("💥 Error debugging database state:", error);
       return null;
     }

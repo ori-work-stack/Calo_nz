@@ -203,7 +203,7 @@ export class DatabaseOptimizationService {
     try {
       console.log("⚡ Optimizing database performance...");
 
-      // Run ANALYZE to update table statistics
+      // Run ANALYZE to update table statistics (can run in transaction)
       try {
         await prisma.$executeRaw`ANALYZE;`;
         console.log("✅ Database ANALYZE completed");
@@ -211,14 +211,24 @@ export class DatabaseOptimizationService {
         console.log("⚠️ ANALYZE operation failed:", analyzeError);
       }
 
-      // Run VACUUM to reclaim storage space (only if not in transaction)
+      // Run VACUUM outside of any transaction
       try {
-        await prisma.$executeRaw`VACUUM;`;
+        // Ensure we're not in a transaction by disconnecting and reconnecting
+        await prisma.$disconnect();
+        await prisma.$connect();
+
+        // Now run VACUUM outside of transaction
+        await prisma.$executeRawUnsafe("VACUUM;");
         console.log("✅ Database VACUUM completed");
       } catch (vacuumError) {
-        console.log(
-          "ℹ️ VACUUM operation skipped (likely transaction in progress)"
-        );
+        console.log("⚠️ VACUUM operation failed:", vacuumError);
+        // Try alternative lightweight cleanup
+        try {
+          await prisma.$executeRaw`REINDEX DATABASE;`;
+          console.log("✅ Database REINDEX completed as fallback");
+        } catch (reindexError) {
+          console.log("ℹ️ Fallback REINDEX also failed, skipping optimization");
+        }
       }
 
       console.log("✅ Database optimization completed");

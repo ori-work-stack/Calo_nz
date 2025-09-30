@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -38,7 +37,11 @@ interface AchievementsSectionProps {
   period: "today" | "week" | "month";
 }
 
-const getAchievementIcon = (iconName: string, size: number = 20, color: string = "#16A085") => {
+const getAchievementIcon = (
+  iconName: string,
+  size: number = 20,
+  color: string = "#16A085"
+) => {
   const iconProps = { size, color };
 
   switch (iconName) {
@@ -76,7 +79,7 @@ const getRarityColor = (rarity: string) => {
     case "RARE":
       return "#3B82F6";
     case "UNCOMMON":
-      return "#F97316";
+      return "#059669";
     case "COMMON":
     default:
       return "#10B981";
@@ -92,10 +95,10 @@ const getRarityGradient = (rarity: string) => {
     case "RARE":
       return ["#DBEAFE", "#BFDBFE"];
     case "UNCOMMON":
-      return ["#FED7AA", "#FDBA74"];
+      return ["#D1FAE5", "#A7F3D0"];
     case "COMMON":
     default:
-      return ["#D1FAE5", "#A7F3D0"];
+      return ["#ECFDF5", "#D1FAE5"];
   }
 };
 
@@ -111,87 +114,114 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
 
   const categories = [
     { key: "all", label: t("achievements.categories.all") || "All" },
-    { key: "MILESTONE", label: t("achievements.categories.milestone") || "Milestones" },
+    {
+      key: "MILESTONE",
+      label: t("achievements.categories.milestone") || "Milestones",
+    },
     { key: "STREAK", label: t("achievements.categories.streak") || "Streaks" },
     { key: "GOAL", label: t("achievements.categories.goal") || "Goals" },
-    { key: "SPECIAL", label: t("achievements.categories.special") || "Special" },
+    {
+      key: "SPECIAL",
+      label: t("achievements.categories.special") || "Special",
+    },
   ];
 
   const filteredAchievements = useMemo(() => {
     if (selectedCategory === "all") return achievements;
-    return achievements.filter(achievement => achievement.category === selectedCategory);
+    return achievements.filter(
+      (achievement) => achievement.category === selectedCategory
+    );
   }, [achievements, selectedCategory]);
 
-  const unlockedAchievements = useMemo(() => 
-    filteredAchievements.filter(a => a.unlocked), 
+  const unlockedAchievements = useMemo(
+    () => filteredAchievements.filter((a) => a.unlocked),
     [filteredAchievements]
   );
 
-  const lockedAchievements = useMemo(() => 
-    filteredAchievements.filter(a => !a.unlocked), 
+  const lockedAchievements = useMemo(
+    () => filteredAchievements.filter((a) => !a.unlocked),
     [filteredAchievements]
   );
 
   const renderAchievementCard = (achievement: Achievement, index: number) => {
     const rarityColor = getRarityColor(achievement.rarity);
     const gradientColors = getRarityGradient(achievement.rarity);
-    const progressPercentage = (achievement.progress / (achievement.maxProgress || 1)) * 100;
+    const progressPercentage =
+      (achievement.progress / (achievement.maxProgress || 1)) * 100;
 
     return (
-      <Animated.View 
-        key={achievement.id} 
+      <Animated.View
+        key={achievement.id}
         entering={FadeInUp.delay(index * 100)}
         style={styles.achievementCard}
       >
         <LinearGradient
-          colors={achievement.unlocked ? gradientColors : [colors.surface, colors.surfaceVariant]}
+          colors={
+            achievement.unlocked
+              ? gradientColors
+              : [colors.surface, colors.surfaceVariant]
+          }
           style={[
             styles.achievementGradient,
-            { opacity: achievement.unlocked ? 1 : 0.6 }
+            { opacity: achievement.unlocked ? 1 : 0.6 },
           ]}
         >
           <View style={styles.achievementHeader}>
-            <View style={[
-              styles.achievementIconContainer,
-              { backgroundColor: achievement.unlocked ? rarityColor + "20" : colors.outline }
-            ]}>
+            <View
+              style={[
+                styles.achievementIconContainer,
+                {
+                  backgroundColor: achievement.unlocked
+                    ? rarityColor + "20"
+                    : colors.outline,
+                },
+              ]}
+            >
               {getAchievementIcon(
-                achievement.icon, 
-                24, 
+                achievement.icon,
+                24,
                 achievement.unlocked ? rarityColor : colors.textSecondary
               )}
             </View>
-            
+
             <View style={styles.achievementInfo}>
-              <Text style={[
-                styles.achievementTitle,
-                { 
-                  color: achievement.unlocked ? colors.text : colors.textSecondary,
-                  textAlign: isRTL ? "right" : "left"
-                }
-              ]}>
-                {language === "he" && achievement.title?.he 
-                  ? achievement.title.he 
+              <Text
+                style={[
+                  styles.achievementTitle,
+                  {
+                    color: achievement.unlocked
+                      ? colors.text
+                      : colors.textSecondary,
+                    textAlign: isRTL ? "right" : "left",
+                  },
+                ]}
+              >
+                {language === "he" && achievement.title?.he
+                  ? achievement.title.he
                   : achievement.title?.en || achievement.title}
               </Text>
-              
-              <Text style={[
-                styles.achievementDescription,
-                { 
-                  color: colors.textSecondary,
-                  textAlign: isRTL ? "right" : "left"
-                }
-              ]}>
-                {language === "he" && achievement.description?.he 
-                  ? achievement.description.he 
+
+              <Text
+                style={[
+                  styles.achievementDescription,
+                  {
+                    color: colors.textSecondary,
+                    textAlign: isRTL ? "right" : "left",
+                  },
+                ]}
+              >
+                {language === "he" && achievement.description?.he
+                  ? achievement.description.he
                   : achievement.description?.en || achievement.description}
               </Text>
 
               <View style={styles.achievementMeta}>
                 <Text style={[styles.rarityBadge, { color: rarityColor }]}>
-                  {t(`achievements.rarity.${achievement.rarity.toLowerCase()}`) || achievement.rarity}
+                  {t(
+                    `achievements.rarity.${achievement.rarity.toLowerCase()}`
+                  ) || achievement.rarity}
                 </Text>
-                
+
                 {achievement.unlocked && (
                   <Text style={[styles.xpReward, { color: colors.primary }]}>
                     +{achievement.xpReward} {t("achievements.xpReward") || "XP"}
@@ -204,24 +234,28 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
           {!achievement.unlocked && (
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
                     styles.progressFill,
-                    { 
+                    {
                       width: `${progressPercentage}%`,
-                      backgroundColor: rarityColor 
-                    }
-                  ]} 
+                      backgroundColor: rarityColor,
+                    },
+                  ]}
                 />
               </View>
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.progressText, { color: colors.textSecondary }]}
+              >
                 {achievement.progress}/{achievement.maxProgress || 1}
               </Text>
             </View>
           )}
 
           {achievement.unlocked && achievement.unlockedDate && (
-            <Text style={[styles.unlockedDate, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.unlockedDate, { color: colors.textSecondary }]}
+            >
               {t("achievements.unlockedOn") || "Unlocked on"}{" "}
               {new Date(achievement.unlockedDate).toLocaleDateString()}
             </Text>
@@ -233,34 +267,46 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
 
   const renderPreviewAchievements = () => {
     const previewAchievements = achievements.slice(0, 3);
-    
+
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.previewContainer}
+      >
         {previewAchievements.map((achievement, index) => (
           <View key={achievement.id} style={styles.previewCard}>
-            <View style={[
-              styles.previewIcon,
-              { 
-                backgroundColor: achievement.unlocked 
-                  ? getRarityColor(achievement.rarity) + "20" 
-                  : colors.surface 
-              }
-            ]}>
+            <View
+              style={[
+                styles.previewIcon,
+                {
+                  backgroundColor: achievement.unlocked
+                    ? getRarityColor(achievement.rarity) + "20"
+                    : colors.surface,
+                },
+              ]}
+            >
               {getAchievementIcon(
-                achievement.icon, 
-                20, 
-                achievement.unlocked ? getRarityColor(achievement.rarity) : colors.textSecondary
+                achievement.icon,
+                20,
+                achievement.unlocked
+                  ? getRarityColor(achievement.rarity)
+                  : colors.textSecondary
               )}
             </View>
-            <Text style={[
-              styles.previewTitle,
-              { 
-                color: achievement.unlocked ? colors.text : colors.textSecondary,
-                textAlign: "center"
-              }
-            ]}>
-              {language === "he" && achievement.title?.he 
-                ? achievement.title.he 
+            <Text
+              style={[
+                styles.previewTitle,
+                {
+                  color: achievement.unlocked
+                    ? colors.text
+                    : colors.textSecondary,
+                  textAlign: "center",
+                },
+              ]}
+            >
+              {language === "he" && achievement.title?.he
+                ? achievement.title.he
                 : achievement.title?.en || achievement.title}
             </Text>
             {achievement.unlocked && (
@@ -281,12 +327,15 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             🏆 {t("achievements.title") || "Achievements"}
           </Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-            {unlockedAchievements.length}/{achievements.length} {t("achievements.unlocked") || "unlocked"}
+          <Text
+            style={[styles.sectionSubtitle, { color: colors.textSecondary }]}
+          >
+            {unlockedAchievements.length}/{achievements.length}{" "}
+            {t("achievements.unlocked") || "unlocked"}
           </Text>
         </View>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.seeAllButton, { backgroundColor: colors.primary }]}
           onPress={() => setShowModal(true)}
         >
@@ -306,8 +355,15 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <View
+            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+          >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               {t("achievements.title") || "Achievements"}
             </Text>
@@ -317,28 +373,36 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
           </View>
 
           {/* Category Filter */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFilter}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryFilter}
+          >
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.key}
                 style={[
                   styles.categoryButton,
                   {
-                    backgroundColor: selectedCategory === category.key 
-                      ? colors.primary 
-                      : colors.surface,
-                  }
+                    backgroundColor:
+                      selectedCategory === category.key
+                        ? colors.primary
+                        : colors.surface,
+                  },
                 ]}
                 onPress={() => setSelectedCategory(category.key)}
               >
-                <Text style={[
-                  styles.categoryButtonText,
-                  {
-                    color: selectedCategory === category.key 
-                      ? colors.onPrimary 
-                      : colors.text,
-                  }
-                ]}>
+                <Text
+                  style={[
+                    styles.categoryButtonText,
+                    {
+                      color:
+                        selectedCategory === category.key
+                          ? colors.onPrimary
+                          : colors.text,
+                    },
+                  ]}
+                >
                   {category.label}
                 </Text>
               </TouchableOpacity>
@@ -350,7 +414,8 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
             {unlockedAchievements.length > 0 && (
               <>
                 <Text style={[styles.categoryTitle, { color: colors.text }]}>
-                  {t("achievements.unlocked") || "Unlocked"} ({unlockedAchievements.length})
+                  {t("achievements.unlocked") || "Unlocked"} (
+                  {unlockedAchievements.length})
                 </Text>
                 {unlockedAchievements.map(renderAchievementCard)}
               </>
@@ -360,7 +425,8 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
             {lockedAchievements.length > 0 && (
               <>
                 <Text style={[styles.categoryTitle, { color: colors.text }]}>
-                  {t("achievements.locked") || "Locked"} ({lockedAchievements.length})
+                  {t("achievements.locked") || "Locked"} (
+                  {lockedAchievements.length})
                 </Text>
                 {lockedAchievements.map(renderAchievementCard)}
               </>
@@ -376,8 +442,13 @@ const styles = StyleSheet.create({
   section: {
     marginHorizontal: 16,
     marginBottom: 24,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   header: {
     flexDirection: "row",
@@ -396,10 +467,15 @@ const styles = StyleSheet.create({
   seeAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   seeAllText: {
     fontSize: 14,
@@ -413,8 +489,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
     padding: 12,
-    borderRadius: 12,
-    backgroundColor: "rgba(22, 160, 133, 0.05)",
+    borderRadius: 16,
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   previewIcon: {
     width: 48,
@@ -480,10 +561,15 @@ const styles = StyleSheet.create({
   },
   achievementCard: {
     marginBottom: 16,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   achievementGradient: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
   },
   achievementHeader: {
     flexDirection: "row",

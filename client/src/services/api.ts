@@ -272,6 +272,51 @@ export const dailyGoalsAPI = {
     }
   },
 
+  async getHistoricalGoals(startDate: string, endDate: string): Promise<any> {
+    try {
+      console.log("📊 Fetching historical daily goals...");
+      console.log("📅 Date range:", startDate, "to", endDate);
+      const response = await api.get("/daily-goals/history", {
+        params: { startDate, endDate },
+      });
+
+      if (response.data.success) {
+        console.log(
+          `✅ Retrieved ${response.data.data.length} historical goals`
+        );
+        return response.data;
+      }
+
+      throw new APIError(
+        response.data.error || "Failed to fetch historical daily goals"
+      );
+    } catch (error) {
+      console.error("💥 Get historical daily goals error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while fetching historical daily goals");
+    }
+  },
+
+  async getDailyGoalByDate(date: string): Promise<any> {
+    try {
+      console.log("📊 Fetching daily goal for date:", date);
+      const response = await api.get(`/daily-goals/by-date/${date}`);
+
+      if (response.data.success) {
+        console.log("✅ Daily goal fetched successfully for", date);
+        return response.data;
+      }
+
+      throw new APIError(
+        response.data.error || "Failed to fetch daily goal for date"
+      );
+    } catch (error) {
+      console.error("💥 Get daily goal by date error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while fetching daily goal by date");
+    }
+  },
+
   async createDailyGoals(): Promise<any> {
     try {
       console.log("🎯 Creating daily goals...");

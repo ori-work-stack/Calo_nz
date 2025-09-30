@@ -82,7 +82,6 @@ import { useTheme } from "@/src/context/ThemeContext";
 const { width, height } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
-const { colors } = useTheme();
 // Chart Types
 type ChartType = "weekly" | "macros" | "progress" | "hydration";
 
@@ -1635,30 +1634,35 @@ export default function StatisticsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#16A085"]}
-            tintColor="#16A085"
+            colors={["#10B981"]}
+            tintColor="#10B981"
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
+        {/* Modern Green Gradient Header */}
+        <LinearGradient
+          colors={["#10B981", "#059669", "#047857"]}
+          style={styles.modernHeader}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.headerTop}>
             <View style={styles.titleContainer}>
-              <Text style={styles.title}>
+              <Text style={styles.headerTitle}>
                 {t("statistics.title") || "Statistics"}
               </Text>
-              <Text style={styles.subtitle}>
+              <Text style={styles.headerSubtitle}>
                 {t("statistics.subtitle") || "Your nutrition insights"}
               </Text>
             </View>
             <TouchableOpacity
-              style={[styles.downloadButton, { backgroundColor: "#16A085" }]}
+              style={styles.downloadButton}
               onPress={generatePdf}
             >
-              <Download size={24} color="#FFFFFF" />
+              <Download size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Time Filter */}
         <View style={styles.timeFilterContainer}>
@@ -2352,6 +2356,30 @@ const styles = StyleSheet.create({
   },
 
   // Header Styles
+  modernHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -2384,9 +2412,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -2787,10 +2816,11 @@ const styles = StyleSheet.create({
   achievementCard: {
     borderRadius: 20,
     padding: 20,
-    shadowColor: "#1E293B",
+    shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
+    elevation: 6,
     width: width * 0.8,
     minWidth: 300,
     maxWidth: 400,
@@ -2973,10 +3003,11 @@ const styles = StyleSheet.create({
   metricCard: {
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#1E293B",
+    shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 16,
+    elevation: 4,
   },
   metricCardContent: {
     padding: 24,

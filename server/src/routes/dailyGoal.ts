@@ -164,4 +164,127 @@ router.post(
   }
 );
 
+// GET /api/daily-goals/history - Get user's historical daily goals by date range
+router.get("/history", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { startDate, endDate } = req.query;
+
+    console.log("📊 === GETTING HISTORICAL DAILY GOALS ===");
+    console.log("📊 User ID:", userId);
+    console.log("📅 Date range:", startDate, "to", endDate);
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: "Both startDate and endDate are required",
+      });
+    }
+
+    // Parse dates
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+
+    // Fetch historical goals
+    const historicalGoals = await prisma.dailyGoal.findMany({
+      where: {
+        user_id: userId,
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: {
+        date: "asc",
+      },
+    });
+
+    console.log(`📊 Found ${historicalGoals.length} historical goals`);
+
+    const formattedGoals = historicalGoals.map((goal) => ({
+      date: goal.date.toISOString().split("T")[0],
+      calories: Number(goal.calories),
+      protein_g: Number(goal.protein_g),
+      carbs_g: Number(goal.carbs_g),
+      fats_g: Number(goal.fats_g),
+      fiber_g: Number(goal.fiber_g),
+      sodium_mg: Number(goal.sodium_mg),
+      sugar_g: Number(goal.sugar_g),
+      water_ml: Number(goal.water_ml),
+      created_at: goal.created_at,
+      updated_at: goal.updated_at,
+    }));
+
+    res.json({
+      success: true,
+      data: formattedGoals,
+      message: `Retrieved ${historicalGoals.length} historical goals`,
+    });
+  } catch (error) {
+    console.error("💥 Error fetching historical daily goals:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch historical daily goals",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// GET /api/daily-goals/by-date/:date - Get user's daily goal for a specific date
+router.get(
+  "/by-date/:date",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user.user_id;
+      const { date } = req.params;
+
+      console.log("📊 === GETTING DAILY GOAL FOR SPECIFIC DATE ===");
+      console.log("📊 User ID:", userId);
+      console.log("📅 Date:", date);
+
+      const targetDate = new Date(date);
+
+      const dailyGoal = await prisma.dailyGoal.findFirst({
+        where: {
+          user_id: userId,
+          date: targetDate,
+        },
+      });
+
+      if (!dailyGoal) {
+        return res.status(404).json({
+          success: false,
+          error: "No daily goal found for this date",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          date: dailyGoal.date.toISOString().split("T")[0],
+          calories: Number(dailyGoal.calories),
+          protein_g: Number(dailyGoal.protein_g),
+          carbs_g: Number(dailyGoal.carbs_g),
+          fats_g: Number(dailyGoal.fats_g),
+          fiber_g: Number(dailyGoal.fiber_g),
+          sodium_mg: Number(dailyGoal.sodium_mg),
+          sugar_g: Number(dailyGoal.sugar_g),
+          water_ml: Number(dailyGoal.water_ml),
+          created_at: dailyGoal.created_at,
+          updated_at: dailyGoal.updated_at,
+        },
+        message: "Daily goal retrieved successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error fetching daily goal by date:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch daily goal",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export { router as dailyGoalsRoutes };

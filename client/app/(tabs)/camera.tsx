@@ -27,15 +27,24 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { File } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 import {
   CreditCard as Edit3,
   TriangleAlert as AlertTriangle,
   X,
   ChevronLeft,
+  Camera,
+  Image as ImageIcon,
+  Zap,
+  Info,
+  ArrowLeft,
+  RotateCcw,
+  Check,
+  Trash2,
 } from "lucide-react-native";
 import { useMealDataRefresh } from "@/hooks/useMealDataRefresh";
 import { useTheme } from "@/src/context/ThemeContext";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ImageSelector,
   SelectedImage,
@@ -49,8 +58,9 @@ import {
   MealTypeSelector,
   MealType,
 } from "@/components/camera/MealTypeSelector";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 interface Ingredient {
   name: string;
@@ -107,7 +117,7 @@ interface AnalysisData {
   healthNotes?: string;
 }
 
-export default function CameraScreen() {
+function CameraScreenContent() {
   const { t } = useTranslation();
   const { isRTL } = useLanguage();
   const dispatch = useDispatch<AppDispatch>();
@@ -143,6 +153,8 @@ export default function CameraScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const nutritionCardAnim = useRef(new Animated.Value(0)).current;
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
@@ -160,6 +172,41 @@ export default function CameraScreen() {
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
+
+  // Start scanning animation
+  useEffect(() => {
+    if (selectedImage && !hasBeenAnalyzed) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanLineAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanLineAnim, {
+            toValue: 0,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [selectedImage, hasBeenAnalyzed]);
 
   // Update local state when pendingMeal changes
   useEffect(() => {
@@ -269,7 +316,6 @@ export default function CameraScreen() {
         setSelectedImage(imageUri);
         resetAnalysisState();
         setShowResults(false);
-        // Hide meal type selector once an image is selected
         setShowMealTypeSelector(false);
       }
     } catch (error) {
@@ -310,7 +356,6 @@ export default function CameraScreen() {
         setSelectedImage(imageUri);
         resetAnalysisState();
         setShowResults(false);
-        // Hide meal type selector once an image is selected
         setShowMealTypeSelector(false);
       }
     } catch (error) {
@@ -759,30 +804,16 @@ export default function CameraScreen() {
     return (
       <View style={styles.resultsContainer}>
         {/* Header */}
-        <View
-          style={[styles.resultsHeader, { backgroundColor: colors.background }]}
-        >
+        <View style={styles.resultsHeader}>
           <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: colors.surface }]}
+            style={styles.backButton}
             onPress={() => router.back()}
           >
-            <ChevronLeft size={24} color={colors.text} />
+            <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={[styles.resultsTitle, { color: colors.text }]}>
-            {getMealName(analysisData)}
-          </Text>
-          <TouchableOpacity
-            style={[styles.menuButton, { backgroundColor: colors.emerald500 }]}
-          >
-            <View
-              style={[styles.menuDot, { backgroundColor: colors.background }]}
-            />
-            <View
-              style={[styles.menuDot, { backgroundColor: colors.background }]}
-            />
-            <View
-              style={[styles.menuDot, { backgroundColor: colors.background }]}
-            />
+          <Text style={styles.resultsTitle}>{getMealName(analysisData)}</Text>
+          <TouchableOpacity style={styles.infoButton}>
+            <Info size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -822,6 +853,166 @@ export default function CameraScreen() {
     );
   };
 
+  const renderScanningInterface = () => {
+    if (!selectedImage || hasBeenAnalyzed) return null;
+
+    return (
+      <View style={styles.scanningContainer}>
+        {/* Header */}
+        <LinearGradient
+          colors={["#10B981", "#059669"]}
+          style={styles.scanHeader}
+        >
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
+              setSelectedImage(null);
+              setSelectedMealType(null);
+              setShowMealTypeSelector(true);
+            }}
+          >
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Scan Food</Text>
+          <TouchableOpacity style={styles.headerButton}>
+            <Info size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </LinearGradient>
+
+        {/* Scanning Area */}
+        <View style={styles.scanArea}>
+          <View style={styles.phoneFrame}>
+            <Animated.View
+              style={[
+                styles.imageContainer,
+                { transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <SelectedImage
+                imageUri={selectedImage}
+                userComment={userComment}
+                isAnalyzing={isAnalyzing}
+                hasBeenAnalyzed={hasBeenAnalyzed}
+                onRemoveImage={() => {
+                  resetAnalysisState();
+                  setSelectedImage(null);
+                  setShowResults(false);
+                  setSelectedMealType(null);
+                  setShowMealTypeSelector(true);
+                }}
+                onRetakePhoto={handleTakePhoto}
+                onAnalyze={handleAnalyzeImage}
+                onCommentChange={setUserComment}
+              />
+
+              {/* Scanning Lines Overlay */}
+              <View style={styles.scanOverlay}>
+                <View style={styles.scanFrame}>
+                  <View style={styles.cornerTopLeft} />
+                  <View style={styles.cornerTopRight} />
+                  <View style={styles.cornerBottomLeft} />
+                  <View style={styles.cornerBottomRight} />
+
+                  <Animated.View
+                    style={[
+                      styles.scanLine,
+                      {
+                        transform: [
+                          {
+                            translateY: scanLineAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [-50, 200],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </Animated.View>
+          </View>
+
+          {/* Bottom Info */}
+          <View style={styles.scanInfo}>
+            <Text style={styles.scanTitle}>Nutritional Analysis</Text>
+            <Text style={styles.scanSubtitle}>
+              Hold your food inside the frame. It will be scanned automatically.
+            </Text>
+          </View>
+        </View>
+
+        {/* Bottom Actions */}
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={styles.analyzeButton}
+            onPress={handleAnalyzeImage}
+            disabled={isAnalyzing}
+          >
+            <LinearGradient
+              colors={["#10B981", "#059669"]}
+              style={styles.analyzeButtonGradient}
+            >
+              <Zap size={24} color="#FFFFFF" />
+              <Text style={styles.analyzeButtonText}>
+                {isAnalyzing ? "Analyzing..." : "Analyze Food"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                setSelectedImage(null);
+                setSelectedMealType(null);
+                setShowMealTypeSelector(true);
+              }}
+            >
+              <RotateCcw size={20} color="#10B981" />
+              <Text style={styles.secondaryButtonText}>Retake</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleSelectFromGallery}
+            >
+              <ImageIcon size={20} color="#10B981" />
+              <Text style={styles.secondaryButtonText}>Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMealTypeSelection = () => {
+    if (!showMealTypeSelector) return null;
+
+    return (
+      <View style={styles.mealTypeContainer}>
+        <LinearGradient
+          colors={["#10B981", "#059669"]}
+          style={styles.mealTypeHeader}
+        >
+          <Text style={styles.mealTypeTitle}>Select Meal Type</Text>
+          <Text style={styles.mealTypeSubtitle}>
+            Choose when you're having this meal
+          </Text>
+        </LinearGradient>
+
+        <View style={styles.mealTypeContent}>
+          <MealTypeSelector
+            onSelect={(mealType) => {
+              setSelectedMealType(mealType);
+              setShowMealTypeSelector(false);
+            }}
+          />
+        </View>
+      </View>
+    );
+  };
+
   const renderEditModal = () => (
     <Modal
       visible={showEditModal}
@@ -833,15 +1024,13 @@ export default function CameraScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalOverlay}
       >
-        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-          <View
-            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
               {editingIndex >= 0 ? "Edit" : "Add"} Ingredient
             </Text>
             <TouchableOpacity onPress={() => setShowEditModal(false)}>
-              <X size={24} color={colors.icon} />
+              <X size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
@@ -851,18 +1040,9 @@ export default function CameraScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>
-                Name *
-              </Text>
+              <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
-                style={[
-                  styles.modalInput,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.text,
-                  },
-                ]}
+                style={styles.modalInput}
                 value={editingIngredient?.name || ""}
                 onChangeText={(text) =>
                   setEditingIngredient((prev) =>
@@ -870,24 +1050,15 @@ export default function CameraScreen() {
                   )
                 }
                 placeholder="Enter ingredient name"
-                placeholderTextColor={colors.icon}
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
             <View style={styles.inputRow}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Calories
-                </Text>
+                <Text style={styles.inputLabel}>Calories</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.calories?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -896,23 +1067,14 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Protein (g)
-                </Text>
+                <Text style={styles.inputLabel}>Protein (g)</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.protein?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -921,25 +1083,16 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
             <View style={styles.inputRow}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Carbs (g)
-                </Text>
+                <Text style={styles.inputLabel}>Carbs (g)</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.carbs?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -948,23 +1101,14 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Fat (g)
-                </Text>
+                <Text style={styles.inputLabel}>Fat (g)</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.fat?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -973,25 +1117,16 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
             <View style={styles.inputRow}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Fiber (g)
-                </Text>
+                <Text style={styles.inputLabel}>Fiber (g)</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.fiber?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -1000,23 +1135,14 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Sugar (g)
-                </Text>
+                <Text style={styles.inputLabel}>Sugar (g)</Text>
                 <TextInput
-                  style={[
-                    styles.modalInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.text,
-                    },
-                  ]}
+                  style={styles.modalInput}
                   value={editingIngredient?.sugar?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
@@ -1025,24 +1151,15 @@ export default function CameraScreen() {
                   }
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.icon}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>
-                Sodium (mg)
-              </Text>
+              <Text style={styles.inputLabel}>Sodium (mg)</Text>
               <TextInput
-                style={[
-                  styles.modalInput,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.text,
-                  },
-                ]}
+                style={styles.modalInput}
                 value={editingIngredient?.sodium_mg?.toString() || "0"}
                 onChangeText={(text) =>
                   setEditingIngredient((prev) =>
@@ -1051,31 +1168,21 @@ export default function CameraScreen() {
                 }
                 keyboardType="numeric"
                 placeholder="0"
-                placeholderTextColor={colors.icon}
+                placeholderTextColor="#9CA3AF"
               />
             </View>
           </ScrollView>
 
-          <View
-            style={[styles.modalActions, { borderTopColor: colors.border }]}
-          >
+          <View style={styles.modalActions}>
             <TouchableOpacity
-              style={[
-                styles.modalCancelButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
+              style={styles.modalCancelButton}
               onPress={() => setShowEditModal(false)}
             >
-              <Text style={[styles.modalCancelText, { color: colors.icon }]}>
-                Cancel
-              </Text>
+              <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.modalSaveButton,
-                { backgroundColor: colors.emerald500 },
-              ]}
+              style={styles.modalSaveButton}
               onPress={handleSaveIngredient}
             >
               <Text style={styles.modalSaveText}>Save</Text>
@@ -1094,28 +1201,19 @@ export default function CameraScreen() {
       onRequestClose={() => setShowDeleteConfirm(false)}
     >
       <View style={styles.modalOverlay}>
-        <View
-          style={[styles.confirmModalContent, { backgroundColor: colors.card }]}
-        >
+        <View style={styles.confirmModalContent}>
           <AlertTriangle size={48} color="#EF4444" />
-          <Text style={[styles.confirmTitle, { color: colors.text }]}>
-            Delete Analysis
-          </Text>
-          <Text style={[styles.confirmMessage, { color: colors.icon }]}>
+          <Text style={styles.confirmTitle}>Delete Analysis</Text>
+          <Text style={styles.confirmMessage}>
             Are you sure you want to delete this meal analysis?
           </Text>
 
           <View style={styles.confirmActions}>
             <TouchableOpacity
-              style={[
-                styles.confirmCancelButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
+              style={styles.confirmCancelButton}
               onPress={() => setShowDeleteConfirm(false)}
             >
-              <Text style={[styles.confirmCancelText, { color: colors.icon }]}>
-                Cancel
-              </Text>
+              <Text style={styles.confirmCancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1131,21 +1229,19 @@ export default function CameraScreen() {
   );
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={colors.background}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#10B981" />
 
-      {/* Show meal type selector first, before any camera interaction */}
-      {!selectedMealType ? (
-        <View style={styles.mealTypeSelectionScreen}>
-          <MealTypeSelector onSelect={setSelectedMealType} />
-        </View>
-      ) : !selectedImage ? (
+      {/* Show meal type selector first */}
+      {showMealTypeSelector && renderMealTypeSelection()}
+
+      {/* Show scanning interface when image is selected but not analyzed */}
+      {selectedImage && !hasBeenAnalyzed && renderScanningInterface()}
+
+      {/* Show analysis results */}
+      {showResults && analysisData && (
         <ScrollView
+          ref={scrollViewRef}
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -1153,72 +1249,56 @@ export default function CameraScreen() {
           bounces={true}
           alwaysBounceVertical={true}
         >
-          <View style={styles.imageSelectionContainer}>
-            <View style={styles.selectedMealTypeBanner}>
-              <Text
-                style={[
-                  styles.selectedMealTypeBannerText,
-                  { color: colors.text },
-                ]}
-              >
-                📸 Ready to capture your {selectedMealType.label.toLowerCase()}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedMealType(null);
-                }}
-                style={styles.changeMealTypeButton}
-              >
-                <Text style={styles.changeMealTypeButtonText}>Change</Text>
-              </TouchableOpacity>
-            </View>
-            <ImageSelector
-              onTakePhoto={handleTakePhoto}
-              onSelectFromGallery={handleSelectFromGallery}
-            />
-          </View>
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          bounces={true}
-          alwaysBounceVertical={true}
-        >
-          <SelectedImage
-            imageUri={selectedImage}
-            userComment={userComment}
-            isAnalyzing={isAnalyzing}
-            hasBeenAnalyzed={hasBeenAnalyzed}
-            onRemoveImage={() => {
-              resetAnalysisState();
-              setSelectedImage(null);
-              setShowResults(false);
-              setSelectedMealType(null);
-              setShowMealTypeSelector(true);
-            }}
-            onRetakePhoto={handleTakePhoto}
-            onAnalyze={handleAnalyzeImage}
-            onCommentChange={setUserComment}
-          />
-          {showResults && analysisData && renderAnalysisResults()}
+          {renderAnalysisResults()}
         </ScrollView>
       )}
 
-      {/* Show selected meal type */}
-      {selectedMealType && !showMealTypeSelector && !selectedImage && (
-        <View style={styles.selectedMealType}>
-          <Text style={styles.selectedMealText}>
-            Selected: {selectedMealType.label}
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowMealTypeSelector(true)}
-            style={styles.changeMealType}
+      {/* Show camera options when meal type is selected but no image */}
+      {selectedMealType && !selectedImage && !showMealTypeSelector && (
+        <View style={styles.cameraOptionsContainer}>
+          <LinearGradient
+            colors={["#10B981", "#059669"]}
+            style={styles.cameraHeader}
           >
-            <Text style={styles.changeMealTypeText}>Change</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                setSelectedMealType(null);
+                setShowMealTypeSelector(true);
+              }}
+            >
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              Capture {selectedMealType.label}
+            </Text>
+            <View style={styles.headerButton} />
+          </LinearGradient>
+
+          <View style={styles.cameraOptionsContent}>
+            <TouchableOpacity
+              style={styles.primaryCameraButton}
+              onPress={handleTakePhoto}
+            >
+              <LinearGradient
+                colors={["#10B981", "#059669"]}
+                style={styles.primaryButtonGradient}
+              >
+                <Camera size={32} color="#FFFFFF" />
+                <Text style={styles.primaryButtonText}>Take Photo</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryCameraButton}
+              onPress={handleSelectFromGallery}
+            >
+              <ImageIcon size={24} color="#10B981" />
+              <Text style={styles.secondaryCameraButtonText}>
+                Choose from Gallery
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -1236,6 +1316,15 @@ export default function CameraScreen() {
   );
 }
 
+// Error boundary wrapper
+export default function CameraScreen() {
+  return (
+    <ErrorBoundary>
+      <CameraScreenContent />
+    </ErrorBoundary>
+  );
+}
+
 const processImage = async (imageUri: string): Promise<string | null> => {
   try {
     console.log("Processing image:", imageUri);
@@ -1245,42 +1334,56 @@ const processImage = async (imageUri: string): Promise<string | null> => {
       return null;
     }
 
-    // Import image optimization utility
-    const { optimizeImageForUpload } = await import(
-      "@/src/utils/imageOptimiztion"
-    );
+    try {
+      // Try to use the optimization utility first
+      const { optimizeImageForUpload } = await import(
+        "@/src/utils/imageOptimiztion"
+      );
 
-    // Optimize image for analysis
-    const optimizedBase64 = await optimizeImageForUpload(imageUri, {
-      maxWidth: 1024,
-      maxHeight: 1024,
-      quality: 0.8,
-      format: "jpeg",
-    });
+      const optimizedBase64 = await optimizeImageForUpload(imageUri, {
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.8,
+        format: "jpeg",
+      });
 
-    if (!optimizedBase64 || optimizedBase64.length < 100) {
-      console.error("Failed to optimize image or result too small");
-      return null;
+      if (optimizedBase64 && optimizedBase64.length > 100) {
+        console.log(
+          "Image optimized successfully, base64 length:",
+          optimizedBase64.length
+        );
+        return optimizedBase64;
+      }
+    } catch (optimizeError) {
+      console.warn(
+        "Image optimization failed, falling back to direct conversion:",
+        optimizeError
+      );
     }
 
-    // Validate base64 format
-    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-    if (!base64Regex.test(optimizedBase64)) {
-      console.error("Invalid base64 format generated");
+    // Fallback: Direct base64 conversion using FileSystem
+    try {
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      if (!base64 || base64.length < 100) {
+        console.error("Failed to convert image to base64 or result too small");
+        return null;
+      }
+
+      // Check size limit (10MB base64 ≈ 7.5MB binary)
+      if (base64.length > 10 * 1024 * 1024) {
+        console.error("Image too large for processing");
+        return null;
+      }
+
+      console.log("Image converted to base64, length:", base64.length);
+      return base64;
+    } catch (fileError) {
+      console.error("Failed to read image file:", fileError);
       return null;
     }
-
-    // Check size limit (10MB base64 ≈ 7.5MB binary)
-    if (optimizedBase64.length > 10 * 1024 * 1024) {
-      console.error("Optimized image still too large");
-      return null;
-    }
-
-    console.log(
-      "Image processed successfully, base64 length:",
-      optimizedBase64.length
-    );
-    return optimizedBase64;
   } catch (error) {
     console.error("Error processing image:", error);
     return null;
@@ -1290,30 +1393,279 @@ const processImage = async (imageUri: string): Promise<string | null> => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  mealTypeSelectionScreen: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  header: {
-    width: "100%",
-    paddingVertical: 20,
-    marginBottom: 24,
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.4,
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: "#F8FAFC",
   },
   scrollContent: {
     paddingBottom: 34,
   },
+
+  // Meal Type Selection
+  mealTypeContainer: {
+    flex: 1,
+  },
+  mealTypeHeader: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  mealTypeTitle: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  mealTypeSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+  },
+  mealTypeContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+
+  // Camera Options
+  cameraOptionsContainer: {
+    flex: 1,
+  },
+  cameraHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  cameraOptionsContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    gap: 24,
+  },
+  primaryCameraButton: {
+    width: "100%",
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  primaryButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+    gap: 12,
+  },
+  primaryButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  secondaryCameraButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderWidth: 2,
+    borderColor: "#10B981",
+    borderRadius: 16,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  secondaryCameraButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#10B981",
+  },
+
+  // Scanning Interface
+  scanningContainer: {
+    flex: 1,
+  },
+  scanHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
+  scanArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  phoneFrame: {
+    width: screenWidth - 80,
+    height: screenWidth - 80,
+    backgroundColor: "#1F2937",
+    borderRadius: 24,
+    padding: 8,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  imageContainer: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+  },
+  scanOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanFrame: {
+    width: 200,
+    height: 200,
+    position: "relative",
+  },
+  cornerTopLeft: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: "#10B981",
+  },
+  cornerTopRight: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: "#10B981",
+  },
+  cornerBottomLeft: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: "#10B981",
+  },
+  cornerBottomRight: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: "#10B981",
+  },
+  scanLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: "#10B981",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  scanInfo: {
+    alignItems: "center",
+    marginTop: 32,
+    paddingHorizontal: 24,
+  },
+  scanTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  scanSubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  bottomActions: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  analyzeButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  analyzeButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 12,
+  },
+  analyzeButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#10B981",
+    borderRadius: 16,
+    gap: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#10B981",
+  },
+
+  // Results
   resultsContainer: {
     paddingHorizontal: 20,
   },
@@ -1321,262 +1673,185 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#10B981",
     paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginHorizontal: -20,
     marginBottom: 20,
-    paddingHorizontal: 0,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    justifyContent: "center",
   },
   resultsTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
+    color: "#FFFFFF",
     flex: 1,
     textAlign: "center",
-    letterSpacing: -0.24,
   },
-  confidenceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  confidenceText: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.07,
-  },
-  menuButton: {
+  infoButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
-    flexDirection: "row",
-    gap: 2,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
+    justifyContent: "center",
   },
-  menuDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
+
+  // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     width: screenWidth - 40,
     maxHeight: "80%",
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 0.33,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: "600",
-    letterSpacing: -0.24,
+    color: "#1F2937",
   },
   modalBody: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     maxHeight: 400,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   inputRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    marginBottom: 6,
-    letterSpacing: -0.08,
+    color: "#374151",
+    marginBottom: 8,
   },
   modalInput: {
-    borderWidth: 0.5,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 17,
-    letterSpacing: -0.24,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: "#F9FAFB",
+    color: "#1F2937",
   },
   modalActions: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 0.33,
-    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    gap: 16,
   },
   modalCancelButton: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
   },
   modalCancelText: {
-    fontSize: 17,
-    fontWeight: "400",
-    letterSpacing: -0.24,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6B7280",
   },
   modalSaveButton: {
     flex: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: "#10B981",
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
   },
   modalSaveText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
-    letterSpacing: -0.24,
   },
   confirmModalContent: {
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
     alignItems: "center",
     marginHorizontal: 20,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
   },
   confirmTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: "600",
-    marginTop: 12,
-    marginBottom: 6,
+    color: "#1F2937",
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: "center",
-    letterSpacing: -0.24,
   },
   confirmMessage: {
-    fontSize: 13,
+    fontSize: 16,
+    color: "#6B7280",
     textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 20,
-    letterSpacing: -0.08,
+    lineHeight: 24,
+    marginBottom: 24,
   },
   confirmActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
     width: "100%",
   },
   confirmCancelButton: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
-    borderWidth: 0,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
   },
   confirmCancelText: {
-    fontSize: 17,
-    fontWeight: "400",
-    color: "#007AFF",
-    letterSpacing: -0.24,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6B7280",
   },
   confirmDeleteButton: {
     flex: 1,
-    backgroundColor: "#FF3B30",
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: "#EF4444",
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
   },
   confirmDeleteText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
-    letterSpacing: -0.24,
-  },
-  selectedMealType: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#F2F2F7",
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 0,
-  },
-  selectedMealText: {
-    fontSize: 17,
-    fontWeight: "400",
-    color: "#000000",
-    letterSpacing: -0.24,
-  },
-  changeMealType: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#007AFF",
-    borderRadius: 6,
-  },
-  changeMealTypeText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: -0.08,
-  },
-  imageSelectionContainer: {
-    flex: 1,
-  },
-  selectedMealTypeBanner: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#F2F2F7",
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 0,
-  },
-  selectedMealTypeBannerText: {
-    fontSize: 17,
-    fontWeight: "400",
-    flex: 1,
-    letterSpacing: -0.24,
-  },
-  changeMealTypeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#007AFF",
-    borderRadius: 6,
-  },
-  changeMealTypeButtonText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: -0.08,
   },
 });
