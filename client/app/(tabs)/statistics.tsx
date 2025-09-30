@@ -55,6 +55,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  RotateCcw,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
@@ -76,11 +77,12 @@ import { getStatusColor } from "@/src/utils/statisticsHelper";
 import { AIRecommendationsSection } from "@/components/statistics/AIRecommendationsSection";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import useOptimizedAuthSelector from "@/hooks/useOptimizedAuthSelector";
+import { useTheme } from "@/src/context/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
-
+const { colors } = useTheme();
 // Chart Types
 type ChartType = "weekly" | "macros" | "progress" | "hydration";
 
@@ -1593,29 +1595,35 @@ export default function StatisticsScreen() {
 
   // Loading state
   if (isLoading) {
-    return (
-      <LoadingScreen
-        text={isRTL ? "טוען סטיסטיקות..." : "Loading your statistics..."}
-      />
-    );
+    return <LoadingScreen text={t("statistics.loading")} />;
   }
 
   // Error state
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <AlertTriangle size={48} color="#E74C3C" />
-          <Text style={styles.errorText}>
-            {t("statistics.error_message") || "An error occurred"}
+      <View
+        style={[styles.errorContainer, { backgroundColor: colors.background }]}
+      >
+        <AlertTriangle size={64} color={colors.error} />
+        <Text style={[styles.errorTitle, { color: colors.text }]}>
+          {t("common.error_occurred")}
+        </Text>
+        <Text style={[styles.errorText, { color: colors.subtext }]}>
+          {error}
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            setError(null);
+            fetchStatistics(selectedPeriod);
+          }}
+        >
+          <RotateCcw size={20} color={colors.onPrimary} />
+          <Text style={[styles.retryButtonText, { color: colors.onPrimary }]}>
+            {t("common.try_again")}
           </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
-            <Text style={styles.retryButtonText}>
-              {t("statistics.retry_button") || "Retry"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -2397,11 +2405,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 16,
   },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 20,
+    marginBottom: 10,
+  },
   errorText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#1E293B",
     textAlign: "center",
-    marginVertical: 20,
+    marginVertical: 10,
     fontWeight: "600",
     lineHeight: 26,
   },
@@ -2414,9 +2429,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   retryButtonText: {
-    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: 0.5,

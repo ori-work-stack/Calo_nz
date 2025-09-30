@@ -18,7 +18,7 @@ export class EnhancedDailyGoalsService {
    * FIXED - Create daily goals for all users with PROPER upsert operations
    */
   static async createDailyGoalsForAllUsers(): Promise<DailyGoalCreationResult> {
-    console.log("📊 === STARTING DAILY GOALS CREATION (FIXED VERSION) ===");
+    console.log(`📊 === STARTING DAILY GOALS CREATION (ENHANCED VERSION) ===`);
 
     const result: DailyGoalCreationResult = {
       created: 0,
@@ -29,6 +29,10 @@ export class EnhancedDailyGoalsService {
     };
 
     try {
+      // Check database connection first
+      await prisma.$queryRaw`SELECT 1`;
+      console.log("✅ Database connection verified");
+
       // Step 1: Get today's date in the correct format
       const today = new Date();
       const todayString = today.toISOString().split("T")[0];

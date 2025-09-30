@@ -55,7 +55,7 @@ interface DayData {
   fat_goal: number;
   fat_actual: number;
   meal_count: number;
-  quality_score: number;
+  quality_score: 0;
   water_intake_ml: number;
   events: Array<{
     id: string;
@@ -99,6 +99,12 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isEditingEvent, setIsEditingEvent] = useState(false);
+
+  // Menu logic states
+  const [menuStartDate, setMenuStartDate] = useState<Date | null>(null);
+  const [menuDuration, setMenuDuration] = useState<number>(0);
+  const [menuProgress, setMenuProgress] = useState<number>(0);
+  const [isMenuComplete, setIsMenuComplete] = useState(false);
 
   // Theme and language hooks
   const { colors, isDark } = useTheme();
@@ -462,6 +468,63 @@ export default function CalendarScreen() {
   };
 
   const monthStats = calculateMonthStats();
+
+  // Menu Logic Functions
+  const calculateMenuProgress = () => {
+    if (!menuStartDate || menuDuration === 0) {
+      setMenuProgress(0);
+      setIsMenuComplete(false);
+      return;
+    }
+
+    const today = new Date();
+    const startDate = new Date(menuStartDate);
+    startDate.setHours(0, 0, 0, 0); // Normalize start date
+
+    // Adjust start date if it's after 14:00 (2 PM)
+    if (menuStartDate.getHours() >= 14) {
+      startDate.setDate(startDate.getDate() + 1);
+    }
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + menuDuration - 1);
+    endDate.setHours(23, 59, 59, 999); // End of the last day
+
+    if (today < startDate) {
+      setMenuProgress(0);
+      setIsMenuComplete(false);
+      return;
+    }
+
+    if (today > endDate) {
+      setMenuProgress(100);
+      setIsMenuComplete(true);
+      return;
+    }
+
+    const elapsedDays = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const progress = Math.min((elapsedDays / menuDuration) * 100, 100);
+    setMenuProgress(progress);
+    setIsMenuComplete(false); // Reset if not yet completed
+  };
+
+  const handleStartMenu = (date: Date, duration: number) => {
+    setMenuStartDate(date);
+    setMenuDuration(duration);
+    // Optionally, reset menu progress or load existing menu data
+  };
+
+  const handleCompleteMenu = () => {
+    // Logic to generate summary report, send notification, etc.
+    setIsMenuComplete(true);
+    Alert.alert("Menu Completed", "Generating summary report...");
+    // In a real app, you would dispatch an action to save the report and send notifications
+  };
+
+  // Effect to recalculate menu progress when date changes or menu details are set
+  useEffect(() => {
+    calculateMenuProgress();
+  }, [menuStartDate, menuDuration, currentDate]); // Include currentDate to re-evaluate progress daily
 
   const renderDay = (dayData: DayData | null, index: number) => {
     if (!dayData) {

@@ -22,7 +22,7 @@ import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
   ChefHat,
-  Calendar,
+  Calendar as CalendarIcon, // Renamed to avoid conflict
   Clock,
   Star,
   MessageSquare,
@@ -184,6 +184,14 @@ export default function ActiveMenu() {
   // Calendar state
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
   const [weekDays, setWeekDays] = useState<Date[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date()); // Added for calendar month display
+
+  // Menu logic states
+  const [menuStartDate, setMenuStartDate] = useState<Date | null>(null);
+  const [menuDuration, setMenuDuration] = useState<number>(0);
+  const [menuProgress, setMenuProgress] = useState<number>(0);
+  const [isMenuComplete, setIsMenuComplete] = useState(false);
+  const [calendarData, setCalendarData] = useState<any>(null); // Added missing state
 
   // Meal interaction state
   const [mealRatings, setMealRatings] = useState<{ [key: string]: number }>({});
@@ -254,27 +262,60 @@ export default function ActiveMenu() {
     // If we have a meal plan with a start date, use that as reference
     if (mealPlan?.start_date) {
       const planStartDate = new Date(mealPlan.start_date);
+
+      // Apply 14:00 rule: If menu starts after 14:00 (2 PM), actual start is next day
+      let actualStartDate = new Date(planStartDate);
+      const startHour = planStartDate.getHours();
+
+      if (startHour >= 14) {
+        // Menu started after 2 PM, so actual start is next day at midnight
+        actualStartDate.setDate(actualStartDate.getDate() + 1);
+        actualStartDate.setHours(0, 0, 0, 0);
+        console.log(
+          "⏰ 14:00 Rule Applied: Menu started after 2 PM, moving start to next day"
+        );
+      } else {
+        // Menu started before 2 PM, use same day at midnight
+        actualStartDate.setHours(0, 0, 0, 0);
+      }
+
+      // Calculate days since actual start
+      const todayMidnight = new Date(today);
+      todayMidnight.setHours(0, 0, 0, 0);
+
       const daysSinceStart = Math.max(
         0,
         Math.floor(
-          (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
+          (todayMidnight.getTime() - actualStartDate.getTime()) /
+            (1000 * 60 * 60 * 24)
         )
       );
 
       // Calculate current day in plan cycle
       const currentDayInPlan = daysSinceStart % (mealPlan.days_count || 7);
 
-      console.log("📅 Date calculation:", {
+      // Check if menu duration has been exceeded
+      const menuComplete = daysSinceStart >= (mealPlan.days_count || 7);
+
+      console.log("📅 Enhanced Date Calculation:", {
+        originalStartDate: planStartDate.toISOString(),
+        actualStartDate: actualStartDate.toISOString(),
         currentDate: today.toDateString(),
-        planStartDate: planStartDate.toDateString(),
         daysSinceStart,
         currentDayInPlan,
         daysCount: mealPlan.days_count,
-        availableDays: Object.keys(mealPlan.weekly_plan || {}),
+        menuComplete,
+        startHour,
+        rule14Applied: startHour >= 14,
       });
 
-      // Set current week to start from plan start date
-      setCurrentWeekStart(new Date(planStartDate));
+      // Handle menu completion
+      if (menuComplete && !isMenuComplete) {
+        handleMenuCompletion(daysSinceStart, mealPlan.days_count || 7);
+      }
+
+      // Set current week to start from actual start date
+      setCurrentWeekStart(new Date(actualStartDate));
       setSelectedDay(currentDayInPlan);
       setSelectedDate(today);
     } else {
@@ -282,6 +323,127 @@ export default function ActiveMenu() {
       setCurrentWeekStart(new Date(today));
       setSelectedDay(0);
       setSelectedDate(today);
+    }
+  };
+
+  const handleMenuCompletion = async (
+    daysElapsed: number,
+    menuDuration: number
+  ) => {
+    try {
+      console.log("🎉 Menu completion detected!", {
+        daysElapsed,
+        menuDuration,
+      });
+
+      // Generate completion summary
+      const summary = await generateMenuCompletionSummary();
+
+      // Show completion notification
+      Alert.alert(
+        language === "he" ? "התפריט הושלם!" : "Menu Completed!",
+        language === "he"
+          ? `כל הכבוד! השלמת תפריט של ${menuDuration} ימים עם ${summary.totalMeals} ארוחות.`
+          : `Congratulations! You've completed a ${menuDuration}-day menu with ${summary.totalMeals} meals.`,
+        [
+          {
+            text: language === "he" ? "צפה בסיכום" : "View Summary",
+            onPress: () => showDetailedSummary(summary),
+          },
+          {
+            text: language === "he" ? "אישור" : "OK",
+            style: "default",
+          },
+        ]
+      );
+
+      // Mark as complete to prevent duplicate notifications
+      setIsMenuComplete(true);
+
+      // Auto-finish and potentially generate new menu
+      setTimeout(async () => {
+        await finishCurrentMenu();
+      }, 2000);
+    } catch (error) {
+      console.error("💥 Error handling menu completion:", error);
+    }
+  };
+
+  const generateMenuCompletionSummary = async () => {
+    // Calculate summary based on calendar data and meal plan
+    let totalMeals = 0;
+    let totalCalories = 0;
+
+    if (calendarData && mealPlan) {
+      const menuDays = Object.keys(mealPlan.weekly_plan || {});
+      totalMeals = menuDays.reduce((total, day) => {
+        const dayMeals = mealPlan.weekly_plan[day];
+        return total + Object.values(dayMeals).flat().length;
+      }, 0);
+
+      totalCalories = menuDays.reduce((total, day) => {
+        const dayMeals = mealPlan.weekly_plan[day];
+        const dayCalories = Object.values(dayMeals)
+          .flat()
+          .reduce((dayTotal, meal) => {
+            return dayTotal + (meal.calories || 0);
+          }, 0);
+        return total + dayCalories;
+      }, 0);
+    }
+
+    return {
+      totalMeals,
+      totalCalories: Math.round(totalCalories),
+      duration: mealPlan?.days_count || 7,
+      averageCaloriesPerDay: Math.round(
+        totalCalories / (mealPlan?.days_count || 7)
+      ),
+      planName: mealPlan?.name || "Menu Plan",
+    };
+  };
+
+  const showDetailedSummary = (summary: any) => {
+    const message =
+      language === "he"
+        ? `📊 סיכום התפריט:\n\n• משך: ${summary.duration} ימים\n• סה"כ ארוחות: ${summary.totalMeals}\n• סה"כ קלוריות: ${summary.totalCalories}\n• ממוצע ליום: ${summary.averageCaloriesPerDay} קלוריות`
+        : `📊 Menu Summary:\n\n• Duration: ${summary.duration} days\n• Total Meals: ${summary.totalMeals}\n• Total Calories: ${summary.totalCalories}\n• Average per day: ${summary.averageCaloriesPerDay} calories`;
+
+    Alert.alert(
+      language === "he" ? "סיכום מפורט" : "Detailed Summary",
+      message
+    );
+  };
+
+  const finishCurrentMenu = async () => {
+    try {
+      console.log("✅ Finishing current menu and resetting state");
+
+      // Reset completion state
+      setIsMenuComplete(false);
+
+      // Could call backend to mark menu as completed
+      // await api.post(`/meal-plans/${mealPlan?.plan_id}/complete`);
+
+      // Optionally redirect to menu selection or generate new menu
+      Alert.alert(
+        language === "he" ? "התפריט הסתיים" : "Menu Finished",
+        language === "he"
+          ? "האם תרצה ליצור תפריט חדש?"
+          : "Would you like to create a new menu?",
+        [
+          {
+            text: language === "he" ? "לא עכשיו" : "Not Now",
+            style: "cancel",
+          },
+          {
+            text: language === "he" ? "צור תפריט חדש" : "Create New Menu",
+            onPress: () => router.push("/(tabs)/recommended-menus"),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("💥 Error finishing menu:", error);
     }
   };
 
@@ -405,6 +567,7 @@ export default function ActiveMenu() {
         };
 
         setMealPlan(mealPlanData);
+        setCalendarData(weeklyPlan); // Set calendar data
 
         // Initialize local state from existing data
         const ratings: { [key: string]: number } = {};
@@ -2909,13 +3072,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  completeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -2938,28 +3094,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginVertical: 16,
-  },
-  mealCardActions: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-  },
-  completeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-    elevation: 1,
-    shadowColor: "#52c1c4",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  completeButtonText: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   mealCompletionDescription: {
     fontSize: 16,
@@ -2985,5 +3119,22 @@ const styles = StyleSheet.create({
   quantityText: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  // Styles for calendar widget
+  monthContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  selectDayContainer: {
+    alignItems: "center",
+    gap: 10,
+  },
+  selectDayText: {
+    fontSize: 14,
   },
 });

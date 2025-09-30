@@ -446,13 +446,29 @@ export default function DevicesScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
         <LinearGradient
-          colors={isDark ? ["#064e3b", "#047857"] : ["#10b981", "#059669"]}
+          colors={
+            isDark
+              ? [colors.emerald700, colors.emerald600]
+              : [colors.emerald500, colors.emerald600]
+          }
           style={styles.header}
         >
-          <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: colors.onPrimary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {t("devices.title")}
           </Text>
-          <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.headerSubtitle,
+              { color: colors.onPrimary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {t("devices.subtitle")}
           </Text>
         </LinearGradient>

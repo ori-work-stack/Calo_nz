@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Response, Request } from "express"; // Import Request and Response types
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../lib/database";
 import { MealPlanService } from "../services/mealPlans";
@@ -288,7 +288,7 @@ router.post(
   }
 );
 
-// Get current/active meal plan
+// Current/active meal plan
 router.get("/current", authenticateToken, async (req: AuthRequest, res) => {
   try {
     console.log("📋 Getting current meal plan for user:", req.user?.user_id);
@@ -611,188 +611,207 @@ router.get("/current", authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Create comprehensive menu
-router.post("/create-comprehensive", authenticateToken, async (req, res) => {
-  try {
-    console.log("🎨 Creating comprehensive menu for user:", req.user?.user_id);
-    console.log("📝 Config:", req.body);
+router.post(
+  "/create-comprehensive",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log(
+        "🎨 Creating comprehensive menu for user:",
+        req.user?.user_id
+      );
+      console.log("📝 Config:", req.body);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const {
+        menuName,
+        days,
+        mealsPerDay,
+        dietaryPreferences,
+        excludedIngredients,
+        includedIngredients,
+        cuisineTypes,
+        cookingMethods,
+        budget,
+        targetCalories,
+        proteinGoal,
+        carbGoal,
+        fatGoal,
+        specialRequests,
+      } = req.body;
+
+      // Validate required fields
+      if (!menuName || !days || !mealsPerDay) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: menuName, days, mealsPerDay",
+        });
+      }
+
+      // Create comprehensive menu using MealPlanService
+      const config = {
+        name: menuName,
+        plan_type: "WEEKLY" as const,
+        meals_per_day: parseInt(mealsPerDay) || 3,
+        snacks_per_day: 0,
+        rotation_frequency_days: parseInt(days) || 7,
+        include_leftovers: false,
+        fixed_meal_times: true,
+        dietary_preferences: dietaryPreferences || [],
+        excluded_ingredients: excludedIngredients || [],
+      };
+
+      const mealPlan = await MealPlanService.createUserMealPlan(
+        user_id,
+        config
+      );
+
+      // Update user's active meal plan
+      await prisma.user.update({
+        where: { user_id },
+        data: {
+          active_meal_plan_id: mealPlan.plan_id,
+          active_menu_id: mealPlan.plan_id,
+        },
+      });
+
+      console.log("✅ Comprehensive menu created successfully");
+      res.json({
+        success: true,
+        data: mealPlan,
+        message: "Comprehensive menu created successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error creating comprehensive menu:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create comprehensive menu",
       });
     }
-
-    const {
-      menuName,
-      days,
-      mealsPerDay,
-      dietaryPreferences,
-      excludedIngredients,
-      includedIngredients,
-      cuisineTypes,
-      cookingMethods,
-      budget,
-      targetCalories,
-      proteinGoal,
-      carbGoal,
-      fatGoal,
-      specialRequests,
-    } = req.body;
-
-    // Validate required fields
-    if (!menuName || !days || !mealsPerDay) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: menuName, days, mealsPerDay",
-      });
-    }
-
-    // Create comprehensive menu using MealPlanService
-    const config = {
-      name: menuName,
-      plan_type: "WEEKLY" as const,
-      meals_per_day: parseInt(mealsPerDay) || 3,
-      snacks_per_day: 0,
-      rotation_frequency_days: parseInt(days) || 7,
-      include_leftovers: false,
-      fixed_meal_times: true,
-      dietary_preferences: dietaryPreferences || [],
-      excluded_ingredients: excludedIngredients || [],
-    };
-
-    const mealPlan = await MealPlanService.createUserMealPlan(user_id, config);
-
-    // Update user's active meal plan
-    await prisma.user.update({
-      where: { user_id },
-      data: {
-        active_meal_plan_id: mealPlan.plan_id,
-        active_menu_id: mealPlan.plan_id,
-      },
-    });
-
-    console.log("✅ Comprehensive menu created successfully");
-    res.json({
-      success: true,
-      data: mealPlan,
-      message: "Comprehensive menu created successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error creating comprehensive menu:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create comprehensive menu",
-    });
   }
-});
+);
 
 // Activate a menu as the current active menu
-router.post("/:planId/activate", authenticateToken, async (req, res) => {
-  try {
-    console.log("🔄 Activating menu:", req.params.planId);
+router.post(
+  "/:planId/activate",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("🔄 Activating menu:", req.params.planId);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+
+      // Verify the plan exists and belongs to the user
+      const mealPlan = await prisma.userMealPlan.findFirst({
+        where: {
+          plan_id: planId,
+          user_id: user_id,
+        },
+      });
+
+      if (!mealPlan) {
+        return res.status(404).json({
+          success: false,
+          error: "Meal plan not found",
+        });
+      }
+
+      // Deactivate all other plans for this user
+      await prisma.userMealPlan.updateMany({
+        where: { user_id },
+        data: { is_active: false },
+      });
+
+      // Activate the selected plan
+      await prisma.userMealPlan.update({
+        where: { plan_id: planId },
+        data: { is_active: true },
+      });
+
+      // Update user's active meal plan reference
+      await prisma.user.update({
+        where: { user_id },
+        data: {
+          active_meal_plan_id: planId,
+          active_menu_id: planId,
+        },
+      });
+
+      console.log("✅ Menu activated successfully");
+      res.json({
+        success: true,
+        message: "Menu activated successfully",
+        planId,
+      });
+    } catch (error) {
+      console.error("💥 Error activating menu:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error ? error.message : "Failed to activate menu",
       });
     }
-
-    const { planId } = req.params;
-
-    // Verify the plan exists and belongs to the user
-    const mealPlan = await prisma.userMealPlan.findFirst({
-      where: {
-        plan_id: planId,
-        user_id: user_id,
-      },
-    });
-
-    if (!mealPlan) {
-      return res.status(404).json({
-        success: false,
-        error: "Meal plan not found",
-      });
-    }
-
-    // Deactivate all other plans for this user
-    await prisma.userMealPlan.updateMany({
-      where: { user_id },
-      data: { is_active: false },
-    });
-
-    // Activate the selected plan
-    await prisma.userMealPlan.update({
-      where: { plan_id: planId },
-      data: { is_active: true },
-    });
-
-    // Update user's active meal plan reference
-    await prisma.user.update({
-      where: { user_id },
-      data: {
-        active_meal_plan_id: planId,
-        active_menu_id: planId,
-      },
-    });
-
-    console.log("✅ Menu activated successfully");
-    res.json({
-      success: true,
-      message: "Menu activated successfully",
-      planId,
-    });
-  } catch (error) {
-    console.error("💥 Error activating menu:", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to activate menu",
-    });
   }
-});
+);
 
 // Get user's active menu status
-router.get("/active-status", authenticateToken, async (req, res) => {
-  try {
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+router.get(
+  "/active-status",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { user_id },
+        select: {
+          active_meal_plan_id: true,
+          active_menu_id: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        hasActiveMenu: !!(user?.active_meal_plan_id || user?.active_menu_id),
+        activePlanId: user?.active_meal_plan_id,
+        activeMenuId: user?.active_menu_id,
+      });
+    } catch (error) {
+      console.error("💥 Error getting active menu status:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error: "Failed to get active menu status",
       });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { user_id },
-      select: {
-        active_meal_plan_id: true,
-        active_menu_id: true,
-      },
-    });
-
-    res.json({
-      success: true,
-      hasActiveMenu: !!(user?.active_meal_plan_id || user?.active_menu_id),
-      activePlanId: user?.active_meal_plan_id,
-      activeMenuId: user?.active_menu_id,
-    });
-  } catch (error) {
-    console.error("💥 Error getting active menu status:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to get active menu status",
-    });
   }
-});
+);
 
 // Create new meal plan
-router.post("/create", authenticateToken, async (req, res) => {
+router.post("/create", authenticateToken, async (req: AuthRequest, res) => {
   try {
     console.log("🤖 Creating meal plan for user:", req.user?.user_id);
     console.log("📝 Config:", req.body);
@@ -833,316 +852,370 @@ router.post("/create", authenticateToken, async (req, res) => {
   }
 });
 // Replace meal in plan
-router.put("/:planId/replace", authenticateToken, async (req, res) => {
-  try {
-    console.log("🔄 Replacing meal in plan:", req.params.planId);
+router.put(
+  "/:planId/replace",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("🔄 Replacing meal in plan:", req.params.planId);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+      const {
+        day_of_week,
+        meal_timing,
+        meal_order = 0,
+        preferences = {},
+      } = req.body;
+
+      // Validate required fields
+      if (day_of_week === undefined || !meal_timing) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: day_of_week, meal_timing",
+        });
+      }
+
+      console.log("🔍 Meal replacement request:", {
+        planId,
+        day_of_week,
+        meal_timing,
+        meal_order,
+        user_id,
+      });
+
+      const result = await MealPlanService.replaceMealInPlan(
+        user_id,
+        planId,
+        day_of_week,
+        meal_timing,
+        meal_order,
+        preferences
+      );
+
+      console.log("✅ Meal replaced successfully");
+      res.json({
+        success: true,
+        data: result,
+        message: "Meal replaced successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error replacing meal:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error ? error.message : "Failed to replace meal",
       });
     }
-
-    const { planId } = req.params;
-    const {
-      day_of_week,
-      meal_timing,
-      meal_order = 0,
-      preferences = {},
-    } = req.body;
-
-    // Validate required fields
-    if (day_of_week === undefined || !meal_timing) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: day_of_week, meal_timing",
-      });
-    }
-
-    console.log("🔍 Meal replacement request:", {
-      planId,
-      day_of_week,
-      meal_timing,
-      meal_order,
-      user_id,
-    });
-
-    const result = await MealPlanService.replaceMealInPlan(
-      user_id,
-      planId,
-      day_of_week,
-      meal_timing,
-      meal_order,
-      preferences
-    );
-
-    console.log("✅ Meal replaced successfully");
-    res.json({
-      success: true,
-      data: result,
-      message: "Meal replaced successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error replacing meal:", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to replace meal",
-    });
   }
-});
+);
 
 // Generate shopping list
-router.post("/:planId/shopping-list", authenticateToken, async (req, res) => {
-  try {
-    console.log("🛒 Generating shopping list for plan:", req.params.planId);
+router.post(
+  "/:planId/shopping-list",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("🛒 Generating shopping list for plan:", req.params.planId);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+      const { week_start_date } = req.body;
+
+      if (!week_start_date) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required field: week_start_date",
+        });
+      }
+
+      const shoppingList = await MealPlanService.generateShoppingList(
+        user_id,
+        planId,
+        week_start_date
+      );
+
+      console.log("✅ Shopping list generated successfully");
+      res.json({
+        success: true,
+        data: shoppingList,
+        message: "Shopping list generated successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error generating shopping list:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate shopping list",
       });
     }
-
-    const { planId } = req.params;
-    const { week_start_date } = req.body;
-
-    if (!week_start_date) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required field: week_start_date",
-      });
-    }
-
-    const shoppingList = await MealPlanService.generateShoppingList(
-      user_id,
-      planId,
-      week_start_date
-    );
-
-    console.log("✅ Shopping list generated successfully");
-    res.json({
-      success: true,
-      data: shoppingList,
-      message: "Shopping list generated successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error generating shopping list:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to generate shopping list",
-    });
   }
-});
+);
 
 // Save meal preference
-router.post("/preferences", authenticateToken, async (req, res) => {
-  try {
-    console.log("💝 Saving meal preference");
+router.post(
+  "/preferences",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("💝 Saving meal preference");
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { template_id, preference_type, rating, notes } = req.body;
+
+      if (!template_id || !preference_type) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: template_id, preference_type",
+        });
+      }
+
+      const preference = await MealPlanService.saveMealPreference(
+        user_id,
+        template_id,
+        preference_type,
+        rating,
+        notes
+      );
+
+      console.log("✅ Meal preference saved successfully");
+      res.json({
+        success: true,
+        data: preference,
+        message: "Preference saved successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error saving meal preference:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error ? error.message : "Failed to save preference",
       });
     }
-
-    const { template_id, preference_type, rating, notes } = req.body;
-
-    if (!template_id || !preference_type) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: template_id, preference_type",
-      });
-    }
-
-    const preference = await MealPlanService.saveMealPreference(
-      user_id,
-      template_id,
-      preference_type,
-      rating,
-      notes
-    );
-
-    console.log("✅ Meal preference saved successfully");
-    res.json({
-      success: true,
-      data: preference,
-      message: "Preference saved successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error saving meal preference:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to save preference",
-    });
   }
-});
+);
 
 // Activate meal plan
-router.post("/:planId/activate", authenticateToken, async (req, res) => {
-  try {
-    console.log("🚀 Activating meal plan:", req.params.planId);
+router.post(
+  "/:planId/activate",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("🚀 Activating meal plan:", req.params.planId);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+      const { previousPlanFeedback } = req.body;
+
+      // If there's feedback about a previous plan, store it
+      if (previousPlanFeedback) {
+        await MealPlanService.savePlanFeedback(
+          user_id,
+          previousPlanFeedback.planId,
+          previousPlanFeedback.rating,
+          previousPlanFeedback.liked,
+          previousPlanFeedback.disliked,
+          previousPlanFeedback.suggestions
+        );
+      }
+
+      // Deactivate all other plans for this user
+      await MealPlanService.deactivateUserPlans(user_id);
+
+      // Activate the new plan
+      const activatedPlan = await MealPlanService.activatePlan(user_id, planId);
+
+      console.log("✅ Meal plan activated successfully");
+      res.json({
+        success: true,
+        data: activatedPlan,
+        message: "Meal plan activated successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error activating meal plan:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to activate meal plan",
       });
     }
-
-    const { planId } = req.params;
-    const { previousPlanFeedback } = req.body;
-
-    // If there's feedback about a previous plan, store it
-    if (previousPlanFeedback) {
-      await MealPlanService.savePlanFeedback(
-        user_id,
-        previousPlanFeedback.planId,
-        previousPlanFeedback.rating,
-        previousPlanFeedback.liked,
-        previousPlanFeedback.disliked,
-        previousPlanFeedback.suggestions
-      );
-    }
-
-    // Deactivate all other plans for this user
-    await MealPlanService.deactivateUserPlans(user_id);
-
-    // Activate the new plan
-    const activatedPlan = await MealPlanService.activatePlan(user_id, planId);
-
-    console.log("✅ Meal plan activated successfully");
-    res.json({
-      success: true,
-      data: activatedPlan,
-      message: "Meal plan activated successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error activating meal plan:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to activate meal plan",
-    });
   }
-});
+);
 
 // Complete meal plan with feedback
-router.post("/:planId/complete", authenticateToken, async (req, res) => {
-  try {
-    console.log("🏁 Completing meal plan:", req.params.planId);
+router.post(
+  "/:planId/complete",
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { planId } = req.params;
+      const userId = req.user?.user_id; // Correctly access userId from req.user
+      const { rating, feedback, liked, disliked, suggestions } = req.body;
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
-        success: false,
-        error: "User not authenticated",
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      // Update meal plan status to completed
+      const completedPlan = await prisma.userMealPlan.update({
+        // Correct model name to UserMealPlan
+        where: {
+          plan_id: planId, // Use plan_id for UserMealPlan
+          user_id: userId,
+        },
+        data: {
+          is_active: false,
+          completed_at: new Date(), // Use completed_at field
+          rating: rating,
+            feedback_liked: liked || "",
+            feedback_disliked: disliked || "",
+            feedback_suggestions: suggestions || "",
+        },
+      });
+
+      // Generate completion summary
+      const summary = {
+        planId: planId,
+        duration: completedPlan.rotation_frequency_days || 7, // Use rotation_frequency_days
+        totalMeals: 0, // Calculate from meal plan data
+        totalCalories: 0, // Calculate from meal plan data
+        completedAt: new Date(),
+      };
+
+      // Award XP for completing meal plan
+      await prisma.user.update({
+        where: { user_id: userId }, // Use user_id field
+        data: {
+          current_xp: {
+            increment: 100, // Award 100 XP for completing a meal plan
+          },
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          ...completedPlan,
+          summary: summary,
+        },
+        message: "Meal plan completed successfully",
+      });
+    } catch (error) {
+      console.error("Error completing meal plan:", error);
+      res.status(500).json({
+        error: "Failed to complete meal plan",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
-
-    const { planId } = req.params;
-    const { rating, liked, disliked, suggestions } = req.body;
-
-    const result = await MealPlanService.completePlan(user_id, planId, {
-      rating,
-      liked,
-      disliked,
-      suggestions,
-    });
-
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    console.error("💥 Error completing meal plan:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to complete meal plan",
-    });
   }
-});
+);
 
 // Get meal plan progress
-router.get("/:planId/progress", authenticateToken, async (req, res) => {
-  try {
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+router.get(
+  "/:planId/progress",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+
+      // Get plan details
+      const plan = await prisma.userMealPlan.findFirst({
+        where: {
+          plan_id: planId,
+          user_id: user_id,
+        },
+      });
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          error: "Plan not found",
+        });
+      }
+
+      // Calculate progress based on start date and current date
+      const startDate = plan.start_date || new Date();
+      const currentDate = new Date();
+      const totalDays = plan.rotation_frequency_days || 7;
+
+      const daysSinceStart = Math.floor(
+        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      const currentDay = (daysSinceStart % totalDays) + 1;
+      const completedCycles = Math.floor(daysSinceStart / totalDays);
+      const progressPercentage = Math.min(
+        100,
+        (daysSinceStart / totalDays) * 100
+      );
+
+      res.json({
+        success: true,
+        data: {
+          planId,
+          startDate: startDate.toISOString(),
+          currentDate: currentDate.toISOString(),
+          totalDays,
+          daysSinceStart,
+          currentDay,
+          completedCycles,
+          progressPercentage: Math.round(progressPercentage),
+          isActive: plan.is_active,
+          isCompleted: !!plan.completed_at,
+        },
+      });
+    } catch (error) {
+      console.error("💥 Error getting plan progress:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error: "Failed to get plan progress",
       });
     }
-
-    const { planId } = req.params;
-
-    // Get plan details
-    const plan = await prisma.userMealPlan.findFirst({
-      where: {
-        plan_id: planId,
-        user_id,
-      },
-    });
-
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        error: "Plan not found",
-      });
-    }
-
-    // Calculate progress based on start date and current date
-    const startDate = plan.start_date || new Date();
-    const currentDate = new Date();
-    const totalDays = plan.rotation_frequency_days || 7;
-
-    const daysSinceStart = Math.floor(
-      (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    const currentDay = (daysSinceStart % totalDays) + 1;
-    const completedCycles = Math.floor(daysSinceStart / totalDays);
-    const progressPercentage = Math.min(
-      100,
-      (daysSinceStart / totalDays) * 100
-    );
-
-    res.json({
-      success: true,
-      data: {
-        planId,
-        startDate: startDate.toISOString(),
-        currentDate: currentDate.toISOString(),
-        totalDays,
-        daysSinceStart,
-        currentDay,
-        completedCycles,
-        progressPercentage: Math.round(progressPercentage),
-        isActive: plan.is_active,
-        isCompleted: !!plan.completed_at,
-      },
-    });
-  } catch (error) {
-    console.error("💥 Error getting plan progress:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to get plan progress",
-    });
   }
-});
+);
 
 // Get today's meals from active plan
-router.get("/today", authenticateToken, async (req, res) => {
+router.get("/today", authenticateToken, async (req: AuthRequest, res) => {
   try {
     const user_id = req.user?.user_id;
     if (!user_id) {
@@ -1251,7 +1324,7 @@ router.get("/today", authenticateToken, async (req, res) => {
 });
 
 // Get meal plan by ID
-router.get("/:planId", authenticateToken, async (req, res) => {
+router.get("/:planId", authenticateToken, async (req: AuthRequest, res) => {
   try {
     console.log("📋 Getting meal plan:", req.params.planId);
 
@@ -1555,36 +1628,215 @@ router.get("/:planId", authenticateToken, async (req, res) => {
 });
 
 // Deactivate meal plan
-router.post("/:planId/deactivate", authenticateToken, async (req, res) => {
-  try {
-    console.log("🔄 Deactivating meal plan:", req.params.planId);
+router.post(
+  "/:planId/deactivate",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("🔄 Deactivating meal plan:", req.params.planId);
 
-    const user_id = req.user?.user_id;
-    if (!user_id) {
-      return res.status(401).json({
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+      await MealPlanService.deactivateMealPlan(user_id, planId);
+
+      console.log("✅ Meal plan deactivated successfully");
+      res.json({
+        success: true,
+        message: "Meal plan deactivated successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error deactivating meal plan:", error);
+      res.status(500).json({
         success: false,
-        error: "User not authenticated",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to deactivate meal plan",
       });
     }
-
-    const { planId } = req.params;
-    await MealPlanService.deactivateMealPlan(user_id, planId);
-
-    console.log("✅ Meal plan deactivated successfully");
-    res.json({
-      success: true,
-      message: "Meal plan deactivated successfully",
-    });
-  } catch (error) {
-    console.error("💥 Error deactivating meal plan:", error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to deactivate meal plan",
-    });
   }
-});
+);
+
+// Get calendar data for meal plan tracking
+router.get(
+  "/calendar/:year/:month",
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { year, month } = req.params;
+      // Ensure userId is correctly accessed, assuming req.user is populated by authenticateToken
+      const userId = (req as any).user?.user_id; // Use 'any' to access user_id if not directly typed
+
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(month), 0); // Day 0 of next month is the last day of current month
+
+      // Get meal completions for the month
+      const mealCompletions = await prisma.mealCompletion.findMany({
+        where: {
+          user_id: userId,
+          created_at: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        orderBy: {
+          created_at: "asc",
+        },
+      });
+
+      // Get active meal plan or recommended menu for the user
+      const user = await prisma.user.findUnique({
+        where: { user_id: userId },
+        select: {
+          active_meal_plan_id: true,
+          active_menu_id: true,
+        },
+      });
+
+      let activePlanInfo: {
+        id: string;
+        type: "meal_plan" | "recommended_menu";
+      } | null = null;
+      if (user?.active_meal_plan_id) {
+        activePlanInfo = { id: user.active_meal_plan_id, type: "meal_plan" };
+      } else if (user?.active_menu_id) {
+        activePlanInfo = { id: user.active_menu_id, type: "recommended_menu" };
+      }
+
+      // Fetch plan details to get nutritional goals
+      let planGoals: {
+        goal_calories?: number;
+        goal_protein_g?: number;
+        goal_carbs_g?: number;
+        goal_fats_g?: number;
+      } = {};
+      if (activePlanInfo) {
+        if (activePlanInfo.type === "meal_plan") {
+          const plan = await prisma.userMealPlan.findUnique({
+            where: { plan_id: activePlanInfo.id },
+            select: {
+              target_calories_daily: true,
+              target_protein_daily: true,
+              target_carbs_daily: true,
+              target_fats_daily: true,
+            },
+          });
+          if (plan) {
+            planGoals = {
+              goal_calories: plan.target_calories_daily || 2000,
+              goal_protein_g: plan.target_protein_daily || 150,
+              goal_carbs_g: plan.target_carbs_daily || 250,
+              goal_fats_g: plan.target_fats_daily || 67,
+            };
+          }
+        } else if (activePlanInfo.type === "recommended_menu") {
+          const menu = await prisma.recommendedMenu.findUnique({
+            where: { menu_id: activePlanInfo.id },
+            select: {
+              total_calories: true,
+              total_protein: true,
+              total_carbs: true,
+              total_fat: true,
+            },
+          });
+          if (menu) {
+            planGoals = {
+              goal_calories: menu.total_calories
+                ? Math.round(menu.total_calories / 7)
+                : 2000, // Assuming 7 days a week for recommended menu
+              goal_protein_g: menu.total_protein
+                ? Math.round(menu.total_protein / 7)
+                : 150,
+              goal_carbs_g: menu.total_carbs
+                ? Math.round(menu.total_carbs / 7)
+                : 250,
+              goal_fats_g: menu.total_fat ? Math.round(menu.total_fat / 7) : 67,
+            };
+          }
+        }
+      }
+
+      // Structure calendar data
+      const calendarData: { [date: string]: any } = {};
+      const currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split("T")[0];
+        const dayCompletions = mealCompletions.filter(
+          (completion) =>
+            completion.created_at.toISOString().split("T")[0] === dateStr
+        );
+
+        // Calculate actuals from meal completions
+        const actualCalories = dayCompletions.reduce(
+          (sum, comp) => sum + (comp.calories || 0),
+          0
+        );
+        const actualProtein = dayCompletions.reduce(
+          (sum, comp) => sum + (comp.protein_g || 0),
+          0
+        );
+        const actualCarbs = dayCompletions.reduce(
+          (sum, comp) => sum + (comp.carbs_g || 0),
+          0
+        );
+        const actualFat = dayCompletions.reduce(
+          (sum, comp) => sum + (comp.fats_g || 0),
+          0
+        );
+        const averageRating =
+          dayCompletions.length > 0
+            ? dayCompletions.reduce(
+                (sum, comp) => sum + (comp.rating || 0),
+                0
+              ) / dayCompletions.length
+            : 0;
+
+        calendarData[dateStr] = {
+          date: dateStr,
+          // Use goals from active plan, with defaults if not available
+          calories_goal: planGoals.goal_calories || 2000,
+          calories_actual: actualCalories,
+          protein_goal: planGoals.goal_protein_g || 150,
+          protein_actual: actualProtein,
+          carbs_goal: planGoals.goal_carbs_g || 250,
+          carbs_actual: actualCarbs,
+          fat_goal: planGoals.goal_fats_g || 67,
+          fat_actual: actualFat,
+          meal_count: dayCompletions.length,
+          quality_score: averageRating, // This represents the average rating of completed meals for the day
+          water_intake_ml: 0, // TODO: Add water tracking integration
+          events: [], // TODO: Integrate with calendar events if applicable
+        };
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      res.json({
+        success: true,
+        data: calendarData,
+        activePlan: activePlanInfo, // Include info about the active plan
+        planGoals: planGoals, // Include the fetched plan goals
+      });
+    } catch (error) {
+      console.error("Error fetching calendar data:", error);
+      res.status(500).json({
+        error: "Failed to fetch calendar data",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
 
 export { router as mealPlansRoutes };

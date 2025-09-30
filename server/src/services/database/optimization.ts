@@ -203,23 +203,28 @@ export class DatabaseOptimizationService {
     try {
       console.log("⚡ Optimizing database performance...");
 
-      // Run ANALYZE to update query planner statistics
-      await prisma.$executeRaw`ANALYZE;`;
+      // Run ANALYZE to update table statistics
+      try {
+        await prisma.$executeRaw`ANALYZE;`;
+        console.log("✅ Database ANALYZE completed");
+      } catch (analyzeError) {
+        console.log("⚠️ ANALYZE operation failed:", analyzeError);
+      }
 
-      // Vacuum to reclaim space (PostgreSQL)
+      // Run VACUUM to reclaim storage space (only if not in transaction)
       try {
         await prisma.$executeRaw`VACUUM;`;
-        console.log("✅ Database vacuum completed");
-      } catch (error) {
+        console.log("✅ Database VACUUM completed");
+      } catch (vacuumError) {
         console.log(
-          "ℹ️ Vacuum not supported or failed (normal for some databases)"
+          "ℹ️ VACUUM operation skipped (likely transaction in progress)"
         );
       }
 
       console.log("✅ Database optimization completed");
     } catch (error) {
-      console.error("💥 Database optimization failed:", error);
-      throw error;
+      console.error("❌ Database optimization failed:", error);
+      // Don't throw error to prevent breaking the application
     }
   }
 
