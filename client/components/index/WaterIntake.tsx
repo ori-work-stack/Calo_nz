@@ -1,6 +1,22 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Droplets, Plus, Minus } from "lucide-react-native";
+import React, { useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+} from "react-native-reanimated";
+import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
+
+const { width } = Dimensions.get("window");
+const isSmallScreen = width < 400;
 
 interface WaterIntakeCardProps {
   currentCups: number;
@@ -9,6 +25,38 @@ interface WaterIntakeCardProps {
   onDecrement: () => void;
   disabled?: boolean;
 }
+
+const WaterCupIcon: React.FC<{
+  size: number;
+  filled?: boolean;
+  waterLevel?: number;
+}> = ({ size, filled = false, waterLevel = 0 }) => {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Defs>
+        <LinearGradient id="waterGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+          <Stop offset="0%" stopColor="#06b6d4" stopOpacity="1" />
+          <Stop offset="100%" stopColor="#0891b2" stopOpacity="1" />
+        </LinearGradient>
+      </Defs>
+      <Path
+        d="M6 22L4 2h16l-2 20H6z"
+        stroke={filled ? "#0891b2" : "#e2e8f0"}
+        strokeWidth="1.5"
+        fill="none"
+      />
+      {filled && waterLevel > 0 && (
+        <Path
+          d={`M4.5 ${2 + (waterLevel / 100) * 20}h15l-0.5 ${
+            20 - (waterLevel / 100) * 20
+          }H4.5z`}
+          fill="url(#waterGradient)"
+          opacity="0.9"
+        />
+      )}
+    </Svg>
+  );
+};
 
 const WaterIntakeCard: React.FC<WaterIntakeCardProps> = ({
   currentCups,
@@ -22,39 +70,316 @@ const WaterIntakeCard: React.FC<WaterIntakeCardProps> = ({
   const targetMl = maxCups * 250;
   const isComplete = currentCups >= maxCups;
 
+  const progressWidth = useSharedValue(0);
+  const badgeScale = useSharedValue(0);
+  const badgeOpacity = useSharedValue(0);
+  const cupScales = Array.from({ length: maxCups }, () => useSharedValue(0));
+
+  useEffect(() => {
+    progressWidth.value = withSpring(progress, {
+      damping: 20,
+      stiffness: 90,
+    });
+  }, [progress]);
+
+  useEffect(() => {
+    if (isComplete) {
+      badgeOpacity.value = withTiming(1, { duration: 300 });
+    } else {
+      badgeOpacity.value = withTiming(0, { duration: 200 });
+    }
+  }, [isComplete]);
+
+  useEffect(() => {
+    cupScales.forEach((scale, index) => {
+      if (index < currentCups) {
+        scale.value = withSpring(1, {
+          damping: 15,
+          stiffness: 150,
+        });
+      } else {
+        scale.value = withSpring(0.85, {
+          damping: 15,
+          stiffness: 150,
+        });
+      }
+    });
+  }, [currentCups]);
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progressWidth.value}%`,
+  }));
+
+  const animatedBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+    opacity: badgeOpacity.value,
+  }));
+
+  const handleCupPress = (index: number) => {
+    if (disabled) return;
+
+    if (index < currentCups) {
+      onDecrement();
+    } else if (currentCups < maxCups) {
+      onIncrement();
+    }
+  };
+
+  const styles = StyleSheet.create({
+    container: {
+      width: "100%",
+      paddingHorizontal: isSmallScreen ? 12 : 16,
+      paddingBottom: isSmallScreen ? 20 : 32,
+      alignSelf: "center",
+    },
+    card: {
+      backgroundColor: "#ffffff",
+      borderRadius: isSmallScreen ? 28 : 32,
+      padding: isSmallScreen ? 24 : 32,
+      elevation: 8,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: isSmallScreen ? 24 : 32,
+    },
+    headerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: isSmallScreen ? 14 : 18,
+      flex: 1,
+    },
+    iconContainer: {
+      width: isSmallScreen ? 64 : 72,
+      height: isSmallScreen ? 64 : 72,
+      borderRadius: isSmallScreen ? 20 : 24,
+      backgroundColor: "#f0fdff",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    titleContainer: {
+      flex: 1,
+    },
+    title: {
+      fontSize: isSmallScreen ? 22 : 26,
+      fontWeight: "800",
+      color: "#0f172a",
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: "#64748b",
+      fontWeight: "600",
+      marginTop: 4,
+      letterSpacing: 0.1,
+    },
+    badge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: isSmallScreen ? 16 : 20,
+      paddingVertical: isSmallScreen ? 10 : 12,
+      backgroundColor: "#ecfeff",
+      borderRadius: 100,
+    },
+    trophy: {
+      fontSize: isSmallScreen ? 18 : 20,
+    },
+    badgeText: {
+      fontSize: isSmallScreen ? 13 : 14,
+      fontWeight: "800",
+      color: "#0e7490",
+      letterSpacing: 0.2,
+    },
+    progressSection: {
+      marginBottom: isSmallScreen ? 28 : 36,
+    },
+    progressHeader: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      marginBottom: 16,
+    },
+    cupsRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+    },
+    currentCups: {
+      fontSize: isSmallScreen ? 40 : 48,
+      fontWeight: "800",
+      color: "#0f172a",
+      letterSpacing: -2,
+    },
+    maxCups: {
+      fontSize: isSmallScreen ? 20 : 24,
+      fontWeight: "700",
+      color: "#94a3b8",
+    },
+    cupsLabel: {
+      fontSize: isSmallScreen ? 16 : 18,
+      fontWeight: "600",
+      color: "#64748b",
+      letterSpacing: 0.1,
+      marginLeft: 4,
+    },
+    mlText: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: "#94a3b8",
+      fontWeight: "600",
+      marginTop: 6,
+      letterSpacing: 0.1,
+    },
+    percentageContainer: {
+      alignItems: "flex-end",
+    },
+    percentage: {
+      fontSize: isSmallScreen ? 28 : 36,
+      fontWeight: "800",
+      color: "#06b6d4",
+      letterSpacing: -1,
+    },
+    completeText: {
+      fontSize: isSmallScreen ? 11 : 12,
+      color: "#64748b",
+      fontWeight: "700",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      marginTop: 2,
+    },
+    progressBarContainer: {
+      height: isSmallScreen ? 12 : 16,
+      backgroundColor: "#f1f5f9",
+      borderRadius: isSmallScreen ? 6 : 8,
+      overflow: "hidden",
+    },
+    progressBarFill: {
+      height: "100%",
+      backgroundColor: "#06b6d4",
+      borderRadius: isSmallScreen ? 6 : 8,
+    },
+    cupsVisual: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: isSmallScreen ? 8 : 12,
+      marginBottom: isSmallScreen ? 28 : 36,
+      flexWrap: "wrap",
+    },
+    cupContainer: {
+      alignItems: "center",
+    },
+    controls: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: isSmallScreen ? 20 : 28,
+    },
+    button: {
+      width: isSmallScreen ? 64 : 72,
+      height: isSmallScreen ? 64 : 72,
+      borderRadius: isSmallScreen ? 20 : 24,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    buttonActive: {
+      backgroundColor: "#ecfeff",
+    },
+    buttonDisabled: {
+      backgroundColor: "#f1f5f9",
+    },
+    controlsCenter: {
+      minWidth: isSmallScreen ? 120 : 140,
+      alignItems: "center",
+    },
+    controlsCups: {
+      fontSize: isSmallScreen ? 28 : 32,
+      fontWeight: "800",
+      color: "#0f172a",
+      letterSpacing: -1,
+    },
+    controlsMl: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: "#64748b",
+      fontWeight: "600",
+      marginTop: 4,
+      letterSpacing: 0.1,
+    },
+    tipsSection: {
+      marginTop: isSmallScreen ? 24 : 28,
+      paddingTop: isSmallScreen ? 24 : 28,
+      borderTopWidth: 1,
+      borderTopColor: "#e2e8f0",
+    },
+    tipsContainer: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 14,
+      backgroundColor: "#f0fdff",
+      padding: isSmallScreen ? 16 : 20,
+      borderRadius: isSmallScreen ? 18 : 20,
+      borderWidth: 1,
+      borderColor: "#cffafe",
+    },
+    tipIcon: {
+      width: isSmallScreen ? 40 : 44,
+      height: isSmallScreen ? 40 : 44,
+      borderRadius: isSmallScreen ? 12 : 14,
+      backgroundColor: "#ffffff",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "#a5f3fc",
+    },
+    tipEmoji: {
+      fontSize: isSmallScreen ? 18 : 20,
+    },
+    tipTextContainer: {
+      flex: 1,
+    },
+    tipText: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: "#164e63",
+      lineHeight: isSmallScreen ? 20 : 22,
+      letterSpacing: 0.1,
+    },
+    tipBold: {
+      fontWeight: "800",
+      color: "#0e7490",
+    },
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.iconContainer}>
-              <Droplets size={28} color="#06b6d4" />
+              <WaterCupIcon
+                size={isSmallScreen ? 36 : 42}
+                filled={true}
+                waterLevel={progress}
+              />
             </View>
-            <View>
+            <View style={styles.titleContainer}>
               <Text style={styles.title}>Water Intake</Text>
-              <Text style={styles.subtitle}>
-                Stay hydrated throughout the day
-              </Text>
+              <Text style={styles.subtitle}>Stay hydrated today</Text>
             </View>
           </View>
 
           {isComplete && (
-            <View style={styles.badge}>
-              <Text style={styles.trophy}>🏆</Text>
+            <Animated.View style={[styles.badge, animatedBadgeStyle]}>
               <Text style={styles.badgeText}>Goal Reached!</Text>
-            </View>
+            </Animated.View>
           )}
         </View>
 
-        {/* Progress Display */}
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <View>
               <View style={styles.cupsRow}>
                 <Text style={styles.currentCups}>{currentCups}</Text>
                 <Text style={styles.maxCups}> / {maxCups}</Text>
-                <Text style={styles.cupsLabel}> cups</Text>
+                <Text style={styles.cupsLabel}>cups</Text>
               </View>
               <Text style={styles.mlText}>
                 {currentMl.toLocaleString()} ml / {targetMl.toLocaleString()} ml
@@ -66,310 +391,40 @@ const WaterIntakeCard: React.FC<WaterIntakeCardProps> = ({
             </View>
           </View>
 
-          {/* Progress Bar */}
           <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+            <Animated.View
+              style={[styles.progressBarFill, animatedProgressStyle]}
+            />
           </View>
         </View>
 
-        {/* Water Cups Visual */}
         <View style={styles.cupsVisual}>
-          {Array.from({ length: maxCups }).map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.cup,
-                index < currentCups ? styles.cupFilled : styles.cupEmpty,
-              ]}
-            >
-              {index < currentCups && <Droplets size={14} color="#ffffff" />}
-            </View>
-          ))}
-        </View>
+          {Array.from({ length: maxCups }).map((_, index) => {
+            const animatedCupStyle = useAnimatedStyle(() => ({
+              transform: [{ scale: cupScales[index].value }],
+            }));
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          <TouchableOpacity
-            onPress={onDecrement}
-            disabled={disabled || currentCups <= 0}
-            style={[
-              styles.button,
-              disabled || currentCups <= 0
-                ? styles.buttonDisabled
-                : styles.buttonActive,
-            ]}
-          >
-            <Minus
-              size={24}
-              color={disabled || currentCups <= 0 ? "#d1d5db" : "#0891b2"}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.controlsCenter}>
-            <Text style={styles.controlsCups}>{currentCups} cups</Text>
-            <Text style={styles.controlsMl}>{currentMl} ml</Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={onIncrement}
-            disabled={disabled || currentCups >= maxCups}
-            style={[
-              styles.button,
-              disabled || currentCups >= maxCups
-                ? styles.buttonDisabled
-                : styles.buttonActive,
-            ]}
-          >
-            <Plus
-              size={24}
-              color={disabled || currentCups >= maxCups ? "#d1d5db" : "#0891b2"}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Daily Tips */}
-        <View style={styles.tipsSection}>
-          <View style={styles.tipsContainer}>
-            <View style={styles.tipIcon}>
-              <Text style={styles.tipEmoji}>💡</Text>
-            </View>
-            <View style={styles.tipTextContainer}>
-              <Text style={styles.tipText}>
-                <Text style={styles.tipBold}>Pro tip:</Text> Drink a glass of
-                water first thing in the morning to kickstart your metabolism
-                and hydrate after sleep.
-              </Text>
-            </View>
-          </View>
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => handleCupPress(index)}
+                disabled={disabled}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[styles.cupContainer, animatedCupStyle]}>
+                  <WaterCupIcon
+                    size={isSmallScreen ? 36 : 44}
+                    filled={index < currentCups}
+                    waterLevel={index < currentCups ? 100 : 0}
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: "100%",
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    alignSelf: "center",
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: "#f3f4f6",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    flex: 1,
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#ecfeff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#ecfeff",
-    borderWidth: 1,
-    borderColor: "#a5f3fc",
-    borderRadius: 20,
-  },
-  trophy: {
-    fontSize: 20,
-  },
-  badgeText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#0e7490",
-  },
-  progressSection: {
-    marginBottom: 32,
-  },
-  progressHeader: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  cupsRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  currentCups: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  maxCups: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#9ca3af",
-  },
-  cupsLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#6b7280",
-  },
-  mlText: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-    marginTop: 4,
-  },
-  percentageContainer: {
-    alignItems: "flex-end",
-  },
-  percentage: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#0891b2",
-  },
-  completeText: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  progressBarContainer: {
-    height: 12,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 6,
-    overflow: "hidden",
-  },
-  progressBarFill: {
-    height: "100%",
-    backgroundColor: "#06b6d4",
-    borderRadius: 6,
-  },
-  cupsVisual: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 32,
-    flexWrap: "wrap",
-  },
-  cup: {
-    width: 32,
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cupFilled: {
-    backgroundColor: "#06b6d4",
-    borderColor: "#0891b2",
-  },
-  cupEmpty: {
-    backgroundColor: "#f9fafb",
-    borderColor: "#e5e7eb",
-  },
-  controls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 24,
-  },
-  button: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-  },
-  buttonActive: {
-    backgroundColor: "#ecfeff",
-    borderColor: "#06b6d4",
-  },
-  buttonDisabled: {
-    backgroundColor: "#f9fafb",
-    borderColor: "#e5e7eb",
-  },
-  controlsCenter: {
-    flex: 1,
-    maxWidth: 200,
-    alignItems: "center",
-  },
-  controlsCups: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  controlsMl: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  tipsSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
-  },
-  tipsContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  tipIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "#ecfeff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  tipEmoji: {
-    fontSize: 14,
-  },
-  tipTextContainer: {
-    flex: 1,
-  },
-  tipText: {
-    fontSize: 14,
-    color: "#4b5563",
-    lineHeight: 20,
-  },
-  tipBold: {
-    fontWeight: "600",
-    color: "#111827",
-  },
-});
 
 export default WaterIntakeCard;

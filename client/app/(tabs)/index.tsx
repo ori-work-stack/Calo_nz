@@ -17,7 +17,6 @@ import {
   StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -34,12 +33,10 @@ import {
 } from "lucide-react-native";
 import { api, APIError } from "@/src/services/api";
 import { fetchMeals } from "@/src/store/mealSlice";
-import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import XPNotification from "@/components/XPNotification";
-import { setUser } from "@/src/store/authSlice";
 import { useOptimizedSelector } from "@/src/utils/useOptimizedSelector";
 import { useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/src/store";
@@ -549,7 +546,6 @@ const HomeScreen = React.memo(() => {
               calories={dailyGoals.calories}
               targetCalories={dailyGoals.targetCalories}
               dailyGoals={dailyGoals}
-              size={240}
             />
           </View>
 
@@ -792,11 +788,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
   },
   greetingGradient: {
     padding: 24,
@@ -848,6 +839,7 @@ const styles = StyleSheet.create({
   },
   progressSection: {
     marginBottom: 32,
+    marginHorizontal: 16
   },
   statsSection: {
     paddingHorizontal: 20,
@@ -868,11 +860,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
     borderWidth: 0.5,
     borderColor: "#F3F4F6",
   },
@@ -920,11 +907,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
     borderWidth: 0.5,
     borderColor: "#F3F4F6",
   },
@@ -965,11 +947,6 @@ const styles = StyleSheet.create({
   activityList: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
     borderWidth: 0.5,
     borderColor: "#F3F4F6",
   },

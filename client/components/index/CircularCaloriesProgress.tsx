@@ -1,14 +1,54 @@
-import React from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import React, { useState, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
-import { Target, Zap, Apple } from "lucide-react-native";
+import { Droplets } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
+const isSmallScreen = width < 400;
 
-interface CircularCaloriesProgressProps {
+interface NutritionData {
   calories: number;
   targetCalories: number;
-  dailyGoals: {
+  burnedCalories?: number;
+  protein: number;
+  targetProtein: number;
+  carbs: number;
+  targetCarbs: number;
+  fat: number;
+  targetFat: number;
+  fiber?: number;
+  targetFiber?: number;
+  sugar?: number;
+  targetSugar?: number;
+  sodium?: number;
+  targetSodium?: number;
+  cholesterol?: number;
+  targetCholesterol?: number;
+  saturatedFat?: number;
+  targetSaturatedFat?: number;
+  vitaminA?: number;
+  targetVitaminA?: number;
+  vitaminC?: number;
+  targetVitaminC?: number;
+  calcium?: number;
+  targetCalcium?: number;
+  iron?: number;
+  targetIron?: number;
+}
+
+interface CircularCaloriesProgressProps {
+  nutrition?: NutritionData;
+  calories?: number;
+  targetCalories?: number;
+  burnedCalories?: number;
+  dailyGoals?: {
     protein: number;
     carbs: number;
     fat: number;
@@ -16,215 +56,547 @@ interface CircularCaloriesProgressProps {
     targetCarbs: number;
     targetFat: number;
   };
-  size?: number;
+  waterIntake?: {
+    current: number;
+    target: number;
+    onIncrement?: () => void;
+    onDecrement?: () => void;
+  };
 }
 
+interface NutritionCard {
+  title: string;
+  value: number;
+  target: number;
+  unit: string;
+  color: string;
+  gradient: [string, string];
+}
+
+const defaultNutrition: NutritionData = {
+  calories: 0,
+  targetCalories: 2000,
+  burnedCalories: 0,
+  protein: 0,
+  targetProtein: 150,
+  carbs: 0,
+  targetCarbs: 225,
+  fat: 0,
+  targetFat: 67,
+};
+
 const CircularCaloriesProgress: React.FC<CircularCaloriesProgressProps> = ({
-  calories,
-  targetCalories,
+  nutrition: nutritionProp,
+  calories: caloriesProp,
+  targetCalories: targetCaloriesProp,
+  burnedCalories: burnedCaloriesProp,
   dailyGoals,
-  size = 260,
+  waterIntake,
 }) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const nutrition: NutritionData = nutritionProp || {
+    calories: caloriesProp ?? defaultNutrition.calories,
+    targetCalories: targetCaloriesProp ?? defaultNutrition.targetCalories,
+    burnedCalories: burnedCaloriesProp ?? defaultNutrition.burnedCalories,
+    protein: dailyGoals?.protein ?? defaultNutrition.protein,
+    targetProtein: dailyGoals?.targetProtein ?? defaultNutrition.targetProtein,
+    carbs: dailyGoals?.carbs ?? defaultNutrition.carbs,
+    targetCarbs: dailyGoals?.targetCarbs ?? defaultNutrition.targetCarbs,
+    fat: dailyGoals?.fat ?? defaultNutrition.fat,
+    targetFat: dailyGoals?.targetFat ?? defaultNutrition.targetFat,
+  };
+
+  const size = isSmallScreen ? 220 : 280;
   const center = size / 2;
-  const radius = size / 2 - 25;
-  const strokeWidth = 8;
-  const circumference = 2 * Math.PI * radius;
+  const radius = isSmallScreen ? 85 : 110;
+  const strokeWidth = isSmallScreen ? 16 : 22;
 
-  // Calculate progress percentage
-  const progress = Math.min((calories / targetCalories) * 100, 100);
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const remainingCalories = Math.max(
+    nutrition.targetCalories - nutrition.calories,
+    0
+  );
 
-  // Calculate remaining calories
-  const remainingCalories = Math.max(targetCalories - calories, 0);
+  const nutritionCards: NutritionCard[] = [
+    {
+      title: "Calories",
+      value: nutrition.calories,
+      target: nutrition.targetCalories,
+      unit: "kcal",
+      color: "#10B981",
+      gradient: ["#10B981", "#059669"],
+    },
+  ];
 
-  // Calculate macro percentages
-  const proteinProgress = Math.min(
-    (dailyGoals.protein / dailyGoals.targetProtein) * 100,
-    100
+  if (waterIntake) {
+    nutritionCards.push({
+      title: "Water",
+      value: waterIntake.current,
+      target: waterIntake.target,
+      unit: "cups",
+      color: "#06B6D4",
+      gradient: ["#06B6D4", "#0891B2"],
+    });
+  }
+
+  nutritionCards.push(
+    {
+      title: "Protein",
+      value: nutrition.protein,
+      target: nutrition.targetProtein,
+      unit: "g",
+      color: "#8B5CF6",
+      gradient: ["#8B5CF6", "#7C3AED"],
+    },
+    {
+      title: "Carbs",
+      value: nutrition.carbs,
+      target: nutrition.targetCarbs,
+      unit: "g",
+      color: "#3B82F6",
+      gradient: ["#3B82F6", "#2563EB"],
+    },
+    {
+      title: "Fat",
+      value: nutrition.fat,
+      target: nutrition.targetFat,
+      unit: "g",
+      color: "#F59E0B",
+      gradient: ["#F59E0B", "#D97706"],
+    }
   );
-  const carbsProgress = Math.min(
-    (dailyGoals.carbs / dailyGoals.targetCarbs) * 100,
-    100
-  );
-  const fatProgress = Math.min(
-    (dailyGoals.fat / dailyGoals.targetFat) * 100,
-    100
-  );
+
+  if (nutrition.fiber !== undefined && nutrition.targetFiber !== undefined) {
+    nutritionCards.push({
+      title: "Fiber",
+      value: nutrition.fiber,
+      target: nutrition.targetFiber,
+      unit: "g",
+      color: "#14B8A6",
+      gradient: ["#14B8A6", "#0D9488"],
+    });
+  }
+
+  if (nutrition.sugar !== undefined && nutrition.targetSugar !== undefined) {
+    nutritionCards.push({
+      title: "Sugar",
+      value: nutrition.sugar,
+      target: nutrition.targetSugar,
+      unit: "g",
+      color: "#EC4899",
+      gradient: ["#EC4899", "#DB2777"],
+    });
+  }
+
+  if (nutrition.sodium !== undefined && nutrition.targetSodium !== undefined) {
+    nutritionCards.push({
+      title: "Sodium",
+      value: nutrition.sodium,
+      target: nutrition.targetSodium,
+      unit: "mg",
+      color: "#EF4444",
+      gradient: ["#EF4444", "#DC2626"],
+    });
+  }
+
+  if (
+    nutrition.saturatedFat !== undefined &&
+    nutrition.targetSaturatedFat !== undefined
+  ) {
+    nutritionCards.push({
+      title: "Saturated Fat",
+      value: nutrition.saturatedFat,
+      target: nutrition.targetSaturatedFat,
+      unit: "g",
+      color: "#F97316",
+      gradient: ["#F97316", "#EA580C"],
+    });
+  }
+
+  if (
+    nutrition.cholesterol !== undefined &&
+    nutrition.targetCholesterol !== undefined
+  ) {
+    nutritionCards.push({
+      title: "Cholesterol",
+      value: nutrition.cholesterol,
+      target: nutrition.targetCholesterol,
+      unit: "mg",
+      color: "#6366F1",
+      gradient: ["#6366F1", "#4F46E5"],
+    });
+  }
+
+  if (
+    nutrition.vitaminA !== undefined &&
+    nutrition.targetVitaminA !== undefined
+  ) {
+    nutritionCards.push({
+      title: "Vitamin A",
+      value: nutrition.vitaminA,
+      target: nutrition.targetVitaminA,
+      unit: "%",
+      color: "#F59E0B",
+      gradient: ["#F59E0B", "#D97706"],
+    });
+  }
+
+  if (
+    nutrition.vitaminC !== undefined &&
+    nutrition.targetVitaminC !== undefined
+  ) {
+    nutritionCards.push({
+      title: "Vitamin C",
+      value: nutrition.vitaminC,
+      target: nutrition.targetVitaminC,
+      unit: "%",
+      color: "#10B981",
+      gradient: ["#10B981", "#059669"],
+    });
+  }
+
+  if (
+    nutrition.calcium !== undefined &&
+    nutrition.targetCalcium !== undefined
+  ) {
+    nutritionCards.push({
+      title: "Calcium",
+      value: nutrition.calcium,
+      target: nutrition.targetCalcium,
+      unit: "%",
+      color: "#0EA5E9",
+      gradient: ["#0EA5E9", "#0284C7"],
+    });
+  }
+
+  if (nutrition.iron !== undefined && nutrition.targetIron !== undefined) {
+    nutritionCards.push({
+      title: "Iron",
+      value: nutrition.iron,
+      target: nutrition.targetIron,
+      unit: "%",
+      color: "#64748B",
+      gradient: ["#64748B", "#475569"],
+    });
+  }
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / width);
+    setActiveIndex(index);
+  };
+
+  const scrollToIndex = (index: number) => {
+    scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
+  };
 
   return (
     <View style={styles.container}>
-      {/* Main Progress Card */}
-      <View style={styles.mainCard}>
-        <View style={styles.progressContainer}>
-          <Svg width={size} height={size} style={styles.svg}>
-            <Defs>
-              <LinearGradient
-                id="progressGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <Stop offset="0%" stopColor="#10B981" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#059669" stopOpacity="1" />
-              </LinearGradient>
-            </Defs>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        decelerationRate="fast"
+        snapToInterval={width}
+        snapToAlignment="center"
+      >
+        {nutritionCards.map((card, index) => (
+          <NutritionCardView
+            key={card.title}
+            card={card}
+            size={size}
+            center={center}
+            radius={radius}
+            strokeWidth={strokeWidth}
+            isCalories={index === 0}
+            isWater={card.title === "Water"}
+            burnedCalories={nutrition.burnedCalories || 0}
+            remainingCalories={remainingCalories}
+            onWaterIncrement={waterIntake?.onIncrement}
+            onWaterDecrement={waterIntake?.onDecrement}
+          />
+        ))}
+      </ScrollView>
 
-            {/* Background Circle */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke="#F3F4F6"
-              strokeWidth={strokeWidth}
-              fill="none"
-            />
-
-            {/* Progress Circle */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke="url(#progressGradient)"
-              strokeWidth={strokeWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              transform={`rotate(-90 ${center} ${center})`}
-            />
-          </Svg>
-
-          {/* Center Content */}
-          <View style={styles.centerContent}>
-            <View style={styles.caloriesDisplay}>
-              <Text style={styles.caloriesNumber}>
-                {calories.toLocaleString()}
-              </Text>
-              <Text style={styles.caloriesLabel}>calories</Text>
-            </View>
-
-            <View style={styles.targetDisplay}>
-              <Text style={styles.targetText}>
-                of {targetCalories.toLocaleString()}
-              </Text>
-            </View>
-
-            <View style={styles.statusContainer}>
-              {remainingCalories > 0 ? (
-                <View style={styles.remainingBadge}>
-                  <Text style={styles.remainingText}>
-                    {remainingCalories} left
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.completedBadge}>
-                  <Target size={14} color="#10B981" />
-                  <Text style={styles.completedText}>Complete</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
+      <View style={styles.pagination}>
+        {nutritionCards.map((_, index) => (
+          <TouchableOpacity
+            key={index}
+            onPress={() => scrollToIndex(index)}
+            style={[
+              styles.paginationDot,
+              activeIndex === index && styles.paginationDotActive,
+            ]}
+          />
+        ))}
       </View>
 
-      {/* Macro Cards */}
-      <View style={styles.macroCardsContainer}>
-        <View style={styles.macroCard}>
-          <View style={styles.macroHeader}>
-            <View
-              style={[
-                styles.macroIconContainer,
-                { backgroundColor: "#FEF3C7" },
-              ]}
-            >
-              <Zap size={18} color="#F59E0B" />
-            </View>
-            <Text style={styles.macroTitle}>Protein</Text>
-          </View>
-          <Text style={styles.macroValue}>{dailyGoals.protein}g</Text>
-          <Text style={styles.macroTarget}>of {dailyGoals.targetProtein}g</Text>
-          <View style={styles.macroProgressContainer}>
-            <View style={styles.macroProgressTrack}>
-              <View
-                style={[
-                  styles.macroProgressBar,
-                  {
-                    width: `${proteinProgress}%`,
-                    backgroundColor: "#F59E0B",
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.macroPercentage}>
-              {Math.round(proteinProgress)}%
-            </Text>
+      {nutritionCards.length > 4 && (
+        <View style={styles.additionalNutrition}>
+          <Text style={styles.sectionTitle}>Additional Nutrition</Text>
+          <View style={styles.nutritionList}>
+            {nutritionCards.slice(4).map((card) => (
+              <NutritionRow key={card.title} card={card} />
+            ))}
           </View>
         </View>
+      )}
+    </View>
+  );
+};
 
-        <View style={styles.macroCard}>
-          <View style={styles.macroHeader}>
-            <View
-              style={[
-                styles.macroIconContainer,
-                { backgroundColor: "#DBEAFE" },
-              ]}
-            >
-              <Apple size={18} color="#3B82F6" />
-            </View>
-            <Text style={styles.macroTitle}>Carbs</Text>
-          </View>
-          <Text style={styles.macroValue}>{dailyGoals.carbs}g</Text>
-          <Text style={styles.macroTarget}>of {dailyGoals.targetCarbs}g</Text>
-          <View style={styles.macroProgressContainer}>
-            <View style={styles.macroProgressTrack}>
-              <View
-                style={[
-                  styles.macroProgressBar,
-                  {
-                    width: `${carbsProgress}%`,
-                    backgroundColor: "#3B82F6",
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.macroPercentage}>
-              {Math.round(carbsProgress)}%
-            </Text>
-          </View>
-        </View>
+const NutritionCardView: React.FC<{
+  card: NutritionCard;
+  size: number;
+  center: number;
+  radius: number;
+  strokeWidth: number;
+  isCalories: boolean;
+  isWater: boolean;
+  burnedCalories: number;
+  remainingCalories: number;
+  onWaterIncrement?: () => void;
+  onWaterDecrement?: () => void;
+}> = ({
+  card,
+  size,
+  center,
+  radius,
+  strokeWidth,
+  isCalories,
+  isWater,
+  burnedCalories,
+  remainingCalories,
+  onWaterIncrement,
+  onWaterDecrement,
+}) => {
+  const progress = Math.min((card.value / card.target) * 100, 100);
+  const circumference = 2 * Math.PI * radius;
+  const progressOffset = circumference - (circumference * progress) / 100;
+  const remaining = Math.max(card.target - card.value, 0);
+  const currentMl = card.value * 250;
+  const targetMl = card.target * 250;
 
-        <View style={styles.macroCard}>
-          <View style={styles.macroHeader}>
-            <View
-              style={[
-                styles.macroIconContainer,
-                { backgroundColor: "#FEE2E2" },
-              ]}
-            >
-              <Target size={18} color="#EF4444" />
+  return (
+    <View style={[styles.cardContainer, { width }]}>
+      <View style={styles.circleSection}>
+        {isCalories && (
+          <View style={styles.caloriesWrapper}>
+            <View style={styles.circleContainer}>
+              <Svg width={size} height={size}>
+                <Defs>
+                  <LinearGradient
+                    id={`gradient-${card.title}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <Stop offset="0%" stopColor={card.gradient[0]} />
+                    <Stop offset="100%" stopColor={card.gradient[1]} />
+                  </LinearGradient>
+                </Defs>
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke="#F3F4F6"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                />
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={`url(#gradient-${card.title})`}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={progressOffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${center}, ${center}`}
+                />
+              </Svg>
+              <View style={styles.centerTextContainer}>
+                <Text style={styles.centerNumber}>
+                  {remainingCalories.toLocaleString()}
+                </Text>
+                <Text style={styles.centerLabel}>Remaining</Text>
+              </View>
             </View>
-            <Text style={styles.macroTitle}>Fat</Text>
-          </View>
-          <Text style={styles.macroValue}>{dailyGoals.fat}g</Text>
-          <Text style={styles.macroTarget}>of {dailyGoals.targetFat}g</Text>
-          <View style={styles.macroProgressContainer}>
-            <View style={styles.macroProgressTrack}>
-              <View
-                style={[
-                  styles.macroProgressBar,
-                  {
-                    width: `${fatProgress}%`,
-                    backgroundColor: "#EF4444",
-                  },
-                ]}
-              />
+
+            <View style={styles.statsRowBottom}>
+              <View style={styles.statColumnBottom}>
+                <Text style={styles.statNumberBottom}>
+                  {card.value.toLocaleString()}
+                </Text>
+                <Text style={styles.statLabelBottom}>Eaten</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statColumnBottom}>
+                <Text style={styles.statNumberBottom}>{burnedCalories}</Text>
+                <Text style={styles.statLabelBottom}>Burned</Text>
+              </View>
             </View>
-            <Text style={styles.macroPercentage}>
-              {Math.round(fatProgress)}%
-            </Text>
           </View>
-        </View>
+        )}
+
+        {isWater && (
+          <View style={styles.singleCircleContainer}>
+            <View style={styles.waterHeader}>
+              <View style={styles.waterIconContainer}>
+                <Droplets size={isSmallScreen ? 26 : 30} color="#06B6D4" />
+              </View>
+              <View>
+                <Text style={styles.cardTitle}>{card.title} Intake</Text>
+                <Text style={styles.waterSubtitle}>
+                  {currentMl}ml / {targetMl}ml
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.circleContainer}>
+              <Svg width={size} height={size}>
+                <Defs>
+                  <LinearGradient
+                    id={`gradient-${card.title}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <Stop offset="0%" stopColor={card.gradient[0]} />
+                    <Stop offset="100%" stopColor={card.gradient[1]} />
+                  </LinearGradient>
+                </Defs>
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke="#F3F4F6"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                />
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={`url(#gradient-${card.title})`}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={progressOffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${center}, ${center}`}
+                />
+              </Svg>
+              <View style={styles.centerTextContainer}>
+                <Text style={styles.centerNumber}>
+                  {card.value}
+                  <Text style={styles.unitText}>{card.unit}</Text>
+                </Text>
+                <Text style={styles.centerLabel}>
+                  of {card.target} {card.unit}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {!isCalories && !isWater && (
+          <View style={styles.singleCircleContainer}>
+            <Text style={styles.cardTitle}>{card.title}</Text>
+            <View style={styles.circleContainer}>
+              <Svg width={size} height={size}>
+                <Defs>
+                  <LinearGradient
+                    id={`gradient-${card.title}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <Stop offset="0%" stopColor={card.gradient[0]} />
+                    <Stop offset="100%" stopColor={card.gradient[1]} />
+                  </LinearGradient>
+                </Defs>
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke="#F3F4F6"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                />
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={`url(#gradient-${card.title})`}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={progressOffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${center}, ${center}`}
+                />
+              </Svg>
+              <View style={styles.centerTextContainer}>
+                <Text style={styles.centerNumber}>
+                  {card.value}
+                  <Text style={styles.unitText}>{card.unit}</Text>
+                </Text>
+                <Text style={styles.centerLabel}>
+                  of {card.target}
+                  {card.unit}
+                </Text>
+                {remaining > 0 && (
+                  <Text style={[styles.remainingText, { color: card.color }]}>
+                    {remaining}
+                    {card.unit} left
+                  </Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.progressPercentage}>
+              <Text style={[styles.percentageText, { color: card.color }]}>
+                {progress.toFixed(0)}% Complete
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const NutritionRow: React.FC<{ card: NutritionCard }> = ({ card }) => {
+  const progress = Math.min((card.value / card.target) * 100, 100);
+
+  return (
+    <View style={styles.nutritionRow}>
+      <View style={styles.nutritionRowHeader}>
+        <View style={[styles.nutritionDot, { backgroundColor: card.color }]} />
+        <Text style={styles.nutritionRowTitle}>{card.title}</Text>
+        <Text style={styles.nutritionRowValue}>
+          {card.value}/{card.target}
+          {card.unit}
+        </Text>
+      </View>
+      <View style={styles.nutritionProgressBar}>
+        <View
+          style={[
+            styles.nutritionProgressFill,
+            { width: `${progress}%`, backgroundColor: card.color },
+          ]}
+        />
       </View>
     </View>
   );
@@ -232,159 +604,179 @@ const CircularCaloriesProgress: React.FC<CircularCaloriesProgressProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    gap: 20,
-  },
-  mainCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
-    borderWidth: 0.5,
-    borderColor: "#F3F4F6",
-  },
-  progressContainer: {
-    alignItems: "center",
-    paddingTop: 24,
-    justifyContent: "center",
-  },
-  svg: {
-    position: "absolute",
-  },
-  centerContent: {
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1,
-  },
-  caloriesDisplay: {
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  caloriesNumber: {
-    fontSize: 44,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: -1.5,
-  },
-  caloriesLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#6B7280",
-    marginTop: -4,
-  },
-  targetDisplay: {
-    marginBottom: 16,
-  },
-  targetText: {
-    fontSize: 15,
-    color: "#9CA3AF",
-    fontWeight: "500",
-  },
-  statusContainer: {
-    alignItems: "center",
-  },
-  remainingBadge: {
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
+    overflow: "hidden",
   },
-  remainingText: {
-    fontSize: 13,
-    color: "#059669",
-    fontWeight: "600",
+  cardContainer: {
+    paddingBottom: isSmallScreen ? 20 : 32,
+    paddingTop: isSmallScreen ? 20 : 24,
   },
-  completedBadge: {
+  circleSection: {
+    marginBottom: isSmallScreen ? 20 : 32,
+  },
+  caloriesWrapper: {
+    alignItems: "center",
+  },
+  statsRowBottom: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
+    justifyContent: "center",
+    marginTop: isSmallScreen ? 20 : 28,
+    paddingHorizontal: isSmallScreen ? 24 : 32,
+    gap: isSmallScreen ? 16 : 24,
   },
-  completedText: {
-    fontSize: 13,
-    color: "#059669",
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  macroCardsContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  macroCard: {
+  statColumnBottom: {
+    alignItems: "center",
     flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 0.5,
-    borderColor: "#F3F4F6",
   },
-  macroHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+  statDivider: {
+    width: 1,
+    height: isSmallScreen ? 32 : 40,
+    backgroundColor: "#E5E7EB",
   },
-  macroIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  macroTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  macroValue: {
-    fontSize: 20,
+  statNumberBottom: {
+    fontSize: isSmallScreen ? 24 : 28,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  macroTarget: {
-    fontSize: 12,
-    color: "#9CA3AF",
+  statLabelBottom: {
+    fontSize: isSmallScreen ? 12 : 13,
+    color: "#6B7280",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  circleContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  centerTextContainer: {
+    position: "absolute",
+    alignItems: "center",
+  },
+  centerNumber: {
+    fontSize: isSmallScreen ? 32 : 44,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  unitText: {
+    fontSize: isSmallScreen ? 16 : 22,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  centerLabel: {
+    fontSize: isSmallScreen ? 12 : 13,
+    color: "#6B7280",
     fontWeight: "500",
-    marginBottom: 12,
   },
-  macroProgressContainer: {
+  remainingText: {
+    fontSize: isSmallScreen ? 11 : 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  singleCircleContainer: {
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontSize: isSmallScreen ? 20 : 26,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: isSmallScreen ? 16 : 20,
+  },
+  progressPercentage: {
+    marginTop: isSmallScreen ? 16 : 20,
+  },
+  percentageText: {
+    fontSize: isSmallScreen ? 15 : 17,
+    fontWeight: "700",
+  },
+  pagination: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: isSmallScreen ? 16 : 20,
+    gap: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E5E7EB",
+  },
+  paginationDotActive: {
+    width: 24,
+    backgroundColor: "#10B981",
+  },
+  additionalNutrition: {
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    paddingBottom: isSmallScreen ? 20 : 24,
+  },
+  sectionTitle: {
+    fontSize: isSmallScreen ? 16 : 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: isSmallScreen ? 12 : 16,
+  },
+  nutritionList: {
+    gap: isSmallScreen ? 12 : 14,
+  },
+  nutritionRow: {
+    gap: 8,
+  },
+  nutritionRowHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  macroProgressTrack: {
+  nutritionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  nutritionRowTitle: {
+    fontSize: isSmallScreen ? 13 : 14,
+    fontWeight: "600",
+    color: "#111827",
     flex: 1,
+  },
+  nutritionRowValue: {
+    fontSize: isSmallScreen ? 12 : 13,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  nutritionProgressBar: {
     height: 6,
     backgroundColor: "#F3F4F6",
     borderRadius: 3,
     overflow: "hidden",
   },
-  macroProgressBar: {
+  nutritionProgressFill: {
     height: "100%",
     borderRadius: 3,
   },
-  macroPercentage: {
-    fontSize: 11,
-    fontWeight: "600",
+  waterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 16 : 20,
+  },
+  waterIconContainer: {
+    width: isSmallScreen ? 48 : 56,
+    height: isSmallScreen ? 48 : 56,
+    borderRadius: isSmallScreen ? 12 : 14,
+    backgroundColor: "#ECFEFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  waterSubtitle: {
+    fontSize: isSmallScreen ? 13 : 14,
     color: "#6B7280",
-    minWidth: 32,
-    textAlign: "right",
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
 

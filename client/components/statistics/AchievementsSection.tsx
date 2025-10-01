@@ -196,9 +196,9 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                   },
                 ]}
               >
-                {language === "he" && achievement.title?.he
-                  ? achievement.title.he
-                  : achievement.title?.en || achievement.title}
+                {language === "he" && achievement.title
+                  ? achievement.title
+                  : achievement.title || achievement.title}
               </Text>
 
               <Text
@@ -210,9 +210,9 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                   },
                 ]}
               >
-                {language === "he" && achievement.description?.he
-                  ? achievement.description.he
-                  : achievement.description?.en || achievement.description}
+                {language === "he" && achievement.description
+                  ? achievement.description
+                  : achievement.description || achievement.description}
               </Text>
 
               <View style={styles.achievementMeta}>
@@ -305,9 +305,9 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = ({
                 },
               ]}
             >
-              {language === "he" && achievement.title?.he
-                ? achievement.title.he
-                : achievement.title?.en || achievement.title}
+              {language === "he" && achievement.title
+                ? achievement.title
+                : achievement.title || achievement.title}
             </Text>
             {achievement.unlocked && (
               <View style={styles.checkmark}>

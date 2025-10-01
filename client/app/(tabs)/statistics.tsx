@@ -84,7 +84,7 @@ const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
 // Chart Types
 type ChartType = "weekly" | "macros" | "progress" | "hydration";
-
+const { colors } = useTheme();
 interface ChartNavigationProps {
   charts: { key: ChartType; title: string; available: boolean }[];
   activeChart: ChartType;
