@@ -6,10 +6,19 @@ import {
   Animated,
   Dimensions,
   Modal,
+  Easing,
 } from "react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useTranslation } from "react-i18next";
-import { Zap, Eye, Brain, Sparkles, CheckCircle } from "lucide-react-native";
+import {
+  Zap,
+  Eye,
+  Brain,
+  Sparkles,
+  CircleCheck as CheckCircle,
+  Scan,
+} from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -17,66 +26,52 @@ interface ScanningAnimationProps {
   visible: boolean;
   onComplete: () => void;
   progress?: number;
-  isAnalyzing: boolean; // Added to control animation based on analysis status
+  isAnalyzing: boolean;
 }
 
 export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
   visible,
   onComplete,
-  progress, // This prop seems unused in the original code for animation control
-  isAnalyzing, // New prop to control animation flow
+  progress = 0,
+  isAnalyzing,
 }) => {
   const { colors, isDark } = useTheme();
   const { t } = useTranslation();
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // State
   const [progressState, setProgressState] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [
     {
-      key: "initializing",
-      icon: Zap,
-      color: colors.emerald500,
-      duration: 1200,
-    },
-    {
-      key: "processing",
-      icon: Eye,
-      color: "#059669",
-      duration: 1800,
+      key: "scanning",
+      icon: Scan,
+      label: "Scanning image...",
+      color: "#10B981",
     },
     {
       key: "identifying",
-      icon: Brain,
-      color: "#047857",
-      duration: 2500,
+      icon: Eye,
+      label: "Identifying ingredients...",
+      color: "#059669",
     },
     {
       key: "calculating",
-      icon: Sparkles,
-      color: "#065f46",
-      duration: 2000,
-    },
-    {
-      key: "analyzing",
       icon: Brain,
-      color: colors.emerald500,
-      duration: 1500,
+      label: "Calculating nutrition...",
+      color: "#047857",
     },
     {
       key: "finalizing",
       icon: CheckCircle,
+      label: "Finalizing results...",
       color: "#10B981",
-      duration: 800,
     },
   ];
 
@@ -88,15 +83,10 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
     }
   }, [visible]);
 
-  // Updated effect to control animation based on isAnalyzing prop
   useEffect(() => {
     if (!isAnalyzing) {
-      // When analysis is complete or not running, reset progress and step
       setProgressState(0);
       setCurrentStep(0);
-      // Optionally, you might want to trigger onComplete here if isAnalyzing becomes false after being true
-      // or handle the final state of the animation differently.
-      // For now, we'll just reset.
       return;
     }
 
@@ -105,34 +95,28 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
       setProgressState((prev) => {
         progressValue = prev + 1;
 
-        // Update step based on progress
-        if (progressValue < 30) {
-          setCurrentStep(0); // Analyzing image
-        } else if (progressValue < 60) {
-          setCurrentStep(1); // Identifying ingredients
-        } else if (progressValue < 85) {
-          setCurrentStep(2); // Calculating nutrition
+        if (progressValue < 25) {
+          setCurrentStep(0);
+        } else if (progressValue < 50) {
+          setCurrentStep(1);
+        } else if (progressValue < 75) {
+          setCurrentStep(2);
         } else {
-          setCurrentStep(3); // Finalizing results
+          setCurrentStep(3);
         }
 
-        // Don't complete until analysis is actually done
-        // The intention here is to keep the animation going or stuck at a high percentage
-        // until the external 'isAnalyzing' flag turns false.
         if (progressValue >= 95 && isAnalyzing) {
-          return 95; // Hold at 95% until analysis completes
+          return 95;
         }
 
         return Math.min(progressValue, 100);
       });
-    }, 150); // Slower progress for more realistic timing
+    }, 150);
 
-    // Cleanup interval when the component unmounts or isAnalyzing changes to false
     return () => clearInterval(interval);
-  }, [isAnalyzing]); // Dependency array includes isAnalyzing
+  }, [isAnalyzing]);
 
   const startAnimation = () => {
-    // Initial entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -147,14 +131,9 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
       }),
     ]).start();
 
-    // Start continuous animations (these should ideally run independently or be tied to visible)
-    // If isAnalyzing controls the progress, these might need adjustment or to be started conditionally.
     startRotation();
     startPulse();
     startScanLine();
-
-    // Progress through steps is now handled by the new useEffect hook based on isAnalyzing
-    // progressThroughSteps(); // This function is no longer needed for progress control
   };
 
   const startRotation = () => {
@@ -162,6 +141,7 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 3000,
+        easing: Easing.linear,
         useNativeDriver: true,
       })
     ).start();
@@ -171,13 +151,15 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.1,
+          toValue: 1.15,
           duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
@@ -190,6 +172,7 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
         Animated.timing(scanLineAnim, {
           toValue: 1,
           duration: 2000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(scanLineAnim, {
@@ -201,46 +184,26 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
     ).start();
   };
 
-  // This function was responsible for driving progress through steps based on fixed durations.
-  // It's replaced by the useEffect hook that uses 'isAnalyzing' and a fixed interval.
-  // const progressThroughSteps = () => {
-  //   let totalTime = 0;
-  //   let currentProgress = 0;
-
-  //   steps.forEach((step, index) => {
-  //     setTimeout(() => {
-  //       setCurrentStep(index);
-  //       currentProgress += 100 / steps.length;
-  //       setProgressState(currentProgress);
-
-  //       Animated.timing(progressAnim, {
-  //         toValue: currentProgress / 100,
-  //         duration: step.duration,
-  //         useNativeDriver: false,
-  //       }).start();
-
-  //       // Complete animation
-  //       if (index === steps.length - 1) {
-  //         setTimeout(() => {
-  //           onComplete?.();
-  //         }, step.duration + 500);
-  //       }
-  //     }, totalTime);
-
-  //     totalTime += step.duration;
-  //   });
-  // };
-
   const resetAnimation = () => {
     fadeAnim.setValue(0);
-    scaleAnim.setValue(0.8);
+    scaleAnim.setValue(0.9);
     rotateAnim.setValue(0);
-    progressAnim.setValue(0);
     pulseAnim.setValue(1);
     scanLineAnim.setValue(0);
+    progressAnim.setValue(0);
     setCurrentStep(0);
     setProgressState(0);
   };
+
+  useEffect(() => {
+    if (progressState >= 95 && !isAnalyzing) {
+      setTimeout(() => {
+        onComplete?.();
+      }, 500);
+    }
+  }, [progressState, isAnalyzing, onComplete]);
+
+  if (!visible) return null;
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -249,24 +212,12 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
 
   const scanLineTranslateY = scanLineAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [-150, 150],
+    outputRange: [-100, 100],
   });
 
-  // Ensure animation completes and then calls onComplete
-  useEffect(() => {
-    if (progressState >= 95 && !isAnalyzing) {
-      // If progress reached near completion and analysis is done
-      setTimeout(() => {
-        onComplete?.();
-      }, 500); // Small delay before calling complete
-    }
-  }, [progressState, isAnalyzing, onComplete]);
-
-  if (!visible) return null;
-
-  // Use the currentStep state determined by the new useEffect
-  const CurrentIcon = steps[currentStep]?.icon || Zap;
-  const currentColor = steps[currentStep]?.color || colors.emerald500;
+  const CurrentIcon = steps[currentStep]?.icon || Scan;
+  const currentColor = steps[currentStep]?.color || "#10B981";
+  const currentLabel = steps[currentStep]?.label || "Processing...";
 
   return (
     <Modal
@@ -280,8 +231,8 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
           styles.overlay,
           {
             backgroundColor: isDark
-              ? "rgba(0,0,0,0.95)"
-              : "rgba(255,255,255,0.95)",
+              ? "rgba(0,0,0,0.97)"
+              : "rgba(255,255,255,0.97)",
           },
         ]}
       >
@@ -294,231 +245,140 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
             },
           ]}
         >
-          {/* Main scanning area */}
-          <View style={[styles.scanningArea, { borderColor: currentColor }]}>
-            {/* Rotating outer ring */}
-            <Animated.View
-              style={[
-                styles.outerRing,
-                {
-                  borderColor: currentColor,
-                  transform: [{ rotate: spin }],
-                },
-              ]}
-            />
-
-            {/* Pulsing inner circle */}
-            <Animated.View
-              style={[
-                styles.innerCircle,
-                {
-                  backgroundColor: currentColor + "20",
-                  transform: [{ scale: pulseAnim }],
-                },
-              ]}
+          <View style={styles.scanningArea}>
+            <LinearGradient
+              colors={["rgba(16, 185, 129, 0.1)", "rgba(5, 150, 105, 0.05)"]}
+              style={styles.scanningBackground}
             >
-              <CurrentIcon size={48} color={currentColor} />
-            </Animated.View>
-
-            {/* Scanning line */}
-            <Animated.View
-              style={[
-                styles.scanLine,
-                {
-                  backgroundColor: currentColor,
-                  transform: [{ translateY: scanLineTranslateY }],
-                },
-              ]}
-            />
-
-            {/* Corner indicators */}
-            {[0, 1, 2, 3].map((corner) => (
-              <View
-                key={corner}
+              <Animated.View
                 style={[
-                  styles.corner,
+                  styles.outerRing,
                   {
                     borderColor: currentColor,
-                    ...getCornerStyle(corner),
+                    transform: [{ rotate: spin }],
                   },
                 ]}
               />
-            ))}
+
+              <Animated.View
+                style={[
+                  styles.innerCircle,
+                  {
+                    backgroundColor: currentColor + "20",
+                    transform: [{ scale: pulseAnim }],
+                  },
+                ]}
+              >
+                <CurrentIcon size={56} color={currentColor} />
+              </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.scanLine,
+                  {
+                    backgroundColor: currentColor,
+                    transform: [{ translateY: scanLineTranslateY }],
+                  },
+                ]}
+              />
+
+              {[...Array(4)].map((_, index) => (
+                <Animated.View
+                  key={index}
+                  style={[
+                    styles.particle,
+                    {
+                      opacity: pulseAnim.interpolate({
+                        inputRange: [1, 1.15],
+                        outputRange: [0.3, 0.8],
+                      }),
+                      transform: [
+                        { rotate: `${index * 90}deg` },
+                        { translateY: -120 },
+                        {
+                          scale: pulseAnim.interpolate({
+                            inputRange: [1, 1.15],
+                            outputRange: [0.5, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <Sparkles size={16} color={currentColor} />
+                </Animated.View>
+              ))}
+            </LinearGradient>
           </View>
 
-          {/* Text content */}
           <View style={styles.textContainer}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {t("camera.scanAnimation.title")}
+            <Text
+              style={[styles.title, { color: isDark ? "#FFFFFF" : "#1A2744" }]}
+            >
+              Analyzing Your Meal
             </Text>
-
-            <Text style={[styles.subtitle, { color: colors.icon }]}>
-              {t("camera.scanAnimation.subtitle")}
-            </Text>
-
-            <Text style={[styles.stepText, { color: currentColor }]}>
-              {t(`camera.scanningSteps.${steps[currentStep]?.key}`)}
+            <Text style={[styles.stepLabel, { color: currentColor }]}>
+              {currentLabel}
             </Text>
           </View>
 
-          {/* Progress indicator */}
           <View style={styles.progressContainer}>
             <View style={styles.progressHeader}>
-              <Text style={[styles.progressLabel, { color: colors.text }]}>
-                {progressState < 95 // Changed threshold to align with holding state
-                  ? t("camera.scanAnimation.progress")
-                  : t("camera.scanAnimation.complete")}
+              <Text
+                style={[
+                  styles.progressLabel,
+                  { color: isDark ? "#FFFFFF" : "#1A2744" },
+                ]}
+              >
+                {progressState < 95 ? "Analyzing..." : "Complete!"}
               </Text>
               <Text style={[styles.progressPercent, { color: currentColor }]}>
                 {Math.round(progressState)}%
               </Text>
             </View>
-
             <View
-              style={[styles.progressTrack, { backgroundColor: colors.border }]}
+              style={[
+                styles.progressTrack,
+                { backgroundColor: isDark ? "#374151" : "#E5E7EB" },
+              ]}
             >
-              <Animated.View
+              <LinearGradient
+                colors={["#10B981", "#059669"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
                 style={[
                   styles.progressBar,
                   {
-                    backgroundColor: currentColor,
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0%", "100%"],
-                    }),
+                    width: `${progressState}%`,
                   },
                 ]}
               />
             </View>
           </View>
 
-          {/* Enhanced particle effects */}
-          {[...Array(8)].map((_, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.sparkle,
-                {
-                  opacity: pulseAnim.interpolate({
-                    inputRange: [1, 1.1],
-                    outputRange: [0.4, 1],
-                  }),
-                  transform: [
+          <View style={styles.stepsIndicator}>
+            {steps.map((step, index) => (
+              <View key={index} style={styles.stepDot}>
+                <View
+                  style={[
+                    styles.dot,
                     {
-                      rotate: `${index * 45}deg`,
+                      backgroundColor:
+                        index <= currentStep
+                          ? step.color
+                          : isDark
+                          ? "#374151"
+                          : "#E5E7EB",
                     },
-                    {
-                      translateY: -140 - index * 12,
-                    },
-                    {
-                      scale: pulseAnim.interpolate({
-                        inputRange: [1, 1.1],
-                        outputRange: [0.8, 1.2],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Sparkles size={14} color={currentColor} />
-            </Animated.View>
-          ))}
-
-          {/* Floating dots animation */}
-          {[...Array(12)].map((_, index) => (
-            <Animated.View
-              key={`dot-${index}`}
-              style={[
-                styles.floatingDot,
-                {
-                  backgroundColor: currentColor + "40",
-                  opacity: scanLineAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.3, 1, 0.3],
-                  }),
-                  transform: [
-                    {
-                      translateX: Math.cos((index * Math.PI * 2) / 12) * 100,
-                    },
-                    {
-                      translateY: Math.sin((index * Math.PI * 2) / 12) * 100,
-                    },
-                    {
-                      scale: pulseAnim.interpolate({
-                        inputRange: [1, 1.1],
-                        outputRange: [0.5, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-
-          {/* Glow effect */}
-          <Animated.View
-            style={[
-              styles.glowEffect,
-              {
-                backgroundColor: currentColor + "10",
-                opacity: pulseAnim.interpolate({
-                  inputRange: [1, 1.1],
-                  outputRange: [0.3, 0.8],
-                }),
-                transform: [{ scale: pulseAnim }],
-              },
-            ]}
-          />
+                  ]}
+                />
+              </View>
+            ))}
+          </View>
         </Animated.View>
       </View>
     </Modal>
   );
-};
-
-const getCornerStyle = (corner: number) => {
-  const size = 30;
-  const thickness = 3;
-
-  switch (corner) {
-    case 0: // Top-left
-      return {
-        top: -thickness,
-        left: -thickness,
-        borderTopWidth: thickness,
-        borderLeftWidth: thickness,
-        width: size,
-        height: size,
-      };
-    case 1: // Top-right
-      return {
-        top: -thickness,
-        right: -thickness,
-        borderTopWidth: thickness,
-        borderRightWidth: thickness,
-        width: size,
-        height: size,
-      };
-    case 2: // Bottom-left
-      return {
-        bottom: -thickness,
-        left: -thickness,
-        borderBottomWidth: thickness,
-        borderLeftWidth: thickness,
-        width: size,
-        height: size,
-      };
-    case 3: // Bottom-right
-      return {
-        bottom: -thickness,
-        right: -thickness,
-        borderBottomWidth: thickness,
-        borderRightWidth: thickness,
-        width: size,
-        height: size,
-      };
-    default:
-      return {};
-  }
 };
 
 const styles = StyleSheet.create({
@@ -530,128 +390,104 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 32,
   },
   scanningArea: {
-    width: 300,
-    height: 300,
-    borderRadius: 20,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-    overflow: "hidden",
-    marginBottom: 40,
-  },
-  outerRing: {
-    position: "absolute",
     width: 280,
     height: 280,
     borderRadius: 140,
-    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  scanningBackground: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 140,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  outerRing: {
+    position: "absolute",
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 2,
     borderStyle: "dashed",
   },
   innerCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 2,
   },
   scanLine: {
     position: "absolute",
-    width: "100%",
-    height: 2,
+    width: "80%",
+    height: 3,
     opacity: 0.8,
-    shadowColor: "#000",
+    shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
   },
-  corner: {
+  particle: {
     position: "absolute",
-    borderColor: "transparent",
   },
   textContainer: {
     alignItems: "center",
-    marginBottom: 30,
-    paddingHorizontal: 40,
+    marginBottom: 32,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: "800",
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
-  subtitle: {
+  stepLabel: {
     fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  stepText: {
-    fontSize: 14,
     fontWeight: "600",
-    textAlign: "center",
   },
   progressContainer: {
     width: width - 80,
-    marginTop: 20,
+    marginBottom: 24,
   },
   progressHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   progressLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
   progressPercent: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
   progressTrack: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     overflow: "hidden",
   },
   progressBar: {
     height: "100%",
-    borderRadius: 3,
-  },
-  sparkle: {
-    position: "absolute",
-  },
-  floatingDot: {
-    position: "absolute",
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  glowEffect: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    zIndex: -1,
-  },
-  scanningText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 20,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#10B981",
     borderRadius: 4,
   },
-  progressText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "500",
-    marginTop: 8,
+  stepsIndicator: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  stepDot: {
+    alignItems: "center",
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });

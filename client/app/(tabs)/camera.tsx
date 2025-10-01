@@ -58,7 +58,6 @@ import {
   MealTypeSelector,
   MealType,
 } from "@/components/camera/MealTypeSelector";
-import ErrorBoundary from "@/components/ErrorBoundary";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -991,16 +990,6 @@ function CameraScreenContent() {
 
     return (
       <View style={styles.mealTypeContainer}>
-        <LinearGradient
-          colors={["#10B981", "#059669"]}
-          style={styles.mealTypeHeader}
-        >
-          <Text style={styles.mealTypeTitle}>Select Meal Type</Text>
-          <Text style={styles.mealTypeSubtitle}>
-            Choose when you're having this meal
-          </Text>
-        </LinearGradient>
-
         <View style={styles.mealTypeContent}>
           <MealTypeSelector
             onSelect={(mealType) => {
@@ -1316,12 +1305,50 @@ function CameraScreenContent() {
   );
 }
 
-// Error boundary wrapper
+// Error boundary wrapper with enhanced error handling
+class CameraErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Camera screen error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Camera temporarily unavailable</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => this.setState({ hasError: false })}
+            >
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function CameraScreen() {
   return (
-    <ErrorBoundary>
+    <CameraErrorBoundary>
       <CameraScreenContent />
-    </ErrorBoundary>
+    </CameraErrorBoundary>
   );
 }
 
@@ -1361,11 +1388,11 @@ const processImage = async (imageUri: string): Promise<string | null> => {
       );
     }
 
-    // Fallback: Direct base64 conversion using FileSystem
+    // Fallback: Direct base64 conversion using new File API
     try {
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Use the new File API instead of deprecated readAsStringAsync
+      const file = new File(imageUri);
+      const base64 = await file.text();
 
       if (!base64 || base64.length < 100) {
         console.error("Failed to convert image to base64 or result too small");
@@ -1382,7 +1409,29 @@ const processImage = async (imageUri: string): Promise<string | null> => {
       return base64;
     } catch (fileError) {
       console.error("Failed to read image file:", fileError);
-      return null;
+
+      // Final fallback: Try legacy API if new API fails
+      try {
+        const { readAsStringAsync, EncodingType } = await import(
+          "expo-file-system/legacy"
+        );
+        const base64 = await readAsStringAsync(imageUri, {
+          encoding: EncodingType.Base64,
+        });
+
+        if (!base64 || base64.length < 100) {
+          console.error(
+            "Failed to convert image to base64 or result too small"
+          );
+          return null;
+        }
+
+        console.log("Image converted using legacy API, length:", base64.length);
+        return base64;
+      } catch (legacyError) {
+        console.error("Legacy API also failed:", legacyError);
+        return null;
+      }
     }
   } catch (error) {
     console.error("Error processing image:", error);
@@ -1850,6 +1899,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   confirmDeleteText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#EF4444",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#10B981",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",

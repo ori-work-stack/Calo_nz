@@ -19,15 +19,18 @@ import Animated, {
   runOnJS,
   FadeIn,
   FadeOut,
+  withSequence,
 } from "react-native-reanimated";
 import {
-  Sunrise,
-  Sun,
-  Moon,
-  Cookie,
-  Clock,
-  MoreHorizontal,
+  Coffee,
+  UtensilsCrossed,
+  ChefHat,
+  Apple,
+  MoonStar,
+  Sparkles,
   AlertCircle,
+  CheckCircle2,
+  Clock,
 } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 
@@ -48,7 +51,6 @@ interface MealTypeSelectorProps {
   selectedType?: MealType;
 }
 
-// Function to create meal types with theme colors
 const getMealTypesWithTheme = (
   colors: any,
   emeraldSpectrum: any
@@ -57,39 +59,39 @@ const getMealTypesWithTheme = (
     id: "breakfast",
     label: "Breakfast",
     period: "breakfast",
-    icon: <Sunrise size={24} color="#ffffff" />,
-    colors: [colors.warning, "#F59E0B", "#D97706"], // Keep warm orange for breakfast
-    lightColor: "#FEF3C7",
+    icon: <Coffee size={24} color="#ffffff" />,
+    colors: ["#FEF3C7", "#F59E0B", "#D97706"],
+    lightColor: "#FFFBEB",
     darkColor: "#D97706",
   },
   {
     id: "lunch",
     label: "Lunch",
     period: "lunch",
-    icon: <Sun size={24} color="#ffffff" />,
-    colors: [colors.info, "#3B82F6", "#1D4ED8"], // Keep blue for lunch
-    lightColor: "#DBEAFE",
-    darkColor: "#1D4ED8",
+    icon: <UtensilsCrossed size={24} color="#ffffff" />,
+    colors: ["#DBEAFE", "#3B82F6", "#1E40AF"],
+    lightColor: "#EFF6FF",
+    darkColor: "#1E40AF",
   },
   {
     id: "dinner",
     label: "Dinner",
     period: "dinner",
-    icon: <Moon size={24} color="#ffffff" />,
-    colors: ["#E0E7FF", "#6366F1", "#4338CA"], // Keep purple for dinner
-    lightColor: "#E0E7FF",
-    darkColor: "#4338CA",
+    icon: <ChefHat size={24} color="#ffffff" />,
+    colors: ["#EDE9FE", "#8B5CF6", "#6D28D9"],
+    lightColor: "#F5F3FF",
+    darkColor: "#6D28D9",
   },
   {
     id: "snack",
     label: "Snack",
     period: "snack",
-    icon: <Cookie size={24} color="#ffffff" />,
+    icon: <Apple size={24} color="#ffffff" />,
     colors: [
       emeraldSpectrum.emerald100,
       emeraldSpectrum.emerald500,
       emeraldSpectrum.emerald700,
-    ], // Use theme emerald
+    ],
     lightColor: emeraldSpectrum.emerald50,
     darkColor: emeraldSpectrum.emerald700,
   },
@@ -97,23 +99,23 @@ const getMealTypesWithTheme = (
     id: "late_night",
     label: "Late Night",
     period: "late_night",
-    icon: <Clock size={24} color="#ffffff" />,
+    icon: <MoonStar size={24} color="#ffffff" />,
     colors: [
-      colors.primary,
+      emeraldSpectrum.emerald100,
       emeraldSpectrum.emerald600,
       emeraldSpectrum.emerald800,
-    ], // Use theme primary
-    lightColor: emeraldSpectrum.emerald100,
+    ],
+    lightColor: emeraldSpectrum.emerald50,
     darkColor: emeraldSpectrum.emerald800,
   },
   {
     id: "other",
     label: "Other",
     period: "other",
-    icon: <MoreHorizontal size={24} color="#ffffff" />,
-    colors: [colors.surfaceVariant, colors.textSecondary, colors.textTertiary], // Use theme neutral colors
-    lightColor: colors.surfaceVariant,
-    darkColor: colors.textSecondary,
+    icon: <Sparkles size={24} color="#ffffff" />,
+    colors: ["#F3F4F6", "#6B7280", "#374151"],
+    lightColor: "#F9FAFB",
+    darkColor: "#374151",
   },
 ];
 
@@ -200,28 +202,52 @@ const MealCard: React.FC<{
   colors: any;
 }> = ({ mealType, isSelected, isAvailable, onPress, index, colors }) => {
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
-  const rotateY = useSharedValue(0);
+  const borderWidth = useSharedValue(isSelected ? 2.5 : 1.5);
+  const shadowOpacity = useSharedValue(isSelected ? 0.2 : 0.06);
+  const checkScale = useSharedValue(isSelected ? 1 : 0);
+
+  useEffect(() => {
+    borderWidth.value = withSpring(isSelected ? 2.5 : 1.5, {
+      damping: 15,
+      stiffness: 150,
+    });
+    shadowOpacity.value = withTiming(isSelected ? 0.2 : 0.06, {
+      duration: 300,
+    });
+    checkScale.value = withSpring(isSelected ? 1 : 0, {
+      damping: 12,
+      stiffness: 200,
+    });
+  }, [isSelected]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { rotateY: `${rotateY.value}deg` }],
-    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+    borderWidth: borderWidth.value,
+    shadowOpacity: shadowOpacity.value,
   }));
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(scale.value, [1, 0.95], [1, 1.1]) }],
+    transform: [
+      { scale: interpolate(scale.value, [1, 0.95], [1, 1.15]) },
+      { rotateZ: `${interpolate(scale.value, [1, 0.95], [0, -5])}deg` },
+    ],
+  }));
+
+  const checkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: checkScale.value },
+      { rotateZ: `${interpolate(checkScale.value, [0, 1], [180, 0])}deg` },
+    ],
+    opacity: checkScale.value,
   }));
 
   const handlePress = () => {
     if (!isAvailable) {
-      // Shake animation for unavailable items
-      scale.value = withSpring(0.95, { duration: 100 });
-      rotateY.value = withTiming(5, { duration: 100 }, () => {
-        rotateY.value = withTiming(-5, { duration: 100 }, () => {
-          rotateY.value = withTiming(0, { duration: 100 });
-          scale.value = withSpring(1);
-        });
-      });
+      scale.value = withSequence(
+        withTiming(1.02, { duration: 80 }),
+        withSpring(0.98, { damping: 8, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 200 })
+      );
 
       if (Platform.OS !== "web") {
         runOnJS(Haptics.notificationAsync)(
@@ -231,13 +257,13 @@ const MealCard: React.FC<{
       return;
     }
 
-    // Success animation
-    scale.value = withSpring(0.95, { duration: 150 }, () => {
-      scale.value = withSpring(1, { duration: 200 });
-    });
+    scale.value = withSequence(
+      withSpring(0.96, { damping: 15, stiffness: 300 }),
+      withSpring(1, { damping: 12, stiffness: 200 })
+    );
 
     if (Platform.OS !== "web") {
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     }
 
     onPress();
@@ -246,100 +272,111 @@ const MealCard: React.FC<{
   const cardStyle = [
     styles.mealTypeCard,
     {
-      backgroundColor: isSelected ? mealType.lightColor : colors.surface,
+      backgroundColor: isSelected
+        ? `${mealType.darkColor}15`
+        : colors.surface || "#FFFFFF",
       borderColor: isSelected
         ? mealType.darkColor
         : isAvailable
-        ? colors.border
-        : colors.outline,
-      shadowColor: isSelected ? mealType.darkColor : colors.shadow,
-      shadowOpacity: isSelected ? 0.15 : 0.05,
-      shadowOffset: { width: 0, height: isSelected ? 6 : 2 },
-      shadowRadius: isSelected ? 12 : 4,
-      elevation: isSelected ? 8 : 2,
+        ? `${colors.border || "#E5E7EB"}40`
+        : `${colors.outline || "#D1D5DB"}30`,
     },
     !isAvailable && styles.unavailableCard,
   ];
 
   return (
     <AnimatedTouchableOpacity
-      entering={FadeIn.delay(index * 100).springify()}
+      entering={FadeIn.delay(index * 80)
+        .duration(400)
+        .springify()}
       style={[animatedStyle, cardStyle]}
       onPress={handlePress}
       activeOpacity={1}
     >
-      <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
-        <LinearGradient
-          colors={
-            (isAvailable
-              ? mealType.colors.slice(1)
-              : [colors.textTertiary, colors.muted]) as [
-              string,
-              string,
-              ...string[]
-            ]
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.iconGradient}
-        >
-          {React.cloneElement(
-            mealType.icon as React.ReactElement<{
-              color?: string;
-              size?: number;
-            }>,
-            {
-              color: "#FFFFFF",
-              size: 28,
-            }
-          )}
-        </LinearGradient>
-      </Animated.View>
-
-      <Text
-        style={[
-          styles.label,
-          {
-            color: isAvailable ? mealType.darkColor : colors.textTertiary,
-            fontWeight: isSelected ? "700" : "600",
-          },
-        ]}
-      >
-        {mealType.label}
-      </Text>
-
-      <Text
-        style={[
-          styles.timeRange,
-          {
-            color: isAvailable ? mealType.colors[1] : colors.textTertiary,
-          },
-        ]}
-      >
-        {getTimeRangeString(mealType.id)}
-      </Text>
-
-      {!isAvailable && (
-        <Animated.View
-          entering={FadeIn}
-          exiting={FadeOut}
-          style={styles.unavailableContainer}
-        >
-          <AlertCircle size={14} color={colors.error} />
-          <Text style={[styles.unavailableText, { color: colors.error }]}>
-            Available at {getNextAvailableTime(mealType.id)}
-          </Text>
+      <View style={styles.cardContent}>
+        <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
+          <View
+            style={[
+              styles.iconGradient,
+              {
+                backgroundColor: isAvailable
+                  ? `${mealType.darkColor}12`
+                  : "#F3F4F610",
+              },
+            ]}
+          >
+            {React.cloneElement(
+              mealType.icon as React.ReactElement<{
+                color?: string;
+                size?: number;
+              }>,
+              {
+                color: isAvailable ? mealType.darkColor : "#9CA3AF",
+                size: 26,
+                strokeWidth: 2.5,
+              }
+            )}
+          </View>
         </Animated.View>
-      )}
+
+        <View style={styles.textContainer}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: isAvailable
+                  ? mealType.darkColor
+                  : colors.textTertiary || "#9CA3AF",
+                fontWeight: isSelected ? "700" : "600",
+              },
+            ]}
+          >
+            {mealType.label}
+          </Text>
+
+          <Text
+            style={[
+              styles.timeRange,
+              {
+                color: isAvailable
+                  ? mealType.colors[1]
+                  : colors.textTertiary || "#9CA3AF",
+              },
+            ]}
+          >
+            {getTimeRangeString(mealType.id)}
+          </Text>
+
+          {!isAvailable && (
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={styles.unavailableContainer}
+            >
+              <AlertCircle size={12} color={colors.error || "#EF4444"} />
+              <Text
+                style={[
+                  styles.unavailableText,
+                  { color: colors.error || "#EF4444" },
+                ]}
+              >
+                Opens {getNextAvailableTime(mealType.id)}
+              </Text>
+            </Animated.View>
+          )}
+        </View>
+      </View>
 
       {isSelected && (
         <Animated.View
-          entering={FadeIn.springify()}
           style={[
             styles.selectedIndicator,
             { backgroundColor: mealType.darkColor },
+            checkAnimatedStyle,
           ]}
-        />
+        >
+          <CheckCircle2 size={18} color="#FFFFFF" strokeWidth={2.5} />
+        </Animated.View>
       )}
     </AnimatedTouchableOpacity>
   );
@@ -352,7 +389,6 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
   const { colors, emeraldSpectrum } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Get meal types with theme colors
   const MEAL_TYPES = useMemo(
     () => getMealTypesWithTheme(colors, emeraldSpectrum),
     [colors, emeraldSpectrum]
@@ -390,66 +426,72 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
   const themedStyles = StyleSheet.create({
     container: {
       minHeight: "100%",
-      backgroundColor: colors.background,
+      backgroundColor: colors.background || "#FAFAFA",
+    },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingVertical: 28,
     },
     header: {
       marginBottom: 32,
       alignItems: "center",
     },
     title: {
-      fontSize: 32,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
+      fontSize: 26,
+      fontWeight: "700",
+      color: colors.text || "#1F2937",
+      marginBottom: 10,
       textAlign: "center",
-      letterSpacing: -0.5,
+      letterSpacing: -0.6,
     },
     subtitle: {
-      fontSize: 18,
-      color: colors.textSecondary,
-      marginBottom: 16,
+      fontSize: 14,
+      color: colors.textSecondary || "#6B7280",
+      marginBottom: 22,
       textAlign: "center",
-      lineHeight: 24,
+      lineHeight: 20,
+      fontWeight: "500",
     },
     timeContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surface,
-      paddingHorizontal: 16,
+      backgroundColor: colors.surface || "#FFFFFF",
+      paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: `${colors.border || "#E5E7EB"}50`,
     },
     currentTime: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginLeft: 8,
+      fontSize: 13,
+      color: colors.text || "#374151",
+      marginLeft: 7,
       fontWeight: "600",
+      letterSpacing: -0.1,
     },
   });
 
   return (
-    <ScrollView style={themedStyles.container}>
-      <Animated.View entering={FadeIn.delay(50)} style={themedStyles.header}>
+    <ScrollView
+      style={themedStyles.container}
+      contentContainerStyle={themedStyles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      <Animated.View
+        entering={FadeIn.delay(50).duration(500)}
+        style={themedStyles.header}
+      >
         <Text style={themedStyles.title}>Select Meal Type</Text>
         <Text style={themedStyles.subtitle}>
           Choose the type of meal you're capturing
         </Text>
         <View style={themedStyles.timeContainer}>
-          <Clock size={16} color={colors.textSecondary} />
-          <Text style={themedStyles.currentTime}>
-            Current time: {currentTimeString}
-          </Text>
+          <Clock size={16} color={colors.primary || "#10B981"} />
+          <Text style={themedStyles.currentTime}>{currentTimeString}</Text>
         </View>
       </Animated.View>
 
-      <View>
+      <View style={styles.cardsContainer}>
         {MEAL_TYPES.map((mealType, index) => (
           <MealCard
             key={mealType.id}
@@ -467,78 +509,72 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
 };
 
 const styles = StyleSheet.create({
+  cardsContainer: {
+    gap: 12,
+  },
   mealTypeCard: {
-    width: "auto",
+    width: "100%",
     padding: 20,
-    borderRadius: 20,
-    alignItems: "center",
-    borderWidth: 2,
-    marginBottom: 16,
+    borderRadius: 16,
     position: "relative",
     overflow: "hidden",
+    borderWidth: 1.5,
+  },
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconContainer: {
-    marginBottom: 16,
-    position: "relative",
-  },
-  blurOverlay: {
-    position: "absolute",
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 30,
-    zIndex: 1,
+    marginRight: 16,
   },
   iconGradient: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
-    zIndex: 2,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: "center",
   },
   label: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: -0.3,
   },
   timeRange: {
-    fontSize: 13,
-    textAlign: "center",
+    fontSize: 12,
     fontWeight: "500",
-    marginBottom: 4,
+    letterSpacing: -0.1,
+    opacity: 0.8,
   },
   unavailableCard: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   unavailableContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    marginTop: 6,
+    paddingTop: 6,
   },
   unavailableText: {
     fontSize: 11,
     fontWeight: "600",
     marginLeft: 4,
+    letterSpacing: -0.1,
   },
   selectedIndicator: {
     position: "absolute",
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: 16,
+    right: 16,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
   },
 });
 
-// Export the function to get meal types with theme (for use in other components)
 export { getMealTypesWithTheme };

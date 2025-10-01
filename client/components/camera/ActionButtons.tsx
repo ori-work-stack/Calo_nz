@@ -6,9 +6,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { Trash2, RefreshCw, Save } from "lucide-react-native";
+import {
+  Trash2,
+  RefreshCw,
+  CircleCheck as CheckCircle2,
+} from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface ActionButtonsProps {
   onDelete: () => void;
@@ -30,62 +35,58 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Save Meal Button */}
       <TouchableOpacity
-        style={[styles.saveButton, { backgroundColor: colors.emerald500 }]}
+        style={styles.primaryButton}
         onPress={onSave}
         disabled={isPosting}
+        activeOpacity={0.8}
       >
-        {isPosting ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <>
-            <Save size={20} color="#FFFFFF" />
-            <Text style={styles.saveButtonText}>
-              {t("camera.saveMeal") || "Save Meal"}
-            </Text>
-          </>
-        )}
+        <LinearGradient
+          colors={["#10B981", "#059669"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.primaryGradient}
+        >
+          {isPosting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <CheckCircle2 size={24} color="#FFFFFF" />
+              <Text style={styles.primaryText}>
+                {t("camera.saveMeal") || "Save Meal"}
+              </Text>
+            </>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
 
-      {/* Action Buttons Row */}
-      <View style={styles.actionButtonsRow}>
+      <View style={styles.secondaryButtons}>
         <TouchableOpacity
-          style={[
-            styles.deleteButton,
-            { backgroundColor: colors.background, borderColor: "#EF4444" },
-          ]}
-          onPress={onDelete}
+          style={[styles.secondaryButton, styles.reanalyzeButton]}
+          onPress={onReAnalyze}
+          disabled={isUpdating}
+          activeOpacity={0.7}
         >
-          <Trash2 size={18} color="#EF4444" />
-          <Text style={styles.deleteButtonText}>
-            {t("common.delete") || "Delete"}
+          {isUpdating ? (
+            <ActivityIndicator size="small" color="#3B82F6" />
+          ) : (
+            <RefreshCw size={20} color="#3B82F6" />
+          )}
+          <Text style={[styles.secondaryText, { color: "#3B82F6" }]}>
+            {isUpdating
+              ? t("common.updating") || "Updating..."
+              : t("camera.reanalyze") || "Re-analyze"}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.reanalyzeButton,
-            {
-              backgroundColor: colors.background,
-              borderColor: colors.emerald500,
-            },
-            isUpdating && styles.buttonDisabled,
-          ]}
-          onPress={onReAnalyze}
-          disabled={isUpdating}
+          style={[styles.secondaryButton, styles.deleteButton]}
+          onPress={onDelete}
+          activeOpacity={0.7}
         >
-          {isUpdating ? (
-            <ActivityIndicator size="small" color={colors.emerald500} />
-          ) : (
-            <RefreshCw size={18} color={colors.emerald500} />
-          )}
-          <Text
-            style={[styles.reanalyzeButtonText, { color: colors.emerald500 }]}
-          >
-            {isUpdating
-              ? t("common.updating") || "Updating..."
-              : t("camera.reanalyze") || "Re-analyze"}
+          <Trash2 size={20} color="#EF4444" />
+          <Text style={[styles.secondaryText, { color: "#EF4444" }]}>
+            {t("common.delete") || "Discard"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -95,65 +96,64 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
-    marginBottom: 20,
+    gap: 14,
+    marginVertical: 24,
+    paddingHorizontal: 4,
   },
-  saveButton: {
+  primaryButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  primaryGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  primaryText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+  },
+  secondaryButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     gap: 8,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
-  saveButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    letterSpacing: -0.24,
-  },
-  actionButtonsRow: {
-    flexDirection: "row",
-    gap: 8,
+  reanalyzeButton: {
+    borderWidth: 2,
+    borderColor: "#E0F2FE",
   },
   deleteButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
+    borderWidth: 2,
+    borderColor: "#FEE2E2",
   },
-  deleteButtonText: {
+  secondaryText: {
     fontSize: 15,
-    fontWeight: "400",
-    color: "#FF3B30",
-    letterSpacing: -0.24,
-  },
-  reanalyzeButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
-  },
-  reanalyzeButtonText: {
-    fontSize: 15,
-    fontWeight: "400",
-    letterSpacing: -0.24,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
 });
