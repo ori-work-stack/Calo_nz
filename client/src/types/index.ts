@@ -94,6 +94,7 @@ export interface User {
   last_complete_date?: string;
   active_meal_plan_id?: string;
   active_menu_id?: string;
+  meals_per_day?: number;
 }
 
 export interface Meal {

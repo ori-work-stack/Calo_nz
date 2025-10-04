@@ -397,6 +397,11 @@ router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
         total_complete_days: true,
         created_at: true,
         email_verified: true,
+        questionnaires: {
+          select: {
+            meals_per_day: true,
+          },
+        },
       },
     });
 

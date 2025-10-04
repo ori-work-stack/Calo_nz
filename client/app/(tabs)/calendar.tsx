@@ -109,7 +109,7 @@ export default function CalendarScreen() {
   // Theme and language hooks
   const { colors, isDark } = useTheme();
   const { language, isRTL } = useLanguage();
-
+  const { user } = useSelector((state: RootState) => state.auth);
   const t = {
     title: language === "he" ? "לוח יעדים" : "Goal Calendar",
     subtitle:
@@ -189,6 +189,7 @@ export default function CalendarScreen() {
     edit: language === "he" ? "ערוך" : "Edit",
     delete: language === "he" ? "מחק" : "Delete",
   };
+  console.log(user);
 
   useEffect(() => {
     loadCalendarData();
@@ -827,6 +828,49 @@ export default function CalendarScreen() {
                 </View>
 
                 <View style={styles.dayDetailsMetrics}>
+                  {/* Daily Goal Card */}
+                  <View style={styles.metricCard}>
+                    <View style={styles.metricHeader}>
+                      <Target size={16} color="#10B981" />
+                      <Text style={styles.metricTitle}>
+                        {language === "he" ? "יעד יומי" : "Daily Goal"}
+                      </Text>
+                    </View>
+                    <Text style={styles.metricValue}>
+                      {selectedDay.calories_goal} {t.kcal}
+                    </Text>
+                    <Text style={styles.metricPercentage}>
+                      Target for{" "}
+                      {new Date(selectedDay.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  {/* Main Meals Progress Card */}
+                  <View style={styles.metricCard}>
+                    <View style={styles.metricHeader}>
+                      <Flame size={16} color="#E74C3C" />
+                      <Text style={styles.metricTitle}>
+                        {language === "he" ? "ארוחות עיקריות" : "Main Meals"}
+                      </Text>
+                    </View>
+                    <Text style={styles.metricValue}>
+                      {selectedDay.meal_count} / {user?.meals_per_day || 4}{" "}
+                      {language === "he" ? "ארוחות" : "meals"}
+                    </Text>
+                    <Text style={styles.metricPercentage}>
+                      {Math.round(
+                        (selectedDay.meal_count / (user?.meals_per_day || 4)) *
+                          100
+                      )}
+                      % {language === "he" ? "הושלם" : "completed"}
+                    </Text>
+                    <Text style={styles.metricSubtext}>
+                      {language === "he"
+                        ? "ארוחת בוקר, צהריים, ערב, לילה מאוחר"
+                        : "Breakfast, Lunch, Dinner, Late Dinner"}
+                    </Text>
+                  </View>
+
                   <View style={styles.metricCard}>
                     <View style={styles.metricHeader}>
                       <Flame size={16} color="#E74C3C" />

@@ -27,23 +27,44 @@ export class CalendarService {
     try {
       console.log("📅 Fetching calendar data for user:", user_id, year, month);
 
-      // Get start and end dates for the month
       const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0); // Last day of the month
+      const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
       console.log("📊 Date range:", startDate, "to", endDate);
 
-      // Fetch meals for the month
+      // Fetch meals for the month (using upload_time instead of created_at)
       const meals = await prisma.meal.findMany({
         where: {
           user_id: user_id,
-          created_at: {
+          upload_time: {
             gte: startDate,
-            lte: new Date(endDate.getTime() + 24 * 60 * 60 * 1000),
+            lte: endDate,
           },
         },
         orderBy: {
-          created_at: "asc",
+          upload_time: "asc",
+        },
+      });
+
+      // Fetch daily goals for the month
+      const dailyGoals = await prisma.dailyGoal.findMany({
+        where: {
+          user_id: user_id,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      });
+
+      // Fetch water intake for the month
+      const waterIntakes = await prisma.waterIntake.findMany({
+        where: {
+          user_id: user_id,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
         },
       });
 
@@ -61,48 +82,44 @@ export class CalendarService {
         },
       });
 
-      // Fetch activity data if available
-      const activities = await prisma.dailyActivitySummary.findMany({
-        where: {
-          user_id: user_id,
-          date: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-      });
-
       console.log("🍽️ Found", meals.length, "meals for the month");
       console.log("📅 Found", events.length, "events for the month");
 
-      // Get user goals (for now using defaults)
-      const goals = this.getDefaultGoals();
+      // Get default goals for fallback
+      const defaultGoals = this.getDefaultGoals();
 
       // Group meals by date
       const mealsByDate: Record<string, any[]> = {};
       meals.forEach((meal) => {
-        const dateStr = meal.created_at.toISOString().split("T")[0];
+        const dateStr = new Date(meal.upload_time).toISOString().split("T")[0];
         if (!mealsByDate[dateStr]) {
           mealsByDate[dateStr] = [];
         }
         mealsByDate[dateStr].push(meal);
       });
 
+      // Group daily goals by date
+      const goalsByDate: Record<string, any> = {};
+      dailyGoals.forEach((goal) => {
+        const dateStr = new Date(goal.date).toISOString().split("T")[0];
+        goalsByDate[dateStr] = goal;
+      });
+
+      // Group water intakes by date
+      const waterByDate: Record<string, any> = {};
+      waterIntakes.forEach((water) => {
+        const dateStr = new Date(water.date).toISOString().split("T")[0];
+        waterByDate[dateStr] = water;
+      });
+
       // Group events by date
       const eventsByDate: Record<string, any[]> = {};
       events.forEach((event) => {
-        const dateStr = event.date.toISOString().split("T")[0];
+        const dateStr = new Date(event.date).toISOString().split("T")[0];
         if (!eventsByDate[dateStr]) {
           eventsByDate[dateStr] = [];
         }
         eventsByDate[dateStr].push(event);
-      });
-
-      // Group activities by date
-      const activitiesByDate: Record<string, any> = {};
-      activities.forEach((activity) => {
-        const dateStr = activity.date.toISOString().split("T")[0];
-        activitiesByDate[dateStr] = activity;
       });
 
       // Generate calendar data for each day of the month
@@ -113,31 +130,47 @@ export class CalendarService {
         const date = new Date(year, month - 1, day);
         const dateStr = date.toISOString().split("T")[0];
         const dayMeals = mealsByDate[dateStr] || [];
+        const dayGoal = goalsByDate[dateStr];
+        const dayWater = waterByDate[dateStr];
         const dayEvents = eventsByDate[dateStr] || [];
-        const dayActivity = activitiesByDate[dateStr];
+
+        // Use custom goals if available, otherwise use defaults
+        const goals = dayGoal
+          ? {
+              calories: Number(dayGoal.calories),
+              protein: Number(dayGoal.protein_g),
+              carbs: Number(dayGoal.carbs_g),
+              fat: Number(dayGoal.fats_g),
+              water: defaultGoals.water,
+            }
+          : defaultGoals;
+
+        // Count only main meals (breakfast, lunch, dinner, late_night)
+        const mainMealPeriods = ["breakfast", "lunch", "dinner", "late_night"];
+        const mainMealsCount = dayMeals.filter((meal) =>
+          mainMealPeriods.includes(meal.meal_period?.toLowerCase() || "")
+        ).length;
 
         // Calculate totals for the day
         const totals = dayMeals.reduce(
           (acc, meal) => ({
-            calories: acc.calories + (meal.calories || 0),
-            protein: acc.protein + (meal.protein_g || 0),
-            carbs: acc.carbs + (meal.carbs_g || 0),
-            fat: acc.fat + (meal.fats_g || 0),
-            water: acc.water + (meal.liquids_ml || 0),
+            calories: acc.calories + (Number(meal.calories) || 0),
+            protein: acc.protein + (Number(meal.protein_g) || 0),
+            carbs: acc.carbs + (Number(meal.carbs_g) || 0),
+            fat: acc.fat + (Number(meal.fats_g) || 0),
           }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0, water: 0 }
+          { calories: 0, protein: 0, carbs: 0, fat: 0 }
         );
 
-        // Add activity water intake if available
-        if (dayActivity?.water_intake_ml) {
-          totals.water += dayActivity.water_intake_ml;
-        }
+        // Get water intake
+        const waterIntake = dayWater ? dayWater.milliliters_consumed : 0;
 
-        // Calculate quality score (enhanced algorithm)
+        // Calculate quality score
         const quality_score = this.calculateQualityScore(
           totals,
           goals,
-          dayEvents
+          dayEvents,
+          waterIntake
         );
 
         // Format events for response
@@ -146,6 +179,7 @@ export class CalendarService {
           title: event.title,
           type: event.type,
           created_at: event.created_at.toISOString(),
+          description: event.description || undefined,
         }));
 
         calendarData[dateStr] = {
@@ -158,9 +192,9 @@ export class CalendarService {
           carbs_actual: totals.carbs,
           fat_goal: goals.fat,
           fat_actual: totals.fat,
-          meal_count: dayMeals.length,
+          meal_count: mainMealsCount,
           quality_score,
-          water_intake_ml: totals.water,
+          water_intake_ml: waterIntake,
           events: formattedEvents,
         };
       }
@@ -197,13 +231,12 @@ export class CalendarService {
         prevMonth
       );
 
-      const goals = this.getDefaultGoals();
       const currentDays = Object.values(currentMonthData);
       const prevDays = Object.values(prevMonthData);
 
       // Calculate current month statistics
       const goalDays = currentDays.filter(
-        (day) => day.calories_actual / day.calories_goal >= 1.0
+        (day) => day.calories_actual >= day.calories_goal * 0.9
       ).length;
 
       const totalDays = currentDays.length;
@@ -234,7 +267,7 @@ export class CalendarService {
 
       // Calculate improvement vs previous month
       const prevGoalDays = prevDays.filter(
-        (day) => day.calories_actual / day.calories_goal >= 1.0
+        (day) => day.calories_actual >= day.calories_goal * 0.9
       ).length;
       const prevProgress =
         prevDays.length > 0 ? (prevGoalDays / prevDays.length) * 100 : 0;
@@ -284,7 +317,7 @@ export class CalendarService {
     title: string,
     type: string,
     description?: string
-  ) {
+  ): Promise<CalendarEvent> {
     try {
       console.log("📝 Adding event for user:", user_id, {
         date,
@@ -304,14 +337,27 @@ export class CalendarService {
       });
 
       console.log("✅ Event created:", event);
-      return event;
+
+      return {
+        id: event.event_id,
+        user_id: event.user_id,
+        date: event.date.toISOString().split("T")[0],
+        title: event.title,
+        type: event.type,
+        description: event.description || undefined,
+        created_at: event.created_at.toISOString(),
+        updated_at: event.updated_at.toISOString(),
+      };
     } catch (error) {
       console.error("💥 Error adding event:", error);
       throw new Error("Failed to add event");
     }
   }
 
-  static async getEventsForDate(user_id: string, date: string) {
+  static async getEventsForDate(
+    user_id: string,
+    date: string
+  ): Promise<CalendarEvent[]> {
     try {
       console.log("📅 Getting events for date:", date);
 
@@ -325,26 +371,34 @@ export class CalendarService {
         },
       });
 
-      return events;
+      return events.map((event) => ({
+        id: event.event_id,
+        user_id: event.user_id,
+        date: event.date.toISOString().split("T")[0],
+        title: event.title,
+        type: event.type,
+        description: event.description || undefined,
+        created_at: event.created_at.toISOString(),
+        updated_at: event.updated_at.toISOString(),
+      }));
     } catch (error) {
       console.error("💥 Error fetching events:", error);
       throw new Error("Failed to fetch events");
     }
   }
 
-  static async deleteEvent(user_id: string, event_id: string) {
+  static async deleteEvent(user_id: string, event_id: string): Promise<void> {
     try {
       console.log("🗑️ Deleting event:", event_id);
 
-      const event = await prisma.calendarEvent.deleteMany({
+      await prisma.calendarEvent.deleteMany({
         where: {
           event_id,
-          user_id, // Ensure user can only delete their own events
+          user_id,
         },
       });
 
       console.log("✅ Event deleted");
-      return event;
     } catch (error) {
       console.error("💥 Error deleting event:", error);
       throw new Error("Failed to delete event");
@@ -359,7 +413,6 @@ export class CalendarService {
       protein: number;
       carbs: number;
       fat: number;
-      water: number;
     },
     goals: {
       calories: number;
@@ -368,14 +421,15 @@ export class CalendarService {
       fat: number;
       water: number;
     },
-    events: any[]
+    events: any[],
+    waterIntake: number
   ): number {
     if (totals.calories === 0) return 0;
 
     // Basic scoring based on macros
     const caloriesScore = Math.min(totals.calories / goals.calories, 1.5);
     const proteinScore = Math.min(totals.protein / goals.protein, 1.2);
-    const waterScore = Math.min(totals.water / goals.water, 1.0);
+    const waterScore = Math.min(waterIntake / goals.water, 1.0);
 
     // Event-based adjustments
     let eventMultiplier = 1.0;
@@ -386,10 +440,10 @@ export class CalendarService {
     );
 
     if (hasWorkoutEvent) {
-      eventMultiplier = 1.1; // Slight bonus for workout days
+      eventMultiplier = 1.1;
     }
     if (hasFastingEvent) {
-      eventMultiplier = 0.9; // Adjust expectations for fasting days
+      eventMultiplier = 0.9;
     }
 
     // Penalize deviations from goals
@@ -411,14 +465,13 @@ export class CalendarService {
     let streak = 0;
     const today = new Date();
 
-    // Sort days by date (most recent first)
     const sortedDays = days
-      .filter((day) => new Date(day.date) <= today) // Only count days up to today
+      .filter((day) => new Date(day.date) <= today)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     for (const day of sortedDays) {
       const progress = day.calories_actual / day.calories_goal;
-      if (progress >= 1.0) {
+      if (progress >= 0.9) {
         streak++;
       } else {
         break;
@@ -436,7 +489,6 @@ export class CalendarService {
       challengingWeekDetails: any;
     };
   } {
-    // Group days into weeks
     const weeks: WeeklyAnalysis[] = [];
     const sortedDays = days.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -456,10 +508,9 @@ export class CalendarService {
         }, 0) / weekDays.length;
 
       const goalDays = weekDays.filter(
-        (day) => day.calories_actual / day.calories_goal >= 1.0
+        (day) => day.calories_actual >= day.calories_goal * 0.9
       ).length;
 
-      // Generate insights
       const highlights: string[] = [];
       const challenges: string[] = [];
 
@@ -513,7 +564,6 @@ export class CalendarService {
       };
     }
 
-    // Find best and worst weeks
     const bestWeek = weeks.reduce((best, current) =>
       current.averageProgress > best.averageProgress ? current : best
     );
@@ -592,13 +642,11 @@ export class CalendarService {
     try {
       const badges = [];
 
-      // Check for various achievements
       const goalDays = days.filter(
-        (day) => day.calories_actual / day.calories_goal >= 1.0
+        (day) => day.calories_actual >= day.calories_goal * 0.9
       ).length;
       const perfectDays = days.filter((day) => day.quality_score >= 9).length;
 
-      // Define potential badges
       const badgeConditions = [
         {
           condition: streakDays >= 7,
@@ -637,19 +685,17 @@ export class CalendarService {
         },
       ];
 
-      // Check existing badges to avoid duplicates
       const existingBadges = await prisma.gamificationBadge.findMany({
         where: {
           user_id,
           achieved_at: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
         },
       });
 
       const existingBadgeNames = existingBadges.map((badge) => badge.name);
 
-      // Award new badges
       for (const badgeCondition of badgeConditions) {
         if (
           badgeCondition.condition &&
@@ -669,7 +715,6 @@ export class CalendarService {
         }
       }
 
-      // Return recent badges (last 30 days)
       const recentBadges = await prisma.gamificationBadge.findMany({
         where: {
           user_id,

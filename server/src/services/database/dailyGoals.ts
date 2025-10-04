@@ -33,10 +33,10 @@ export class EnhancedDailyGoalsService {
       await prisma.$queryRaw`SELECT 1`;
       console.log("✅ Database connection verified");
 
-      // Step 1: Get today's date in the correct format
-      const today = new Date();
-      const todayString = today.toISOString().split("T")[0];
-      const todayDate = new Date(todayString);
+      // Step 1: Get today's date in the correct format (UTC midnight)
+      const now = new Date();
+      const todayString = now.toISOString().split("T")[0];
+      const todayDate = new Date(todayString + "T00:00:00.000Z");
 
       console.log(`📅 TODAY: ${todayString}`);
       console.log(`📅 TODAY DATE OBJECT: ${todayDate.toISOString()}`);

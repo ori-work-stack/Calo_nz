@@ -13,15 +13,25 @@ export class EnhancedCronJobService {
   static initializeEnhancedCronJobs() {
     console.log("🚀 Initializing enhanced cron jobs...");
 
-    // Daily goals creation at 00:30 AM
-    cron.schedule("30 0 * * *", async () => {
-      await this.runJobSafely("daily-goals", async () => {
-        console.log("📊 Running daily goals creation at 00:30 AM");
-        const result =
-          await EnhancedDailyGoalsService.createDailyGoalsForAllUsers();
-        console.log("✅ Daily goals creation completed:", result);
-      });
-    });
+    // Daily goals creation at 00:30 AM every day
+    cron.schedule(
+      "30 0 * * *",
+      async () => {
+        await this.runJobSafely("daily-goals", async () => {
+          console.log("📊 Running daily goals creation at 00:30 AM");
+          const result =
+            await EnhancedDailyGoalsService.createDailyGoalsForAllUsers();
+          console.log("✅ Daily goals creation completed:", result);
+          console.log(
+            `Created: ${result.created}, Updated: ${result.updated}, Errors: ${result.errors.length}`
+          );
+        });
+      },
+      {
+        scheduled: true,
+        timezone: "UTC",
+      }
+    );
 
     // AI recommendations at 06:00 AM
     cron.schedule("0 6 * * *", async () => {

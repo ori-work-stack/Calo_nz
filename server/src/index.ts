@@ -28,6 +28,7 @@ import { dailyGoalsRoutes } from "./routes/dailyGoal";
 import achievementsRouter from "./routes/achievements";
 import shoppingListRoutes from "./routes/shoppingLists";
 import mealCompletionRouter from "./routes/mealCompletion";
+import { schemaValidationRoutes } from "./routes/schema-validation";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
 
 // Load environment variables
@@ -188,6 +189,7 @@ apiRouter.use("/database", enhancedDatabaseRoutes);
 apiRouter.use("/daily-goals-simple", dailyGoalsRoutes);
 apiRouter.use("/", achievementsRouter);
 apiRouter.use("/meal-completions", mealCompletionRouter);
+apiRouter.use("/schema", schemaValidationRoutes);
 
 // Add a test endpoint to manually trigger daily goals creation
 apiRouter.post("/test/create-daily-goals", async (req, res) => {
@@ -326,6 +328,12 @@ async function startServer() {
     await prisma.$connect();
     log.success("Database connection successful");
 
+    // Initialize enhanced cron jobs on server startup
+    console.log("🚀 Initializing enhanced cron jobs...");
+    EnhancedCronJobService.initializeEnhancedCronJobs();
+    console.log("✅ Enhanced cron jobs initialized");
+    UserCleanupService.initializeCleanupJobs();
+
     // Store the server instance
     server = app.listen(config.port, "0.0.0.0", () => {
       logStartup();
@@ -342,10 +350,6 @@ async function startServer() {
           "Note: AI features are using mock data. Add OPENAI_API_KEY to enable real AI analysis."
         );
       }
-
-      // Initialize enhanced cron jobs
-      EnhancedCronJobService.initializeEnhancedCronJobs();
-      UserCleanupService.initializeCleanupJobs();
     });
   } catch (error) {
     log.error("❌ Database connection failed:", error);
