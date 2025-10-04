@@ -13,11 +13,12 @@ export interface StorageInfo {
 }
 
 export class StorageCleanupService {
-  private static readonly STORAGE_WARNING_THRESHOLD = 0.7; // 70%
-  private static readonly STORAGE_CRITICAL_THRESHOLD = 0.85; // 85%
+  private static readonly STORAGE_WARNING_THRESHOLD = 0.5; // 50% - more aggressive
+  private static readonly STORAGE_CRITICAL_THRESHOLD = 0.7; // 70% - earlier intervention
   private static readonly LARGE_ITEM_THRESHOLD = 512; // 512 bytes
-  private static readonly MAX_STORAGE_SIZE = 10 * 1024 * 1024; // 10MB increased
+  private static readonly MAX_STORAGE_SIZE = 50 * 1024 * 1024; // 50MB - increased from 10MB
   private static readonly SECURE_STORE_SIZE_LIMIT = 2048; // SecureStore limit
+  private static readonly CLEANUP_AGE_DAYS = 3; // Keep only 3 days of data instead of 7
 
   static async checkAndCleanupIfNeeded(): Promise<boolean> {
     try {
@@ -105,21 +106,46 @@ export class StorageCleanupService {
     try {
       console.log("🆘 Starting emergency storage cleanup for SQLITE_FULL...");
 
-      // Step 1: Clear ALL AsyncStorage immediately
+      // Step 1: Selective cleanup - DON'T clear everything, preserve auth
+      const keysToPreserve = [
+        "persist:auth", // Keep auth state
+        "userToken",
+        "userId",
+        "@user_id",
+        "@auth_token",
+      ];
+
       try {
-        console.log("🗑️ Clearing ALL AsyncStorage...");
-        await AsyncStorage.clear();
-        console.log("✅ All AsyncStorage cleared");
+        console.log("🗑️ Clearing non-essential AsyncStorage items...");
+        const allKeys = await AsyncStorage.getAllKeys();
+        const keysToRemove = allKeys.filter(
+          (key) => !keysToPreserve.some((preserve) => key.includes(preserve))
+        );
+
+        console.log(
+          `📊 Removing ${keysToRemove.length} of ${allKeys.length} keys`
+        );
+
+        // Remove in batches to avoid overwhelming the system
+        const batchSize = 10;
+        for (let i = 0; i < keysToRemove.length; i += batchSize) {
+          const batch = keysToRemove.slice(i, i + batchSize);
+          await AsyncStorage.multiRemove(batch);
+        }
+
+        console.log("✅ Selective AsyncStorage cleanup completed");
       } catch (error) {
-        console.error("❌ AsyncStorage clear failed:", error);
-        // Try removing keys one by one
+        console.error("❌ AsyncStorage selective cleanup failed:", error);
+        // Try removing individual keys one by one as fallback
         try {
           const allKeys = await AsyncStorage.getAllKeys();
           for (const key of allKeys) {
-            try {
-              await AsyncStorage.removeItem(key);
-            } catch (e) {
-              // Continue with next key
+            if (!keysToPreserve.some((preserve) => key.includes(preserve))) {
+              try {
+                await AsyncStorage.removeItem(key);
+              } catch (e) {
+                // Continue with next key
+              }
             }
           }
         } catch (e) {
@@ -127,20 +153,25 @@ export class StorageCleanupService {
         }
       }
 
-      // Step 2: Clear SecureStore
+      // Step 2: Selective SecureStore cleanup - PRESERVE AUTH
       if (Platform.OS !== "web") {
         try {
-          const commonKeys = [
+          // Keys to PRESERVE (don't delete these)
+          const authKeysToPreserve = [
             "persist:auth",
-            "user_data",
+            "userToken",
+            "userId",
+            "auth_token",
+          ];
+
+          // Keys to remove (non-auth cache and data)
+          const keysToRemove = [
             "meal_data",
             "pendingMeal",
             "cachedUserData",
             "largeImageData",
-            "auth_token_large",
             "meal_cache",
             "user_profile_cache",
-            "notification_settings",
             "persist:meal",
             "persist:calendar",
             "persist:questionnaire",
@@ -149,18 +180,19 @@ export class StorageCleanupService {
             "query_cache_",
             "user_questionnaire",
             "meal_analysis_",
+            "notification_settings",
             "notification_settings_v3",
             "global_notifications_enabled_v3",
           ];
 
-          for (const key of commonKeys) {
+          for (const key of keysToRemove) {
             try {
               await SecureStore.deleteItemAsync(key);
             } catch (e) {
               // Key might not exist
             }
           }
-          console.log("✅ SecureStore cleared");
+          console.log("✅ SecureStore selectively cleared (auth preserved)");
         } catch (error) {
           console.error("❌ SecureStore cleanup failed:", error);
         }
@@ -194,16 +226,57 @@ export class StorageCleanupService {
     try {
       console.log("🧹 Starting routine storage cleanup...");
 
-      await this.clearOldMealData(7); // Keep only 7 days
+      await this.clearOldMealData(this.CLEANUP_AGE_DAYS); // Use configurable cleanup age
       await this.clearTemporaryData();
       await this.clearAnalyticsData();
       await this.compressLargeItems();
+      await this.clearOldCacheData(this.CLEANUP_AGE_DAYS); // Clear old cached data
 
       console.log("✅ Routine cleanup completed");
       return true;
     } catch (error) {
       console.error("❌ Routine cleanup failed:", error);
       return false;
+    }
+  }
+
+  // New method to clear old cached data
+  private static async clearOldCacheData(daysToKeep: number): Promise<void> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+      const cutoffTimestamp = cutoffDate.getTime();
+
+      const allKeys = await AsyncStorage.getAllKeys();
+      const cacheKeys = allKeys.filter(
+        (key) =>
+          key.includes("cache_") ||
+          key.includes("_cache") ||
+          key.includes("query-cache") ||
+          key.includes("image_cache")
+      );
+
+      let removed = 0;
+      for (const key of cacheKeys) {
+        try {
+          const value = await AsyncStorage.getItem(key);
+          if (value) {
+            const data = JSON.parse(value);
+            if (data.timestamp && data.timestamp < cutoffTimestamp) {
+              await AsyncStorage.removeItem(key);
+              removed++;
+            }
+          }
+        } catch (e) {
+          // If we can't parse it, it's probably corrupted, remove it
+          await AsyncStorage.removeItem(key);
+          removed++;
+        }
+      }
+
+      console.log(`🗑️ Removed ${removed} old cache items`);
+    } catch (error) {
+      console.error("Failed to clear old cache data:", error);
     }
   }
 

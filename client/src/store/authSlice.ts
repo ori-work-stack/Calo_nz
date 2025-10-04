@@ -302,6 +302,11 @@ const authSlice = createSlice({
         state.user = { ...state.user, ...action.payload };
       }
     },
+    setMealsPerDay: (state, action: PayloadAction<number>) => {
+      if (state.user) {
+        state.user.meals_per_day = action.payload;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -443,5 +448,6 @@ export const {
   setUser,
   setToken,
   updateUser,
+  setMealsPerDay,
 } = authSlice.actions;
 export default authSlice.reducer;

@@ -200,10 +200,6 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 20,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
   },
   icon: {
     textShadowColor: "rgba(16, 185, 129, 0.44)",
@@ -217,9 +213,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center",
     letterSpacing: 4,
-    textShadowColor: "rgba(110, 231, 183, 0.4)",
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 8,
   },
   title: {
     fontSize: 28,
@@ -251,10 +244,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 25,
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
   },
   primaryButton: {
     backgroundColor: "#10B981",

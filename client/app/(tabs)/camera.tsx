@@ -126,6 +126,8 @@ function CameraScreenContent() {
 
   const { pendingMeal, isAnalyzing, isPosting, isUpdating, error } =
     useSelector((state: RootState) => state.meal);
+  const { user } = useSelector((state: RootState) => state.auth);
+  const mealsPerDay = user?.meals_per_day || 3;
 
   // Local state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);

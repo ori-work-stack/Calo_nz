@@ -313,7 +313,6 @@ const MealCard: React.FC<{
               {
                 color: isAvailable ? mealType.darkColor : "#9CA3AF",
                 size: 26,
-                strokeWidth: 2.5,
               }
             )}
           </View>
@@ -426,7 +425,6 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
   const themedStyles = StyleSheet.create({
     container: {
       minHeight: "100%",
-      backgroundColor: colors.background || "#FAFAFA",
     },
     contentContainer: {
       paddingHorizontal: 20,

@@ -1403,9 +1403,9 @@ export default function StatisticsScreen() {
 
     if (!todayData || !userQuestionnaire) return null;
 
-    const isCompleted = todayData.mealsCount >= todayData.requiredMeals;
+    const isCompleted = todayData.mealsCount >= userQuestionnaire.mealsPerDay;
     const completionPercentage =
-      (todayData.mealsCount / todayData.requiredMeals) * 100;
+      (todayData.mealsCount / userQuestionnaire.mealsPerDay) * 100;
 
     return (
       <View style={styles.mealCompletionCard}>
@@ -1433,7 +1433,7 @@ export default function StatisticsScreen() {
               {todayData.mealsCount}
             </Text>
             <Text style={styles.mealCompletionSubtext}>
-              {t("statistics.of") || "of"} {todayData.requiredMeals}
+              {t("statistics.of") || "of"} {userQuestionnaire.mealsPerDay}
             </Text>
           </CircularProgress>
 

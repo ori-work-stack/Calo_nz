@@ -541,25 +541,30 @@ router.post("/", authenticateToken, async (req: AuthRequest, res) => {
       });
     }
 
-    console.log("✅ Questionnaire saved successfully");
-
-    // Create or update daily goals based on questionnaire
+    // IMPORTANT: Create/update daily goals on EVERY questionnaire save (new or edit)
+    // This ensures goals reflect the latest questionnaire answers
     try {
-      await DailyGoalsService.createOrUpdateDailyGoals(userId);
-      console.log("✅ Daily goals created/updated successfully");
-    } catch (error) {
-      console.log("⚠️ Daily goals creation failed:", error);
+      console.log(
+        "📊 Creating/updating daily goals after questionnaire save..."
+      );
+      const goals = await DailyGoalsService.createOrUpdateDailyGoals(userId);
+      console.log("✅ Daily goals created/updated successfully:", goals);
+    } catch (goalError) {
+      console.error("⚠️  Failed to create/update daily goals:", goalError);
+      // Don't fail the questionnaire save if goal creation fails
     }
 
+    console.log("✅ Questionnaire saved successfully");
+
     // Send response immediately
-    res.json({
+    res.status(200).json({
       success: true,
       message: existingQuestionnaire
         ? "Questionnaire updated successfully"
         : "Questionnaire saved successfully",
-      data: {
-        questionnaire: savedQuestionnaire,
-        is_questionnaire_completed: true,
+      questionnaire: {
+        ...savedQuestionnaire,
+        meals_per_day: savedQuestionnaire.meals_per_day || 3,
       },
     });
 
@@ -611,10 +616,14 @@ router.get("/", authenticateToken, async (req: AuthRequest, res) => {
 
     console.log("✅ Questionnaire retrieved successfully");
 
+    // Return success with questionnaire data including meals_per_day
     res.json({
       success: true,
-      message: "Questionnaire retrieved successfully",
-      data: questionnaire,
+      data: {
+        ...questionnaire,
+        meals_per_day: questionnaire.meals_per_day || 3,
+      },
+      message: "Questionnaire fetched successfully",
     });
   } catch (error) {
     console.error("💥 Questionnaire fetch error:", error);

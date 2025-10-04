@@ -202,9 +202,27 @@ router.post("/signin", async (req, res, next) => {
 
     console.log("✅ Signin successful");
 
+    // Get questionnaire data for meals_per_day
+    const questionnaire = await prisma.userQuestionnaire.findFirst({
+      where: { user_id: result.user.user_id },
+      select: { meals_per_day: true },
+    });
+
+    const userData = {
+      user_id: result.user.user_id,
+      name: result.user.name,
+      email: result.user.email,
+      email_verified: result.user.email_verified,
+      subscription_type: result.user.subscription_type,
+      is_questionnaire_completed: result.user.is_questionnaire_completed,
+      avatar_url: result.user.avatar_url,
+      meals_per_day: questionnaire?.meals_per_day || 3,
+      created_at: result.user.created_at,
+    };
+
     res.json({
       success: true,
-      user: result.user,
+      user: userData,
       token: result.token, // Always send token for mobile compatibility
     });
   } catch (error) {
@@ -221,10 +239,36 @@ router.post("/signin", async (req, res, next) => {
 });
 
 router.get("/me", authenticateToken, async (req: AuthRequest, res) => {
-  res.json({
-    success: true,
-    user: req.user,
-  });
+  try {
+    // Get questionnaire data for meals_per_day
+    const questionnaire = await prisma.userQuestionnaire.findFirst({
+      where: { user_id: req.user.user_id },
+      select: { meals_per_day: true },
+    });
+
+    const userData = {
+      user_id: req.user.user_id,
+      name: req.user.name,
+      email: req.user.email,
+      email_verified: req.user.email_verified,
+      subscription_type: req.user.subscription_type,
+      is_questionnaire_completed: req.user.is_questionnaire_completed,
+      avatar_url: req.user.avatar_url,
+      meals_per_day: questionnaire?.meals_per_day || 3,
+      created_at: req.user.created_at,
+    };
+
+    res.json({
+      success: true,
+      user: userData,
+    });
+  } catch (error) {
+    console.error("💥 Error fetching /me:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch user data",
+    });
+  }
 });
 
 router.post(
