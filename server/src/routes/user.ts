@@ -412,7 +412,7 @@ router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
       });
     }
 
-    console.log("✅ Profile fetched successfully");
+    console.log("✅ Profile fetched successfully", user);
     res.json({
       success: true,
       data: user,
