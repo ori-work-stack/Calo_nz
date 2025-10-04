@@ -695,7 +695,20 @@
     "finalizing": "Finalizing response...",
     "allergen_warning": "Allergen Warning!",
     "try_these": "Try these:",
-    "loading_profile": "Loading user profile..."
+    "loading_profile": "Loading user profile...",
+    "loading": "Loading AI chat",
+    "common_questions": {
+      "weight_loss": "How can I lose weight effectively?",
+      "protein_intake": "How much protein should I eat daily?",
+      "vitamin_C": "What are good sources of vitamin C?",
+      "vegetarian_menu": "Can you create a vegetarian meal plan for me?",
+      "keto_diet": "What is a keto diet and is it right for me?"
+    },
+    "safety_profile": {
+      "allergies": "Allergies",
+      "title": "Health & Safety Profile",
+      "medical": "Medical Conditions"
+    }
   },
   "recommended_menus": {
     "title": "Recommended Menus",
@@ -856,10 +869,15 @@
     "needsImprovement": "Needs Improvement",
     "overeating": "Overeating",
     "closeToGoal": "Close to Goal",
-    "recentAchievements": "🏆 Recent Achievements",
+    "recentAchievements": "Recent Achievements",
     "seeAll": "See All",
-    "viewWeeklyInsights": "📊 View Weekly Insights",
-    "loading": "Loading your calendar...",
+    "viewWeeklyInsights": "Weekly Insights",
+    "loading": "Loading calendar...",
+    "dailyGoal": "Daily Goal",
+    "mainMeals": "Main Meals",
+    "meals": "meals",
+    "completed": "completed",
+    "breakfastLunchDinner": "Breakfast, Lunch, Dinner, Late Dinner",
     "monthNames": [
       "January",
       "February",
@@ -902,7 +920,7 @@
       "titleRequired": "Please enter an event title"
     },
     "badges": {
-      "title": "🏆 Your Achievements",
+      "title": "Your Achievements",
       "firstWeek": "First Week",
       "firstWeekDesc": "Complete your first week of tracking",
       "streakMaster": "Streak Master",
@@ -911,9 +929,9 @@
       "healthyChoiceDesc": "Log 10 healthy meals"
     },
     "insights": {
-      "title": "📊 Weekly Insights",
-      "bestWeek": "🎯 Best Week",
-      "challengingWeek": "💪 Most Challenging Week",
+      "title": "Weekly Insights",
+      "bestWeek": "Best Week",
+      "challengingWeek": "Most Challenging Week",
       "averageProgress": "average progress"
     },
     "errors": {

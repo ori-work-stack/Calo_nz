@@ -898,7 +898,20 @@
     "finalizing": "מסיים תגובה...",
     "allergen_warning": "אזהרת אלרגן!",
     "try_these": "נסה את אלה:",
-    "loading_profile": "טוען פרופיל משתמש..."
+    "loading_profile": "טוען פרופיל משתמש...",
+    "loading": "טוען צ'אט",
+    "common_questions": {
+      "weight_loss": "איך אני יכול לרדת במשקל בצורה אפקטיבית?",
+      "protein_intake": "כמה חלבון אני צריך לאכול ביום?",
+      "vitamin_C": "מהם מקורות טובים לויטמין C?",
+      "vegetarian_menu": "אתה יכול ליצור לי תפריט צמחוני?",
+      "keto_diet": "מה זו דיאטה קטוגנית והאם היא מתאימה לי?"
+    },
+    "safety_profile": {
+      "allergies": "אלרגיות",
+      "title": "פרופיל בריאות ובטיחות",
+      "medical": "מצבים רפואיים"
+    }
   },
   "recommended_menus": {
     "title": "תפריטים מומלצים",
@@ -1058,10 +1071,15 @@
     "needsImprovement": "צריך שיפור",
     "overeating": "אכילת יתר",
     "closeToGoal": "קרוב ליעד",
-    "recentAchievements": "🏆 הישגים אחרונים",
+    "recentAchievements": "הישגים אחרונים",
     "seeAll": "צפה בהכל",
-    "viewWeeklyInsights": "📊 צפה בתובנות שבועיות",
-    "loading": "טוען את הלוח שנה...",
+    "viewWeeklyInsights": "תובנות שבועיות",
+    "loading": "טוען לוח שנה...",
+    "dailyGoal": "יעד יומי",
+    "mainMeals": "ארוחות עיקריות",
+    "meals": "ארוחות",
+    "completed": "הושלם",
+    "breakfastLunchDinner": "ארוחת בוקר, צהריים, ערב, לילה מאוחר",
     "monthNames": [
       "ינואר",
       "פברואר",
@@ -1104,7 +1122,7 @@
       "titleRequired": "אנא הכנס כותרת לאירוע"
     },
     "badges": {
-      "title": "🏆 ההישגים שלך",
+      "title": "ההישגים שלך",
       "firstWeek": "השבוע הראשון",
       "firstWeekDesc": "השלם את השבוע הראשון של המעקב",
       "streakMaster": "מאסטר רצפים",
@@ -1113,9 +1131,9 @@
       "healthyChoiceDesc": "רשום 10 ארוחות בריאות"
     },
     "insights": {
-      "title": "📊 תובנות שבועיות",
-      "bestWeek": "🎯 השבוע הטוב ביותר",
-      "challengingWeek": "💪 השבוע המאתגר ביותר",
+      "title": "תובנות שבועיות",
+      "bestWeek": "השבוע הטוב ביותר",
+      "challengingWeek": "השבוע המאתגר ביותר",
       "averageProgress": "התקדמות ממוצעת"
     },
     "errors": {

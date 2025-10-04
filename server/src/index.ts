@@ -30,6 +30,7 @@ import shoppingListRoutes from "./routes/shoppingLists";
 import mealCompletionRouter from "./routes/mealCompletion";
 import { schemaValidationRoutes } from "./routes/schema-validation";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
+import enhancedMenuRouter from "./routes/enhancedMenu";
 
 // Load environment variables
 dotenv.config();
@@ -190,6 +191,7 @@ apiRouter.use("/daily-goals-simple", dailyGoalsRoutes);
 apiRouter.use("/", achievementsRouter);
 apiRouter.use("/meal-completions", mealCompletionRouter);
 apiRouter.use("/schema", schemaValidationRoutes);
+apiRouter.use("/menu/enhanced", enhancedMenuRouter);
 
 // Add a test endpoint to manually trigger daily goals creation
 apiRouter.post("/test/create-daily-goals", async (req, res) => {

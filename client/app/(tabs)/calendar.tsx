@@ -630,65 +630,36 @@ export default function CalendarScreen() {
 
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t.monthlyStats}</Text>
         <View style={styles.statsContainer}>
-          <LinearGradient
-            colors={[colors.emerald + "15", colors.emerald + "05"]}
-            style={styles.statsGradient}
-          >
-            <Text style={styles.motivationalMessage}>
-              {statistics.motivationalMessage}
-            </Text>
-
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <View style={styles.statIcon}>
-                  <CheckCircle size={20} color="#2ECC71" />
-                </View>
-                <Text style={styles.statValue}>
-                  {monthStats.successfulDays}/{monthStats.totalDays}
-                </Text>
-                <Text style={styles.statLabel}>{t.successfulDays}</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <View style={styles.statIcon}>
-                  <Target size={20} color="#3498DB" />
-                </View>
-                <Text style={styles.statValue}>
-                  {Math.round(monthStats.averageCompletion)}%
-                </Text>
-                <Text style={styles.statLabel}>{t.averageCompletion}</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <View style={styles.statIcon}>
-                  <Award size={20} color="#F39C12" />
-                </View>
-                <Text style={styles.statValue}>{monthStats.bestStreak}</Text>
-                <Text style={styles.statLabel}>{t.bestStreak}</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <View style={styles.statIcon}>
-                  <Flame size={20} color="#E74C3C" />
-                </View>
-                <Text style={styles.statValue}>{monthStats.currentStreak}</Text>
-                <Text style={styles.statLabel}>{t.currentStreak}</Text>
-              </View>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <CheckCircle size={18} color="#10B981" />
+              <Text style={styles.statValue}>
+                {monthStats.successfulDays}/{monthStats.totalDays}
+              </Text>
+              <Text style={styles.statLabel}>{t.successfulDays}</Text>
             </View>
 
-            {statistics.weeklyInsights && (
-              <TouchableOpacity
-                style={styles.insightsButton}
-                onPress={() => setShowInsightsModal(true)}
-              >
-                <Text style={styles.insightsButtonText}>
-                  📊 View Weekly Insights
-                </Text>
-              </TouchableOpacity>
-            )}
-          </LinearGradient>
+            <View style={styles.statItem}>
+              <Target size={18} color="#3B82F6" />
+              <Text style={styles.statValue}>
+                {Math.round(monthStats.averageCompletion)}%
+              </Text>
+              <Text style={styles.statLabel}>{t.averageCompletion}</Text>
+            </View>
+
+            <View style={styles.statItem}>
+              <Award size={18} color="#F59E0B" />
+              <Text style={styles.statValue}>{monthStats.bestStreak}</Text>
+              <Text style={styles.statLabel}>{t.bestStreak}</Text>
+            </View>
+
+            <View style={styles.statItem}>
+              <Flame size={18} color="#EF4444" />
+              <Text style={styles.statValue}>{monthStats.currentStreak}</Text>
+              <Text style={styles.statLabel}>{t.currentStreak}</Text>
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -705,17 +676,22 @@ export default function CalendarScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Modern Green Gradient Header */}
+        {/* Modern Gradient Header */}
         <LinearGradient
-          colors={["#10B981", "#059669", "#047857"]}
+          colors={[colors.emerald500, colors.emerald600, colors.emerald700]}
           style={styles.modernHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>{t.title}</Text>
+            <View style={styles.headerIconContainer}>
+              <CalendarIcon size={32} color="#FFFFFF" />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{t.title}</Text>
+              <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
+            </View>
           </View>
-          <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
         </LinearGradient>
 
         {/* Statistics */}
@@ -789,32 +765,51 @@ export default function CalendarScreen() {
         {/* Day Details */}
         {selectedDay ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.dayDetails}</Text>
             <View style={styles.dayDetailsContainer}>
               <LinearGradient
-                colors={[
-                  `${getDayColor(selectedDay)}15`,
-                  `${getDayColor(selectedDay)}05`,
-                ]}
+                colors={["#FFFFFF", "#F8F9FA"]}
                 style={styles.dayDetailsGradient}
               >
+                {/* Elegant Header */}
                 <View style={styles.dayDetailsHeader}>
-                  <View style={styles.dayDetailsDate}>
-                    <Text style={styles.dayDetailsDateText}>
-                      {new Date(selectedDay.date).getDate()}
-                    </Text>
-                    <Text style={styles.dayDetailsMonthText}>
-                      {t.monthNames[new Date(selectedDay.date).getMonth()]}
-                    </Text>
+                  <View style={styles.dayDetailsDateContainer}>
+                    <View
+                      style={[
+                        styles.dayDetailsDateCircle,
+                        { backgroundColor: `${getDayColor(selectedDay)}20` },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayDetailsDateText,
+                          { color: getDayColor(selectedDay) },
+                        ]}
+                      >
+                        {new Date(selectedDay.date).getDate()}
+                      </Text>
+                    </View>
+                    <View style={styles.dayDetailsHeaderText}>
+                      <Text style={styles.dayDetailsMonthText}>
+                        {t.monthNames[new Date(selectedDay.date).getMonth()]}
+                      </Text>
+                      <Text style={styles.dayDetailsYearText}>
+                        {new Date(selectedDay.date).getFullYear()}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.dayDetailsStatus}>
+                  <View
+                    style={[
+                      styles.dayDetailsStatusBadge,
+                      { backgroundColor: `${getDayColor(selectedDay)}15` },
+                    ]}
+                  >
                     {getProgressPercentage(
                       selectedDay.calories_actual,
                       selectedDay.calories_goal
                     ) >= 100 ? (
-                      <CheckCircle size={24} color="#2ECC71" />
+                      <CheckCircle size={20} color="#10B981" />
                     ) : (
-                      <XCircle size={24} color="#E74C3C" />
+                      <XCircle size={20} color="#EF4444" />
                     )}
                     <Text
                       style={[
@@ -827,65 +822,100 @@ export default function CalendarScreen() {
                   </View>
                 </View>
 
+                {/* Metrics Grid */}
                 <View style={styles.dayDetailsMetrics}>
                   {/* Daily Goal Card */}
-                  <View style={styles.metricCard}>
-                    <View style={styles.metricHeader}>
-                      <Target size={16} color="#10B981" />
-                      <Text style={styles.metricTitle}>
+                  <View style={[styles.metricCard, styles.metricCardLarge]}>
+                    <LinearGradient
+                      colors={["#10B981", "#059669"]}
+                      style={styles.metricGradient}
+                    >
+                      <View style={styles.metricIconContainer}>
+                        <Target size={24} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.metricTitleWhite}>
                         {language === "he" ? "יעד יומי" : "Daily Goal"}
                       </Text>
-                    </View>
-                    <Text style={styles.metricValue}>
-                      {selectedDay.calories_goal} {t.kcal}
-                    </Text>
-                    <Text style={styles.metricPercentage}>
-                      Target for{" "}
-                      {new Date(selectedDay.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-
-                  {/* Main Meals Progress Card */}
-                  <View style={styles.metricCard}>
-                    <View style={styles.metricHeader}>
-                      <Flame size={16} color="#E74C3C" />
-                      <Text style={styles.metricTitle}>
-                        {language === "he" ? "ארוחות עיקריות" : "Main Meals"}
+                      <Text style={styles.metricValueWhite}>
+                        {selectedDay.calories_goal}{" "}
+                        <Text style={styles.metricUnitWhite}>{t.kcal}</Text>
                       </Text>
-                    </View>
-                    <Text style={styles.metricValue}>
-                      {selectedDay.meal_count} / {user?.meals_per_day || 4}{" "}
-                      {language === "he" ? "ארוחות" : "meals"}
-                    </Text>
-                    <Text style={styles.metricPercentage}>
-                      {Math.round(
-                        (selectedDay.meal_count / (user?.meals_per_day || 4)) *
-                          100
-                      )}
-                      % {language === "he" ? "הושלם" : "completed"}
-                    </Text>
-                    <Text style={styles.metricSubtext}>
-                      {language === "he"
-                        ? "ארוחת בוקר, צהריים, ערב, לילה מאוחר"
-                        : "Breakfast, Lunch, Dinner, Late Dinner"}
-                    </Text>
+                      <View style={styles.metricProgressBar}>
+                        <View
+                          style={[
+                            styles.metricProgressFill,
+                            {
+                              width: `${Math.min(
+                                (selectedDay.calories_actual /
+                                  selectedDay.calories_goal) *
+                                  100,
+                                100
+                              )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </LinearGradient>
                   </View>
 
+                  {/* Meals Progress Card */}
+                  <View style={[styles.metricCard, styles.metricCardLarge]}>
+                    <LinearGradient
+                      colors={["#EF4444", "#DC2626"]}
+                      style={styles.metricGradient}
+                    >
+                      <View style={styles.metricIconContainer}>
+                        <Flame size={24} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.metricTitleWhite}>
+                        {language === "he" ? "ארוחות" : "Meals"}
+                      </Text>
+                      <Text style={styles.metricValueWhite}>
+                        {selectedDay.meal_count}/{user?.meals_per_day || 4}
+                      </Text>
+                      <View style={styles.metricProgressBar}>
+                        <View
+                          style={[
+                            styles.metricProgressFill,
+                            {
+                              width: `${Math.min(
+                                (selectedDay.meal_count /
+                                  (user?.meals_per_day || 4)) *
+                                  100,
+                                100
+                              )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </LinearGradient>
+                  </View>
+
+                  {/* Nutrition Cards */}
                   <View style={styles.metricCard}>
                     <View style={styles.metricHeader}>
-                      <Flame size={16} color="#E74C3C" />
+                      <View
+                        style={[
+                          styles.metricIconBadge,
+                          { backgroundColor: "#FEF3C7" },
+                        ]}
+                      >
+                        <Flame size={16} color="#F59E0B" />
+                      </View>
                       <Text style={styles.metricTitle}>{t.caloriesGoal}</Text>
                     </View>
                     <Text style={styles.metricValue}>
-                      {selectedDay.calories_actual} /{" "}
-                      {selectedDay.calories_goal} {t.kcal}
+                      {selectedDay.calories_actual}
+                    </Text>
+                    <Text style={styles.metricTarget}>
+                      of {selectedDay.calories_goal} {t.kcal}
                     </Text>
                     <View style={styles.deviationContainer}>
                       {selectedDay.calories_actual >
                       selectedDay.calories_goal ? (
-                        <TrendingUp size={14} color="#E74C3C" />
+                        <TrendingUp size={12} color="#EF4444" />
                       ) : (
-                        <TrendingDown size={14} color="#3498DB" />
+                        <TrendingDown size={12} color="#3B82F6" />
                       )}
                       <Text
                         style={[
@@ -894,8 +924,8 @@ export default function CalendarScreen() {
                             color:
                               selectedDay.calories_actual >
                               selectedDay.calories_goal
-                                ? "#E74C3C"
-                                : "#3498DB",
+                                ? "#EF4444"
+                                : "#3B82F6",
                           },
                         ]}
                       >
@@ -903,22 +933,28 @@ export default function CalendarScreen() {
                           selectedDay.calories_actual -
                             selectedDay.calories_goal
                         )}{" "}
-                        {t.kcal}{" "}
-                        {selectedDay.calories_actual > selectedDay.calories_goal
-                          ? t.over
-                          : t.under}
+                        {t.kcal}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.metricCard}>
                     <View style={styles.metricHeader}>
-                      <Target size={16} color="#9B59B6" />
+                      <View
+                        style={[
+                          styles.metricIconBadge,
+                          { backgroundColor: "#F3E8FF" },
+                        ]}
+                      >
+                        <Target size={16} color="#8B5CF6" />
+                      </View>
                       <Text style={styles.metricTitle}>{t.proteinGoal}</Text>
                     </View>
                     <Text style={styles.metricValue}>
-                      {selectedDay.protein_actual} / {selectedDay.protein_goal}{" "}
-                      {t.g}
+                      {selectedDay.protein_actual}
+                    </Text>
+                    <Text style={styles.metricTarget}>
+                      of {selectedDay.protein_goal} {t.g}
                     </Text>
                     <Text style={styles.metricPercentage}>
                       {Math.round(
@@ -932,12 +968,20 @@ export default function CalendarScreen() {
 
                   <View style={styles.metricCard}>
                     <View style={styles.metricHeader}>
-                      <Target size={16} color="#3498DB" />
+                      <View
+                        style={[
+                          styles.metricIconBadge,
+                          { backgroundColor: "#DBEAFE" },
+                        ]}
+                      >
+                        <Target size={16} color="#3B82F6" />
+                      </View>
                       <Text style={styles.metricTitle}>{t.waterGoal}</Text>
                     </View>
                     <Text style={styles.metricValue}>
-                      {selectedDay.water_intake_ml} {t.ml}
+                      {selectedDay.water_intake_ml}
                     </Text>
+                    <Text style={styles.metricTarget}>{t.ml}</Text>
                   </View>
                 </View>
 
@@ -1428,25 +1472,41 @@ const styles = StyleSheet.create({
   },
   modernHeader: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   headerTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    gap: 12,
+  },
+  headerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "700",
     color: "#FFFFFF",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
   },
@@ -1495,48 +1555,34 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statsContainer: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  statsGradient: {
-    padding: 20,
-    borderRadius: 16,
-  },
-  motivationalMessage: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    color: "#16A085",
-    marginBottom: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: 6,
+    justifyContent: "space-around",
   },
   statItem: {
     alignItems: "center",
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
+    gap: 6,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
   },
   statLabel: {
-    fontSize: 12,
-    color: "#7F8C8D",
+    fontSize: 11,
+    color: "#6B7280",
     textAlign: "center",
-    marginTop: 4,
   },
   gamificationContainer: {
     borderRadius: 20,
@@ -1744,76 +1790,166 @@ const styles = StyleSheet.create({
     color: "#7F8C8D",
   },
   dayDetailsContainer: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   dayDetailsGradient: {
-    padding: 20,
+    padding: 24,
   },
   dayDetailsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  dayDetailsDate: {
+  dayDetailsDateContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dayDetailsDateCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
     alignItems: "center",
   },
   dayDetailsDateText: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  dayDetailsHeaderText: {
+    gap: 2,
   },
   dayDetailsMonthText: {
-    fontSize: 14,
-    color: "#7F8C8D",
-  },
-  dayDetailsStatus: {
-    alignItems: "center",
-  },
-  dayDetailsStatusText: {
     fontSize: 16,
     fontWeight: "600",
-    marginTop: 4,
+    color: "#1F2937",
+  },
+  dayDetailsYearText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  dayDetailsStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  dayDetailsStatusText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   dayDetailsMetrics: {
-    gap: 16,
+    gap: 12,
   },
   metricCard: {
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: "#FFFFFF",
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  metricCardLarge: {
+    padding: 0,
+    overflow: "hidden",
+    borderWidth: 0,
+  },
+  metricGradient: {
+    padding: 20,
+    borderRadius: 16,
+  },
+  metricIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  metricIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   metricHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+    gap: 8,
   },
   metricTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  metricTitleWhite: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#2C3E50",
-    marginLeft: 8,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.9)",
+    marginBottom: 8,
   },
   metricValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2C3E50",
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#111827",
     marginBottom: 4,
   },
+  metricValueWhite: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 12,
+  },
+  metricUnitWhite: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  metricTarget: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginBottom: 8,
+  },
   metricPercentage: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#16A085",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#10B981",
+  },
+  metricProgressBar: {
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  metricProgressFill: {
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 3,
   },
   deviationContainer: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
   deviationValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  metricSubtext: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 4,
   },
   selectDayContainer: {
     alignItems: "center",

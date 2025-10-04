@@ -52,6 +52,7 @@ import {
   ArrowLeft,
   ChevronRight,
   CheckCircle,
+  ScanLine,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
@@ -584,25 +585,34 @@ export default function FoodScannerScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <LinearGradient
+        colors={[colors.emerald500, colors.emerald600, colors.emerald700]}
+        style={styles.modernHeader}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerTop}>
+          <View style={styles.headerIconContainer}>
+            <ScanLine size={28} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>
+              {language === "he" ? "סורק מזון" : "Food Scanner"}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {language === "he"
+                ? "סרוק מזון לניתוח תזונתי"
+                : "Scan food for nutritional analysis"}
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {!showResults ? (
         <>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => {}}>
-              <ArrowLeft size={24} color="#1F2937" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Food Scanner</Text>
-            <TouchableOpacity
-              style={styles.historyButton}
-              onPress={() => setShowHistoryModal(true)}
-            >
-              <History size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
           {/* Camera Scanner */}
           <View style={styles.scannerContainer}>
             <View style={styles.cameraWrapper}>
@@ -769,7 +779,12 @@ export default function FoodScannerScreen() {
               <ArrowLeft size={24} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Details</Text>
-            <View style={{ width: 24 }} />
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => setShowHistoryModal(true)}
+            >
+              <History size={24} color="#6B7280" />
+            </TouchableOpacity>
           </View>
 
           {/* Product Card */}
@@ -1040,51 +1055,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  modernHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    gap: 12,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
+  headerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    alignItems: "center",
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
-  historyButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
   },
   scannerContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    marginTop: -60,
+    zIndex: 1,
   },
   cameraWrapper: {
-    width: width - 80,
-    height: width - 80,
+    width: width - 40,
+    height: width - 40,
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 20,
@@ -1162,33 +1183,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scanInstructions: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 24,
   },
   modeSwitcher: {
     flexDirection: "row",
-    backgroundColor: "#E5E7EB",
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    padding: 3,
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   modeButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
-    gap: 8,
+    gap: 6,
   },
   modeButtonActive: {
     backgroundColor: "#10B981",
   },
   modeButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#6B7280",
   },

@@ -284,11 +284,14 @@ const CircularCaloriesProgress: React.FC<CircularCaloriesProgressProps> = ({
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / width);
-    setActiveIndex(index);
+    if (index !== activeIndex) {
+      setActiveIndex(index);
+    }
   };
 
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
+    setActiveIndex(index);
   };
 
   return (
@@ -699,16 +702,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: isSmallScreen ? 16 : 20,
-    gap: 8,
+    gap: 6,
   },
   paginationDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#D1D5DB",
+    transitionDuration: "all 0.3s ease",
   },
   paginationDotActive: {
-    width: 24,
+    width: 28,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#10B981",
   },
   additionalNutrition: {

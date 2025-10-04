@@ -23,12 +23,14 @@ import {
   Trash2,
   Minus,
   X,
+  Sparkles,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { chatAPI, questionnaireAPI } from "@/src/services/api";
 import i18n from "@/src/i18n";
 import LoadingScreen from "@/components/LoadingScreen";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
 
@@ -75,11 +77,11 @@ export default function AIChatScreen({
 
   // Get common questions based on current language
   const getCommonQuestions = () => [
-    t("ai_chat.commonQuestions.weightLoss"),
-    t("ai_chat.commonQuestions.proteinIntake"),
-    t("ai_chat.commonQuestions.vitaminC"),
-    t("ai_chat.commonQuestions.vegetarianMenu"),
-    t("ai_chat.commonQuestions.ketoDiet"),
+    t("ai_chat.common_questions.weight_loss"),
+    t("ai_chat.common_questions.protein_intake"),
+    t("ai_chat.common_questions.vitamin_C"),
+    t("ai_chat.common_questions.vegetarian_menu"),
+    t("ai_chat.common_questions.keto_diet"),
   ];
 
   // Load user profile and chat history on component mount
@@ -167,7 +169,7 @@ export default function AIChatScreen({
           {
             id: "welcome",
             type: "bot",
-            content: t("ai_chat.welcomeMessage"),
+            content: t("ai_chat.welcome_message"),
             timestamp: new Date(),
             suggestions: getCommonQuestions(),
           },
@@ -180,7 +182,7 @@ export default function AIChatScreen({
         {
           id: "welcome",
           type: "bot",
-          content: t("ai_chat.welcomeMessage"),
+          content: t("ai_chat.welcome_message"),
           timestamp: new Date(),
           suggestions: getCommonQuestions(),
         },
@@ -400,7 +402,11 @@ export default function AIChatScreen({
     const isUser = message.type === "user";
 
     return (
-      <View key={message.id} style={styles.messageContainer}>
+      <Animated.View
+        entering={FadeInDown.delay(50).duration(300)}
+        key={message.id}
+        style={styles.messageContainer}
+      >
         <View style={[styles.messageRow, isUser && styles.userMessageRow]}>
           {!isUser && (
             <View style={styles.botIconContainer}>
@@ -437,7 +443,7 @@ export default function AIChatScreen({
             {message.suggestions && (
               <View style={styles.suggestionsContainer}>
                 <Text style={styles.suggestionsLabel}>
-                  {t("ai_chat.tryThese")}
+                  {t("ai_chat.ask_anything")}
                 </Text>
                 <View style={styles.suggestionsGrid}>
                   {message.suggestions.map((suggestion, index) => (
@@ -462,7 +468,7 @@ export default function AIChatScreen({
             </View>
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -471,33 +477,45 @@ export default function AIChatScreen({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{t("ai_chat.title")}</Text>
-            <Text style={styles.subtitle}>{t("ai_chat.subtitle")}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: "#F8F9FA" }]}>
+      <LinearGradient
+        colors={["#16A085", "#1ABC9C", "#2ECC71"]}
+        style={styles.modernHeader}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerTop}>
+          <View style={styles.headerIconContainer}>
+            <Sparkles size={28} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>
+              {language === "he" ? "צ'אט AI תזונאי" : "AI Nutrition Assistant"}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {language === "he"
+                ? "שאל כל שאלה על תזונה"
+                : "Ask any nutrition question"}
+            </Text>
           </View>
         </View>
         <View style={styles.headerButtons}>
           {onMinimize && (
             <TouchableOpacity style={styles.headerButton} onPress={onMinimize}>
-              <Minus size={20} color="#6B7280" />
+              <Minus size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.headerButton} onPress={clearChat}>
-            <Trash2 size={20} color="#E74C3C" />
+            <Trash2 size={20} color="#FFFFFF" />
           </TouchableOpacity>
           {onClose && (
             <TouchableOpacity style={styles.headerButton} onPress={onClose}>
-              <X size={20} color="#6B7280" />
+              <X size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* Messages */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
@@ -511,14 +529,14 @@ export default function AIChatScreen({
             <View style={styles.profileHeader}>
               <Shield size={18} color="#16A085" />
               <Text style={styles.profileTitle}>
-                {t("ai_chat.safetyProfile.title")}
+                {t("ai_chat.safety_profile.title")}
               </Text>
             </View>
             <View style={styles.profileContent}>
               {userProfile.allergies.length > 0 && (
                 <View style={styles.profileSection}>
                   <Text style={styles.profileLabel}>
-                    {t("ai_chat.safetyProfile.allergies")}
+                    {t("ai_chat.safety_profile.allergies")}
                   </Text>
                   <View style={styles.tagContainer}>
                     {userProfile.allergies.map((allergy, index) => (
@@ -532,7 +550,7 @@ export default function AIChatScreen({
               {userProfile.medicalConditions.length > 0 && (
                 <View style={styles.profileSection}>
                   <Text style={styles.profileLabel}>
-                    {t("ai_chat.safetyProfile.medical")}
+                    {t("ai_chat.safety_profile.medical")}
                   </Text>
                   <View style={styles.tagContainer}>
                     {userProfile.medicalConditions.map((condition, index) => (
@@ -573,7 +591,7 @@ export default function AIChatScreen({
             style={styles.textInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder={t("ai_chat.placeholder")}
+            placeholder={t("ai_chat.type_message")}
             placeholderTextColor="#95A5A6"
             multiline
             maxLength={500}
@@ -620,65 +638,83 @@ const styles = StyleSheet.create({
     color: "#7F8C8D",
     textAlign: "center",
   },
-  header: {
+  modernHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
   },
-  headerLeft: {
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTextContainer: {
     flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
   },
   headerButtons: {
     flexDirection: "row",
     gap: 8,
   },
-  titleContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2C3E50",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#7F8C8D",
-    marginTop: 4,
-  },
   headerButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
   profileCard: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 15,
-    borderRadius: 16,
-    padding: 20,
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   profileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   profileTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#2C3E50",
+    color: "#1F2937",
     marginLeft: 8,
   },
   profileContent: {
