@@ -1090,6 +1090,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: 2,
   },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  historyButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F9FAFB",
+  },
   headerSubtitle: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.9)",
