@@ -15,6 +15,32 @@ export interface GenerateMenuParams {
   excludedIngredients?: string[];
 }
 
+export interface MenuCompletionSummary {
+  menu_id: string;
+  title: string;
+  total_days: number;
+  start_date: Date;
+  end_date: Date;
+  total_meals: number;
+  completed_meals: number;
+  completion_rate: number;
+  total_calories: number;
+  avg_calories_per_day: number;
+  total_protein: number;
+  avg_protein_per_day: number;
+  total_carbs: number;
+  total_fat: number;
+  daily_breakdown: Array<{
+    day: number;
+    date: string;
+    meals_completed: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>;
+}
+
 export class RecommendedMenuService {
   static async generatePersonalizedMenu(params: GenerateMenuParams) {
     try {
@@ -46,7 +72,11 @@ export class RecommendedMenuService {
       );
 
       // Save to database
-      const savedMenu = await this.saveMenuToDatabase(params.userId, menuData);
+      const savedMenu = await this.saveMenuToDatabase(
+        params.userId,
+        menuData,
+        params.days || 7
+      );
 
       console.log("✅ Personalized menu generated successfully");
       return savedMenu;
@@ -79,7 +109,11 @@ export class RecommendedMenuService {
       );
 
       // Save to database
-      const savedMenu = await this.saveMenuToDatabase(params.userId, menuData);
+      const savedMenu = await this.saveMenuToDatabase(
+        params.userId,
+        menuData,
+        params.days || 7
+      );
 
       console.log("✅ Custom menu generated successfully");
       return savedMenu;
@@ -410,9 +444,17 @@ Return the same JSON structure as before with meals that specifically address th
     return "balanced";
   }
 
-  private static async saveMenuToDatabase(userId: string, menuData: any) {
+  private static async saveMenuToDatabase(
+    userId: string,
+    menuData: any,
+    daysCount: number
+  ) {
     try {
       console.log("💾 Saving menu to database...");
+
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + daysCount);
 
       // Create the recommended menu
       const menu = await prisma.recommendedMenu.create({
@@ -425,12 +467,14 @@ Return the same JSON structure as before with meals that specifically address th
           total_carbs: menuData.total_carbs,
           total_fat: menuData.total_fat,
           total_fiber: menuData.total_fiber || 0,
-          days_count: menuData.days_count,
+          days_count: daysCount,
           dietary_category: menuData.dietary_category || "BALANCED",
           estimated_cost: menuData.estimated_cost,
           prep_time_minutes: menuData.prep_time_minutes || 30,
           difficulty_level: menuData.difficulty_level || 2,
           is_active: true,
+          start_date: startDate,
+          end_date: endDate,
         },
       });
 
@@ -612,6 +656,202 @@ Return the same JSON structure as before with meals that specifically address th
     ];
 
     return alternatives[0];
+  }
+
+  static async generateEnhancedMenuWithFeedback(params: {
+    userId: string;
+    originalMenu: any;
+    questionnaire: any;
+    feedback: {
+      rating: number;
+      liked: string;
+      disliked: string;
+      suggestions: string;
+      enhancements: string;
+      wouldRecommend: boolean;
+    };
+  }) {
+    try {
+      console.log("🎨 Generating enhanced menu with user feedback");
+
+      const prompt = `Create an enhanced ${
+        params.originalMenu.days_count
+      }-day meal plan based on user feedback.
+
+ORIGINAL MENU:
+Title: ${params.originalMenu.title}
+Days: ${params.originalMenu.days_count}
+Total Calories: ${params.originalMenu.total_calories}
+
+USER FEEDBACK:
+Rating: ${params.feedback.rating}/5
+Would Recommend: ${params.feedback.wouldRecommend ? "Yes" : "No"}
+
+What they liked: ${params.feedback.liked || "Not specified"}
+What they didn't like: ${params.feedback.disliked || "Not specified"}
+Suggestions: ${params.feedback.suggestions || "Not specified"}
+Additional Enhancements: ${params.feedback.enhancements || "Not specified"}
+
+USER PROFILE:
+- Dietary Style: ${params.questionnaire?.dietary_style || "Balanced"}
+- Allergies: ${params.questionnaire?.allergies?.join(", ") || "None"}
+- Activity Level: ${params.questionnaire?.physical_activity_level || "Moderate"}
+- Main Goal: ${params.questionnaire?.main_goal || "Health improvement"}
+
+REQUIREMENTS:
+1. Address ALL feedback points, especially dislikes and suggestions
+2. Keep what they liked and improve what they didn't
+3. Incorporate the enhancement requests
+4. Maintain nutritional balance
+5. Ensure variety and appeal
+
+Generate a COMPLETE new menu in JSON format with the same structure as before, but IMPROVED based on feedback.`;
+
+      let menuData;
+
+      if (!process.env.OPENAI_API_KEY) {
+        console.log("⚠️ No OpenAI key, using enhanced fallback");
+        menuData = this.generateEnhancedFallbackMenu(params);
+      } else {
+        try {
+          const aiResponse = await OpenAIService.generateText(prompt, 2000);
+          menuData = this.parseAIMenuResponse(aiResponse);
+        } catch (error) {
+          console.log("⚠️ AI generation failed, using enhanced fallback");
+          menuData = this.generateEnhancedFallbackMenu(params);
+        }
+      }
+
+      // Save the new enhanced menu
+      const savedMenu = await this.saveMenuToDatabase(
+        params.userId,
+        menuData,
+        params.originalMenu.days_count
+      );
+
+      console.log("✅ Enhanced menu generated and saved");
+      return savedMenu;
+    } catch (error) {
+      console.error("💥 Error generating enhanced menu:", error);
+      throw error;
+    }
+  }
+
+  private static generateEnhancedFallbackMenu(params: any) {
+    const { originalMenu, feedback, questionnaire } = params;
+
+    // Analyze feedback to create better menu
+    const isLowCalorie =
+      feedback.disliked?.toLowerCase().includes("calories") ||
+      feedback.suggestions?.toLowerCase().includes("lower calories");
+    const needsMoreProtein =
+      feedback.liked?.toLowerCase().includes("protein") ||
+      feedback.suggestions?.toLowerCase().includes("more protein");
+    const wantsVariety =
+      feedback.disliked?.toLowerCase().includes("repetitive") ||
+      feedback.suggestions?.toLowerCase().includes("variety");
+
+    const enhancedMeals = this.createEnhancedMeals({
+      daysCount: originalMenu.days_count,
+      isLowCalorie,
+      needsMoreProtein,
+      wantsVariety,
+      dietaryStyle: questionnaire?.dietary_style,
+    });
+
+    const totalCalories = enhancedMeals.reduce(
+      (sum, meal) => sum + meal.calories,
+      0
+    );
+    const totalProtein = enhancedMeals.reduce(
+      (sum, meal) => sum + meal.protein,
+      0
+    );
+    const totalCarbs = enhancedMeals.reduce((sum, meal) => sum + meal.carbs, 0);
+    const totalFat = enhancedMeals.reduce((sum, meal) => sum + meal.fat, 0);
+
+    return {
+      title: `Enhanced ${originalMenu.days_count}-Day Menu`,
+      description: `Improved menu based on your feedback and preferences`,
+      total_calories: totalCalories,
+      total_protein: totalProtein,
+      total_carbs: totalCarbs,
+      total_fat: totalFat,
+      days_count: originalMenu.days_count,
+      estimated_cost: originalMenu.estimated_cost,
+      meals: enhancedMeals,
+    };
+  }
+
+  private static createEnhancedMeals(params: {
+    daysCount: number;
+    isLowCalorie: boolean;
+    needsMoreProtein: boolean;
+    wantsVariety: boolean;
+    dietaryStyle?: string;
+  }) {
+    const mealTemplates = [
+      {
+        name: "Greek Yogurt Parfait",
+        meal_type: "BREAKFAST",
+        calories: params.isLowCalorie ? 280 : 350,
+        protein: params.needsMoreProtein ? 28 : 22,
+        carbs: 35,
+        fat: 8,
+        fiber: 5,
+      },
+      {
+        name: "Quinoa Buddha Bowl",
+        meal_type: "LUNCH",
+        calories: params.isLowCalorie ? 420 : 480,
+        protein: params.needsMoreProtein ? 32 : 25,
+        carbs: 45,
+        fat: 18,
+        fiber: 10,
+      },
+      {
+        name: "Grilled Salmon with Vegetables",
+        meal_type: "DINNER",
+        calories: params.isLowCalorie ? 450 : 520,
+        protein: params.needsMoreProtein ? 38 : 32,
+        carbs: 35,
+        fat: 22,
+        fiber: 8,
+      },
+    ];
+
+    const meals: any[] = [];
+    for (let day = 1; day <= params.daysCount; day++) {
+      mealTemplates.forEach((template) => {
+        meals.push({
+          ...template,
+          day_number: day,
+          name: params.wantsVariety
+            ? `${template.name} (Day ${day} Variation)`
+            : template.name,
+          prep_time_minutes: 25,
+          cooking_method: "Mixed",
+          instructions: `Prepare ${template.name} following standard recipe`,
+          ingredients: [
+            {
+              name: "main ingredient",
+              quantity: 150,
+              unit: "g",
+              category: "protein",
+            },
+            {
+              name: "vegetables",
+              quantity: 100,
+              unit: "g",
+              category: "vegetable",
+            },
+            { name: "grains", quantity: 80, unit: "g", category: "grain" },
+          ],
+        });
+      });
+    }
+
+    return meals;
   }
 
   static async markMealAsFavorite(

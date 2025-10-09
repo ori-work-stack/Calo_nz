@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import { LinearGradient } from "expo-linear-gradient";
 import { useShoppingList } from "@/hooks/useShoppingList";
 import { api } from "@/src/services/api";
+import { EnhancedErrorDisplay } from "../EnhancedErrorDisplay";
 
 const { width } = Dimensions.get("window");
 
@@ -94,6 +95,10 @@ export const EnhancedMenuCreator: React.FC<MenuCreatorProps> = ({
   const [customMenuName, setCustomMenuName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [totalEstimatedCost, setTotalEstimatedCost] = useState(0);
+  const [errorInfo, setErrorInfo] = useState<{
+    visible: boolean;
+    error: any;
+  }>({ visible: false, error: null });
 
   // Animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -329,12 +334,15 @@ Generate a balanced, nutritious meal plan that makes creative use of these ingre
       }
     } catch (error: any) {
       console.error("Error generating menu:", error);
-      Alert.alert(
-        "Generation Failed",
-        error.response?.data?.error ||
-          error.message ||
-          "Failed to generate menu. Please try again."
-      );
+
+      // Provide context-specific error information
+      const contextualError = {
+        ...error,
+        ingredients: selectedIngredients.map((i) => i.name),
+        preferences: menuPreferences,
+      };
+
+      setErrorInfo({ visible: true, error: contextualError });
     } finally {
       setIsGenerating(false);
       isGeneratingRef.current = false;
@@ -957,6 +965,15 @@ Generate a balanced, nutritious meal plan that makes creative use of these ingre
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Error Display */}
+        <EnhancedErrorDisplay
+          visible={errorInfo.visible}
+          error={errorInfo.error}
+          onClose={() => setErrorInfo({ visible: false, error: null })}
+          onRetry={generateMenu}
+          context={t("recommended_menus.generation") || "Menu Generation"}
+        />
       </Animated.View>
     </Modal>
   );
@@ -974,7 +991,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingTop: 60,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    borderBottomColor: "rgba(0, 0, 0, 0.05)",
   },
   closeButton: {
     width: 40,
@@ -1019,13 +1036,15 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: "800",
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   stepDescription: {
     fontSize: 16,
     marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 24,
+    opacity: 0.8,
   },
   costDisplay: {
     flexDirection: "row",

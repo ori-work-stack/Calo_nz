@@ -208,13 +208,14 @@ const WeeklyProgressChart = ({
   }
 
   const maxCalories = Math.max(...data.map((d) => d.calories || 0)) || 1;
-  const padding = 40;
+  const maxProtein = Math.max(...data.map((d) => d.protein || 0)) || 1;
+  const padding = 50;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
   const xStep = chartWidth / Math.max(data.length - 1, 1);
 
-  const pathData = data
+  const caloriesPath = data
     .map((item, index) => {
       const x = padding + index * xStep;
       const y =
@@ -225,8 +226,30 @@ const WeeklyProgressChart = ({
     })
     .join(" ");
 
+  const proteinPath = data
+    .map((item, index) => {
+      const x = padding + index * xStep;
+      const y =
+        padding +
+        chartHeight -
+        ((item.protein || 0) / maxProtein) * chartHeight * 0.5;
+      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
+
   return (
     <View style={styles.chartContainer}>
+      <View style={styles.chartLegend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#16A085" }]} />
+          <Text style={styles.legendText}>Calories</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#3498DB" }]} />
+          <Text style={styles.legendText}>Protein (g)</Text>
+        </View>
+      </View>
+
       <Svg width={width} height={height}>
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
@@ -244,10 +267,10 @@ const WeeklyProgressChart = ({
           );
         })}
 
-        {/* Chart line */}
-        {pathData && (
+        {/* Calories line */}
+        {caloriesPath && (
           <Path
-            d={pathData}
+            d={caloriesPath}
             stroke="#16A085"
             strokeWidth={3}
             fill="none"
@@ -256,23 +279,50 @@ const WeeklyProgressChart = ({
           />
         )}
 
+        {/* Protein line */}
+        {proteinPath && (
+          <Path
+            d={proteinPath}
+            stroke="#3498DB"
+            strokeWidth={2}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="5,5"
+          />
+        )}
+
         {/* Data points */}
         {data.map((item, index) => {
           const x = padding + index * xStep;
-          const y =
+          const yCalories =
             padding +
             chartHeight -
             ((item.calories || 0) / maxCalories) * chartHeight;
+          const yProtein =
+            padding +
+            chartHeight -
+            ((item.protein || 0) / maxProtein) * chartHeight * 0.5;
+
           return (
-            <Circle
-              key={`point-${index}`}
-              cx={x}
-              cy={y}
-              r={4}
-              fill="#16A085"
-              stroke="#FFFFFF"
-              strokeWidth={2}
-            />
+            <React.Fragment key={`points-${index}`}>
+              <Circle
+                cx={x}
+                cy={yCalories}
+                r={4}
+                fill="#16A085"
+                stroke="#FFFFFF"
+                strokeWidth={2}
+              />
+              <Circle
+                cx={x}
+                cy={yProtein}
+                r={3}
+                fill="#3498DB"
+                stroke="#FFFFFF"
+                strokeWidth={1}
+              />
+            </React.Fragment>
           );
         })}
 
@@ -285,7 +335,7 @@ const WeeklyProgressChart = ({
               key={`y-label-${index}`}
               x={padding - 10}
               y={y + 4}
-              fontSize="12"
+              fontSize="10"
               fill="#64748B"
               textAnchor="end"
             >
@@ -2637,6 +2687,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
+  },
+  chartLegend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 20,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
   },
   chartTitle: {
     fontSize: 18,

@@ -102,6 +102,21 @@ export const MealDetailView: React.FC<MealDetailViewProps> = ({
   const fatPercentage =
     totalMacros > 0 ? ((meal.fat || 0) / totalMacros) * 100 : 0;
 
+  const getMealTypeColor = (mealType: string) => {
+    switch (mealType.toLowerCase()) {
+      case "breakfast":
+        return isDark ? "#fbbf24" : "#f59e0b"; // Amber
+      case "lunch":
+        return isDark ? "#34d399" : "#10b981"; // Green
+      case "dinner":
+        return isDark ? "#a78bfa" : "#8b5cf6"; // Purple
+      case "snack":
+        return isDark ? "#f87171" : "#ef4444"; // Red
+      default:
+        return colors.emerald500;
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header Image */}

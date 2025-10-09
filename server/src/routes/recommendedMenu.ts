@@ -536,6 +536,53 @@ router.get(
   }
 );
 
+// GET /api/recommended-menus/:menuId/completion - Check if menu is completed and get summary
+router.get(
+  "/:menuId/completion",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user.user_id;
+      const { menuId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      console.log("📊 Checking completion for menu:", menuId);
+
+      const summary = await RecommendedMenuService.checkMenuCompletion(
+        userId,
+        menuId
+      );
+
+      if (!summary) {
+        return res.json({
+          success: true,
+          completed: false,
+          message: "Menu is still active",
+        });
+      }
+
+      res.json({
+        success: true,
+        completed: true,
+        data: summary,
+      });
+    } catch (error) {
+      console.error("💥 Error checking menu completion:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to check menu completion",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 // POST /api/recommended-menus/:menuId/start-today - Start a recommended menu as today's plan
 router.post(
   "/:menuId/start-today",
@@ -599,6 +646,119 @@ router.post(
         success: false,
         error: "Failed to start menu",
         details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// POST /api/recommended-menus/:menuId/review - Submit menu review
+router.post(
+  "/:menuId/review",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user.user_id;
+      const { menuId } = req.params;
+      const { rating, liked, disliked, suggestions, wouldRecommend } = req.body;
+
+      console.log("📝 Submitting menu review for:", menuId);
+
+      // Save review to database
+      await prisma.menuReview.create({
+        data: {
+          menu_id: menuId,
+          user_id: userId,
+          rating,
+          liked,
+          disliked,
+          suggestions,
+          would_recommend: wouldRecommend,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Review saved successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error saving menu review:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to save review",
+      });
+    }
+  }
+);
+
+// POST /api/recommended-menus/:menuId/regenerate-with-feedback - Regenerate menu with user feedback
+router.post(
+  "/:menuId/regenerate-with-feedback",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user.user_id;
+      const { menuId } = req.params;
+      const {
+        rating,
+        liked,
+        disliked,
+        suggestions,
+        enhancements,
+        wouldRecommend,
+      } = req.body;
+
+      console.log("🤖 Regenerating menu with AI feedback for:", menuId);
+
+      // Get original menu
+      const originalMenu = await prisma.recommendedMenu.findFirst({
+        where: { menu_id: menuId, user_id: userId },
+        include: {
+          meals: {
+            include: {
+              ingredients: true,
+            },
+          },
+        },
+      });
+
+      if (!originalMenu) {
+        return res.status(404).json({
+          success: false,
+          error: "Menu not found",
+        });
+      }
+
+      // Get user questionnaire
+      const questionnaire = await prisma.userQuestionnaire.findFirst({
+        where: { user_id: userId },
+      });
+
+      // Generate enhanced menu using AI with feedback
+      const enhancedMenu =
+        await RecommendedMenuService.generateEnhancedMenuWithFeedback({
+          userId,
+          originalMenu,
+          questionnaire,
+          feedback: {
+            rating,
+            liked,
+            disliked,
+            suggestions,
+            enhancements,
+            wouldRecommend,
+          },
+        });
+
+      res.json({
+        success: true,
+        data: enhancedMenu,
+        message: "Enhanced menu generated successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error regenerating menu with feedback:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to generate enhanced menu",
       });
     }
   }
@@ -1043,6 +1203,12 @@ router.post(
         orderBy: { date_completed: "desc" },
       });
 
+      // Detect language based on ingredients
+      const hasHebrew = ingredients.some((ing: any) =>
+        /[\u0590-\u05FF]/.test(ing.name)
+      );
+      const menuLanguage = hasHebrew ? "Hebrew" : "English";
+
       // Create enhanced prompt with user ingredients
       const ingredientsList = ingredients
         .map((ing: any) => `${ing.name} (${ing.quantity} ${ing.unit})`)
@@ -1054,6 +1220,15 @@ router.post(
       );
 
       const prompt = `Create a personalized ${sanitizedDuration}-day meal plan using these available ingredients: ${ingredientsList}.
+
+IMPORTANT LANGUAGE RULES:
+- The ingredients contain ${menuLanguage} text
+- You MUST respond in ${menuLanguage} for ALL text fields (menu_name, description, meal names, instructions)
+- Detect ingredient language automatically and respond in the SAME language
+- If ingredients are in Hebrew, use Hebrew for the entire response
+- If ingredients are in English, use English for the entire response
+- DO NOT mix languages in the response
+- DO NOT apologize or ask for clarification - just create the menu
 
 Preferences:
 - Cuisine: ${preferences.cuisine}
@@ -1068,14 +1243,16 @@ User profile: ${
           : "Not available"
       }
 
-Requirements:
-1. Use as many of the provided ingredients as possible
-2. Create balanced, nutritious meals
-3. Include cooking instructions and additional ingredients if needed
-4. Provide estimated prep time and difficulty level
-5. Generate a concise, appealing menu name (e.g., "Mediterranean Fresh Week")
+CRITICAL REQUIREMENTS:
+1. RESPOND IN ${menuLanguage} ONLY
+2. Use as many of the provided ingredients as possible
+3. Create balanced, nutritious meals
+4. Include cooking instructions in ${menuLanguage}
+5. Generate a concise, appealing menu name in ${menuLanguage} (max 3 words)
+6. If dietary restrictions conflict with ingredients (e.g., tuna with vegetarian), automatically adjust by using vegetarian alternatives
+7. DO NOT return conversational text - ONLY return valid JSON
 
-Return in this JSON format:
+Return VALID JSON in this format:
 {
   "menu_name": "Short descriptive name",
   "description": "Brief description",
@@ -1139,17 +1316,53 @@ Return in this JSON format:
 
       console.log("🤖 Raw AI Response:", aiContent);
 
+      // Check if AI returned a conversational error message (English and Hebrew)
+      const conversationalIndicators = [
+        "sorry",
+        "cannot",
+        "can't",
+        "unable",
+        "please provide",
+        "doesn't have",
+        "מצטער",
+        "לא יכול",
+        "לא מסוגל",
+        "אנא",
+        "בבקשה",
+      ];
+
+      const isConversational =
+        conversationalIndicators.some((indicator) =>
+          aiContent.toLowerCase().includes(indicator.toLowerCase())
+        ) || !aiContent.includes("{");
+
+      if (isConversational) {
+        console.error("❌ AI returned conversational response:", aiContent);
+
+        // Detect language for error message
+        const hasHebrew = /[\u0590-\u05FF]/.test(aiContent);
+        const errorMessage = hasHebrew
+          ? "הבינה המלאכותית לא הצליחה ליצור תפריט עם הרכיבים שסופקו. אנא ודא שכל הרכיבים מתאימים להעדפות התזונה שלך ונסה שוב עם שמות רכיבים ברורים יותר."
+          : "The AI couldn't create a menu with the provided ingredients. Please ensure all ingredients are appropriate for your dietary preferences and try again with clearer ingredient names.";
+
+        throw new Error(errorMessage);
+      }
+
       let parsedMenu;
       try {
         const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsedMenu = JSON.parse(jsonMatch[0]);
         } else {
-          throw new Error("No JSON found in AI response");
+          throw new Error(
+            "Unable to generate menu. Please check your ingredient list and try again with common food items."
+          );
         }
       } catch (parseError) {
         console.error("JSON parsing error:", parseError);
-        throw new Error("Failed to parse AI response");
+        throw new Error(
+          "Failed to create menu. Please try again with different ingredients or simpler descriptions."
+        );
       }
 
       // Validate parsed menu
@@ -1161,28 +1374,75 @@ Return in this JSON format:
         throw new Error("Invalid menu structure from AI");
       }
 
-      // Save menu to database
+      // Map cuisine to valid dietary category enum
+      const getDietaryCategory = (cuisine: string): string => {
+        const cuisineMap: { [key: string]: string } = {
+          mediterranean: "MEDITERRANEAN",
+          asian: "BALANCED",
+          american: "BALANCED",
+          italian: "MEDITERRANEAN",
+          mexican: "BALANCED",
+          indian: "BALANCED",
+        };
+        return cuisineMap[cuisine.toLowerCase()] || "BALANCED";
+      };
+
+      // Save menu to database with proper enum values - fixed binary data error
       const savedMenu = await prisma.recommendedMenu.create({
         data: {
           user_id: userId,
-          title: parsedMenu.menu_name,
-          description: parsedMenu.description || "",
-          total_calories: parsedMenu.total_calories || 0,
-          total_protein: parsedMenu.total_protein || 0,
-          total_carbs: parsedMenu.total_carbs || 0,
-          total_fat: parsedMenu.total_fat || 0,
-          days_count: parsedMenu.days_count || preferences.duration_days,
-          dietary_category: preferences.cuisine.toUpperCase(),
-          estimated_cost: parsedMenu.estimated_cost || 0,
-          prep_time_minutes: Math.max(
-            ...parsedMenu.meals.map((m: any) => m.prep_time_minutes || 30)
+          title: String(parsedMenu.menu_name || "Custom Menu"),
+          description: String(parsedMenu.description || ""),
+          total_calories: Math.max(
+            0,
+            parseInt(parsedMenu.total_calories?.toString() || "0")
           ),
-          difficulty_level:
-            preferences.cooking_difficulty === "easy"
-              ? 1
-              : preferences.cooking_difficulty === "hard"
-              ? 3
-              : 2,
+          total_protein: Math.max(
+            0,
+            parseInt(parsedMenu.total_protein?.toString() || "0")
+          ),
+          total_carbs: Math.max(
+            0,
+            parseInt(parsedMenu.total_carbs?.toString() || "0")
+          ),
+          total_fat: Math.max(
+            0,
+            parseInt(parsedMenu.total_fat?.toString() || "0")
+          ),
+          days_count: Math.max(
+            1,
+            parseInt(
+              parsedMenu.days_count?.toString() ||
+                preferences.duration_days?.toString() ||
+                "7"
+            )
+          ),
+          dietary_category: getDietaryCategory(
+            String(preferences.cuisine || "balanced")
+          ),
+          estimated_cost: Math.max(
+            0,
+            parseFloat(parsedMenu.estimated_cost?.toString() || "0")
+          ),
+          prep_time_minutes: Math.max(
+            10,
+            Math.max(
+              ...parsedMenu.meals.map((m: any) =>
+                parseInt(m.prep_time_minutes?.toString() || "30")
+              )
+            )
+          ),
+          difficulty_level: Math.min(
+            3,
+            Math.max(
+              1,
+              preferences.cooking_difficulty === "easy"
+                ? 1
+                : preferences.cooking_difficulty === "hard"
+                ? 3
+                : 2
+            )
+          ),
         },
       });
 
@@ -1231,11 +1491,34 @@ Return in this JSON format:
       });
     } catch (error) {
       console.error("💥 Error generating menu with ingredients:", error);
+
+      // Extract user-friendly error message
+      let userMessage = "Failed to generate menu. Please try again.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("ingredients are appropriate")) {
+          userMessage = error.message;
+        } else if (
+          error.message.includes("No JSON") ||
+          error.message.includes("Failed to parse")
+        ) {
+          userMessage =
+            "Could not create menu with these ingredients. Please try using common food items with English or Hebrew names.";
+        } else if (error.message.includes("AI service")) {
+          userMessage =
+            "AI service is temporarily unavailable. Please try again later.";
+        } else {
+          userMessage = error.message;
+        }
+      }
+
       res.status(500).json({
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to generate menu",
-        details: error instanceof Error ? error.stack : undefined,
+        error: userMessage,
+        details:
+          process.env.NODE_ENV === "development" && error instanceof Error
+            ? error.stack
+            : undefined,
       });
     }
   }

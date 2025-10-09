@@ -314,13 +314,19 @@ const AppContent = React.memo(() => {
       }
 
       // Step 2: Check Questionnaire Completion
+      // Allow navigation to tabs but show questionnaire modal/overlay
       if (!user.is_questionnaire_completed) {
-        if (!currentPath.includes("questionnaire")) {
+        // Only redirect to questionnaire if not already there or in tabs
+        const isInTabs = currentPath.includes("(tabs)");
+        const isInQuestionnaire = currentPath.includes("questionnaire");
+
+        if (!isInQuestionnaire && !isInTabs) {
           console.log(
-            "🚦 Step 2 Failed: Questionnaire not completed - redirecting"
+            "🚦 Step 2: Questionnaire not completed - redirecting to questionnaire"
           );
           router.replace("/questionnaire");
         }
+        // If in tabs, the questionnaire protection will handle showing reminder
         return;
       }
 
@@ -522,16 +528,16 @@ export default function RootLayout() {
       <I18nextProvider i18n={i18n}>
         <GestureHandlerRootView style={styles.root}>
           <Provider store={store}>
-            <QueryClientProvider client={queryClient}>
-              <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+            <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+              <QueryClientProvider client={queryClient}>
                 <ThemeProvider>
                   <LanguageProvider>
                     <MainApp />
                     <StatusBar style="auto" />
                   </LanguageProvider>
                 </ThemeProvider>
-              </PersistGate>
-            </QueryClientProvider>
+              </QueryClientProvider>
+            </PersistGate>
           </Provider>
         </GestureHandlerRootView>
       </I18nextProvider>

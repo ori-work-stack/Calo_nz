@@ -1453,17 +1453,18 @@ const styles = StyleSheet.create({
 
   // Enhanced Menu Cards
   menuCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: "hidden",
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
+    marginBottom: 4,
   },
 
   menuImageHeader: {
-    height: 120,
+    height: 140,
     justifyContent: "space-between",
     padding: 16,
   },
@@ -1498,18 +1499,20 @@ const styles = StyleSheet.create({
   },
 
   menuHeader: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
 
   menuTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
 
   menuSubtitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    opacity: 0.8,
   },
 
   // Enhanced Nutrition Grid
@@ -1602,7 +1605,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
   },
@@ -1610,7 +1613,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: "#ffffff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   // Empty State

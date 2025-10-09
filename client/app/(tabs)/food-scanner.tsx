@@ -163,8 +163,8 @@ export default function FoodScannerScreen() {
   const texts = {
     title: t("food_scanner.title") || "Food Scanner",
     subtitle: t("food_scanner.subtitle") || "Scan and analyze your food",
-    scanBarcode: t("food_scanner.scan_barcode") || "Scan Barcode",
-    scanImage: t("food_scanner.scan_image") || "Scan Image",
+    scanBarcode: t("food_scanner.scan_food") || "Scan Barcode",
+    scanImage: t("food_scanner.take_picture") || "Scan Image",
     enterBarcode: t("food_scanner.enter_barcode") || "Enter barcode",
     scan: t("food_scanner.scan") || "Scan",
     quantity: t("food_scanner.quantity") || "Quantity",
@@ -404,6 +404,15 @@ export default function FoodScannerScreen() {
 
   const handleImageScan = async () => {
     try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        ToastService.error(
+          "Permission Required",
+          isRTL ? "נדרשת הרשאת מצלמה" : "Camera permission is required"
+        );
+        return;
+      }
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -428,6 +437,10 @@ export default function FoodScannerScreen() {
             animateResultAppearance();
             setShowResults(true);
             await loadScanHistory();
+            ToastService.success(
+              texts.scanSuccess,
+              isRTL ? "המוצר זוהה בהצלחה" : "Product identified successfully"
+            );
           } else {
             ToastService.error(
               texts.scanError,

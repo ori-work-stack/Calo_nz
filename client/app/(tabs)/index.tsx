@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import {
   Camera,
   Target,
@@ -597,7 +598,7 @@ const HomeScreen = React.memo(() => {
             <View style={styles.actionsGrid}>
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => console.log("Navigate to camera")}
+                onPress={() => router.push("/(tabs)/camera")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}
@@ -609,7 +610,7 @@ const HomeScreen = React.memo(() => {
 
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => console.log("Navigate to food scanner")}
+                onPress={() => router.push("/(tabs)/food-scanner")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#EFF6FF" }]}
@@ -633,7 +634,7 @@ const HomeScreen = React.memo(() => {
 
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => console.log("Navigate to statistics")}
+                onPress={() => router.push("/(tabs)/statistics")}
               >
                 <View
                   style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}
@@ -839,7 +840,7 @@ const styles = StyleSheet.create({
   },
   progressSection: {
     marginBottom: 32,
-    marginHorizontal: 16
+    marginHorizontal: 16,
   },
   statsSection: {
     paddingHorizontal: 20,

@@ -431,11 +431,12 @@
     "product_not_found_message": "We couldn't find this product in our database",
     "scan_failed": "Scan Failed",
     "scan_failed_message": "We couldn't identify the product in the image",
-    "start_scan": "Scan",
+    "scan": "Scan",
     "barcode_instructions": "Point the camera to the barcode",
     "take_photo": "Take Photo",
     "image_instructions": "Point the camera to the barcode",
-    "photo_food": "Photo the food"
+    "photo_food": "Photo the food",
+    "enter_barcode": "Enter Barcode Here..."
   },
   "profile": {
     "title": "Profile",
@@ -722,7 +723,8 @@
     "ingredients": "Ingredients",
     "preparation_time": "Preparation Time",
     "difficulty": "Difficulty",
-    "nutritional_value": "Nutritional Value"
+    "nutritional_value": "Nutritional Value",
+    "generation": "Meal Generation"
   },
   "auth": {
     "sign_in": "Sign In",
@@ -1526,5 +1528,58 @@
     },
     "subtitle": "Start your journey to better health",
     "description": "Discover personalized nutrition recommendations, track your meals with AI assistance, and achieve your wellness goals with Calo Health."
+  },
+  "error": {
+    "generic": {
+      "title": "Error",
+      "message": "An unexpected error occurred",
+      "suggestion": "Please try again later"
+    },
+
+    "network": {
+      "title": "Connection Error",
+      "message": "Unable to connect to server",
+      "suggestion": "Check your internet connection and try again"
+    },
+
+    "timeout": {
+      "title": "Request Timeout",
+      "message": "The request took too long",
+      "suggestion": "Try again with a clearer image or simplify your request"
+    },
+
+    "server": {
+      "title": "Server Error",
+      "message": "The server encountered a problem",
+      "suggestion": "Please try again in a few minutes"
+    },
+
+    "auth": {
+      "title": "Authentication Error",
+      "message": "Please sign in again to continue",
+      "suggestion": "Sign in again to continue"
+    },
+
+    "validation": {
+      "title": "Validation Error",
+      "suggestion": "Check your input and try again"
+    },
+
+    "menuGeneration": {
+      "title": "Menu Generation Failed",
+      "suggestion": "Try with different ingredients or simpler descriptions. Ensure ingredients match your dietary preferences (e.g., tuna is not vegetarian)."
+    },
+
+    "dietary": {
+      "title": "Dietary Preference Conflict",
+      "suggestion": "Check that your selected ingredients match your dietary preferences. For example: fish and tuna are not suitable for vegetarian diets."
+    },
+
+    "actions": {
+      "tryAgain": "Try Again",
+      "close": "Close"
+    },
+
+    "contextSuffix": "Error"
   }
 }

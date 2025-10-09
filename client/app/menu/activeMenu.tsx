@@ -47,6 +47,7 @@ import { api, mealPlanAPI } from "@/src/services/api";
 import LoadingScreen from "@/components/LoadingScreen";
 import MenuRatingModal from "@/components/menu/MenuRatingModal";
 import MealRatingCard from "@/components/menu/MealRatingCard";
+import { MenuReviewStatistics } from "@/components/menu/MenuReviewStatistics"; // Assuming this component exists
 
 // Placeholder for removeMeal and refreshMealData if they are Redux actions or similar
 // Assuming they are imported from somewhere else and are defined elsewhere
@@ -209,6 +210,9 @@ export default function ActiveMenu() {
     favorites_only: false,
     meal_timing: "all",
   });
+
+  // Review modal state
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Temporary inputs
   const [tempRating, setTempRating] = useState(0);
@@ -2294,6 +2298,15 @@ export default function ActiveMenu() {
 
         <View style={styles.headerButtons}>
           <TouchableOpacity
+            onPress={() => setShowReviewModal(true)}
+            style={[
+              styles.reviewButton,
+              { backgroundColor: colors.emerald500 },
+            ]}
+          >
+            <Award size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[
               styles.filterHeaderButton,
               { backgroundColor: colors.card },
@@ -2302,18 +2315,27 @@ export default function ActiveMenu() {
           >
             <Filter size={20} color={colors.emerald500} />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.completeButton,
-              { backgroundColor: colors.emerald500 },
-            ]}
-            onPress={() => setShowCompletePlanModal(true)}
-          >
-            <Award size={16} color="#ffffff" />
-          </TouchableOpacity>
         </View>
       </View>
+
+      {showReviewModal && mealPlan && (
+        <Modal
+          visible={showReviewModal}
+          animationType="slide"
+          presentationStyle="fullScreen"
+        >
+          <MenuReviewStatistics
+            menuId={mealPlan.plan_id}
+            menuName={mealPlan.name}
+            daysCount={mealPlan.days_count || 7}
+            onClose={() => setShowReviewModal(false)}
+            onMenuRestart={() => {
+              setShowReviewModal(false);
+              loadMealPlan();
+            }}
+          />
+        </Modal>
+      )}
 
       {/* Enhanced Calendar Widget */}
       <View style={[styles.calendarWidget, { backgroundColor: colors.card }]}>
@@ -3136,5 +3158,17 @@ const styles = StyleSheet.create({
   },
   selectDayText: {
     fontSize: 14,
+  },
+  // Styles for Review Button and Modal
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  reviewButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

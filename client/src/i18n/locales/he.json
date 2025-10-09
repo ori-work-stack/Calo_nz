@@ -637,7 +637,8 @@
     "product_not_found": "מוצר לא נמצא",
     "product_not_found_message": "לא הצלחנו למצוא את המוצר במסד הנתונים שלנו",
     "scan_failed": "סריקה נכשלה",
-    "scan_failed_message": "לא הצלחנו לזהות את המוצר בתמונה"
+    "scan_failed_message": "לא הצלחנו לזהות את המוצר בתמונה",
+    "enter_barcode":"הכנס ברקוד..."
   },
   "profile": {
     "title": "פרופיל",
