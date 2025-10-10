@@ -335,9 +335,17 @@ Generate a balanced, nutritious meal plan that makes creative use of these ingre
     } catch (error: any) {
       console.error("Error generating menu:", error);
 
+      // Enhanced error context with network detection
+      const isNetworkError =
+        error?.message?.includes("Network") ||
+        error?.message?.includes("network") ||
+        error?.code === "ERR_NETWORK" ||
+        !error?.response;
+
       // Provide context-specific error information
       const contextualError = {
         ...error,
+        message: isNetworkError,
         ingredients: selectedIngredients.map((i) => i.name),
         preferences: menuPreferences,
       };
@@ -972,7 +980,7 @@ Generate a balanced, nutritious meal plan that makes creative use of these ingre
           error={errorInfo.error}
           onClose={() => setErrorInfo({ visible: false, error: null })}
           onRetry={generateMenu}
-          context={t("recommended_menus.generation") || "Menu Generation"}
+          context={t("menu.generation") || "Menu Generation"}
         />
       </Animated.View>
     </Modal>

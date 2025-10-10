@@ -27,8 +27,8 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
   onRetry,
   context,
 }) => {
-  const { colors, isDark } = useTheme();
-  const { t, language } = useLanguage();
+  const { colors, isDark, emeraldSpectrum } = useTheme();
+  const { language } = useLanguage();
   const isHebrew = language === "he";
 
   const scaleAnim = React.useRef(new Animated.Value(0.3)).current;
@@ -56,9 +56,31 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
   }, [visible]);
 
   const getErrorInfo = () => {
-    let title = t("error.generic.title");
-    let message = t("error.generic.message");
-    let suggestion = t("error.generic.suggestion");
+    let title = isHebrew ? "שגיאה" : "Error";
+    let message = isHebrew
+      ? "אירעה שגיאה בלתי צפויה"
+      : "An unexpected error occurred";
+    let suggestion = isHebrew
+      ? "אנא נסה שוב מאוחר יותר"
+      : "Please try again later";
+
+    // Network errors - check first for better error handling
+    if (
+      error?.message?.includes("Network") ||
+      error?.message?.includes("network") ||
+      error?.code === "ERR_NETWORK" ||
+      error?.message?.includes("ECONNREFUSED") ||
+      error?.message?.includes("ETIMEDOUT")
+    ) {
+      title = isHebrew ? "שגיאת חיבור" : "Connection Error";
+      message = isHebrew
+        ? "לא ניתן להתחבר לשרת. אנא בדוק את חיבור האינטרנט שלך."
+        : "Unable to connect to server. Please check your internet connection.";
+      suggestion = isHebrew
+        ? "וודא שהשרת פועל ושחיבור האינטרנט שלך פעיל, ולאחר מכן נסה שוב."
+        : "Ensure the server is running and your internet connection is active, then try again.";
+      return { title, message, suggestion };
+    }
 
     // Check for Hebrew error message in the error object
     const errorMessage = error?.message || error?.response?.data?.error || "";
@@ -69,13 +91,6 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
       message = errorMessage;
     } else if (!hasHebrewError && !isHebrew && errorMessage) {
       message = errorMessage;
-    }
-
-    // Network errors
-    if (error?.message?.includes("Network") || error?.code === "ERR_NETWORK") {
-      title = t("error.network.title");
-      message = t("error.network.message");
-      suggestion = t("error.network.suggestion");
     }
 
     // API errors
@@ -91,30 +106,44 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
       error?.code === "ECONNABORTED" ||
       error?.message?.includes("timeout")
     ) {
-      title = t("error.timeout.title");
-      message = t("error.timeout.message");
-      suggestion = t("error.timeout.suggestion");
+      title = isHebrew ? "תם הזמן" : "Request Timeout";
+      message = isHebrew
+        ? "הבקשה לקחה יותר מדי זמן"
+        : "The request took too long";
+      suggestion = isHebrew
+        ? "נסה שוב עם תמונה בהירה יותר או פשט את הבקשה"
+        : "Try again with a clearer image or simplify your request";
     }
 
     // Server errors
     else if (error?.response?.status >= 500) {
-      title = t("error.server.title");
-      message = t("error.server.message");
-      suggestion = t("error.server.suggestion");
+      title = isHebrew ? "שגיאת שרת" : "Server Error";
+      message = isHebrew
+        ? "השרת נתקל בבעיה"
+        : "The server encountered a problem";
+      suggestion = isHebrew
+        ? "אנא נסה שוב בעוד מספר דקות"
+        : "Please try again in a few minutes";
     }
 
     // Authentication errors
     else if (error?.response?.status === 401) {
-      title = t("error.auth.title");
-      message = t("error.auth.message");
-      suggestion = t("error.auth.suggestion");
+      title = isHebrew ? "שגיאת אימות" : "Authentication Error";
+      message = isHebrew
+        ? "נדרש להתחבר מחדש"
+        : "Please sign in again to continue";
+      suggestion = isHebrew
+        ? "התחבר שוב כדי להמשיך"
+        : "Sign in again to continue";
     }
 
     // Validation errors
     else if (error?.response?.status === 400) {
-      title = t("error.validation.title");
+      title = isHebrew ? "שגיאת אימות נתונים" : "Validation Error";
       message = error?.response?.data?.error || error?.message || message;
-      suggestion = t("error.validation.suggestion");
+      suggestion = isHebrew
+        ? "בדוק את הנתונים שהזנת ונסה שוב"
+        : "Check your input and try again";
     }
 
     // AI/Menu generation specific errors
@@ -124,9 +153,11 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
       error?.message?.includes("menu") ||
       error?.message?.includes("תפריט")
     ) {
-      title = t("error.menuGeneration.title");
+      title = isHebrew ? "שגיאה ביצירת תפריט" : "Menu Generation Failed";
       message = error.message || message;
-      suggestion = t("error.menuGeneration.suggestion");
+      suggestion = isHebrew
+        ? "נסה עם רכיבים שונים או תיאור פשוט יותר. וודא שהרכיבים מתאימים להעדפות התזונה שלך (לדוגמה: טונה אינה צמחונית)."
+        : "Try with different ingredients or simpler descriptions. Ensure ingredients match your dietary preferences (e.g., tuna is not vegetarian).";
     }
 
     // Dietary restriction conflicts
@@ -136,16 +167,16 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
       error?.message?.includes("צמחוני") ||
       error?.message?.includes("תזונתי")
     ) {
-      title = t("error.dietary.title");
+      title = isHebrew ? "סתירה בהעדפות תזונה" : "Dietary Preference Conflict";
       message = error.message || message;
-      suggestion = t("error.dietary.suggestion");
+      suggestion = isHebrew
+        ? "בדוק שהרכיבים שבחרת מתאימים להעדפות התזונה שלך. לדוגמה: דגים וטונה אינם מתאימים לתזונה צמחונית."
+        : "Check that your selected ingredients match your dietary preferences. For example: fish and tuna are not suitable for vegetarian diets.";
     }
 
     // Add context if provided
     if (context) {
-      title = isHebrew
-        ? `${context} - ${t("error.contextSuffix")}`
-        : `${context} ${t("error.contextSuffix")}`;
+      title = isHebrew ? `${context} - שגיאה` : `${context} Error`;
     }
 
     return { title, message, suggestion };
@@ -185,7 +216,11 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
         >
           {/* Header with gradient */}
           <LinearGradient
-            colors={isDark ? ["#dc2626", "#b91c1c"] : ["#ef4444", "#dc2626"]}
+            colors={
+              isDark
+                ? [emeraldSpectrum.emerald700, emeraldSpectrum.emerald800]
+                : [emeraldSpectrum.emerald500, emeraldSpectrum.emerald600]
+            }
             style={styles.header}
           >
             <View style={styles.headerContent}>
@@ -212,7 +247,7 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
               <View
                 style={[
                   styles.suggestionBox,
-                  { backgroundColor: colors.primary + "15" },
+                  { backgroundColor: colors.primaryContainer },
                 ]}
               >
                 <Info size={20} color={colors.primary} />
@@ -236,7 +271,7 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.retryButton,
-                    { backgroundColor: colors.emerald500 },
+                    { backgroundColor: colors.primary },
                   ]}
                   onPress={() => {
                     onClose();
@@ -245,7 +280,7 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
                 >
                   <RefreshCw size={20} color="#ffffff" />
                   <Text style={styles.retryButtonText}>
-                    {t("error.actions.tryAgain")}
+                    {isHebrew ? "נסה שוב" : "Try Again"}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -262,7 +297,7 @@ export const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
                 onPress={onClose}
               >
                 <Text style={[styles.closeButtonText, { color: colors.text }]}>
-                  {t("error.actions.close")}
+                  {isHebrew ? "סגור" : "Close"}
                 </Text>
               </TouchableOpacity>
             </View>

@@ -97,11 +97,6 @@ export default function WelcomeScreen() {
       borderRadius: 16,
       paddingVertical: 18,
       alignItems: "center",
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 5,
     },
     signUpButtonText: {
       fontSize: 18,

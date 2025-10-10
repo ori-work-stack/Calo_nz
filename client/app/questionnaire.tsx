@@ -1123,9 +1123,6 @@ const styles = StyleSheet.create({
   actionButton: {
     borderRadius: 16,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
   },
   buttonGradient: {
     paddingVertical: 18,

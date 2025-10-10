@@ -463,7 +463,7 @@ model RecommendedMenu {
   total_fat         Int?
   total_fiber       Int?
   days_count        Int
-  dietary_category  String?
+  dietary_category  String?   @default("balanced")
   estimated_cost    Float?
   prep_time_minutes Int?
   difficulty_level  Int?

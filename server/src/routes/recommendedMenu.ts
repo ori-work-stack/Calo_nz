@@ -1374,20 +1374,7 @@ Return VALID JSON in this format:
         throw new Error("Invalid menu structure from AI");
       }
 
-      // Map cuisine to valid dietary category enum
-      const getDietaryCategory = (cuisine: string): string => {
-        const cuisineMap: { [key: string]: string } = {
-          mediterranean: "MEDITERRANEAN",
-          asian: "BALANCED",
-          american: "BALANCED",
-          italian: "MEDITERRANEAN",
-          mexican: "BALANCED",
-          indian: "BALANCED",
-        };
-        return cuisineMap[cuisine.toLowerCase()] || "BALANCED";
-      };
-
-      // Save menu to database with proper enum values - fixed binary data error
+      // Save menu to database - remove dietary_category field
       const savedMenu = await prisma.recommendedMenu.create({
         data: {
           user_id: userId,
@@ -1416,9 +1403,6 @@ Return VALID JSON in this format:
                 preferences.duration_days?.toString() ||
                 "7"
             )
-          ),
-          dietary_category: getDietaryCategory(
-            String(preferences.cuisine || "balanced")
           ),
           estimated_cost: Math.max(
             0,
