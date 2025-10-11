@@ -544,7 +544,39 @@
     "taste": "טעם",
     "satiety": "שובע",
     "energy": "אנרגיה",
-    "remove": "מחק מנה"
+    "remove": "מחק מנה",
+    "addMealManually": "הוסף ארוחה ידנית",
+    "manualMeal": {
+      "title": "הוסף ארוחה ידנית",
+      "basicInfo": "מידע בסיסי",
+      "nutritionInfo": "מידע תזונתי",
+      "additionalInfo": "מידע נוסף",
+      "mealName": "שם הארוחה",
+      "mealPeriod": "סוג הארוחה",
+      "placeholders": {
+        "mealName": "לדוגמה: סלט עוף בגריל",
+        "ingredients": "לדוגמה: עוף, חסה, עגבניה, מלפפון"
+      },
+      "helpers": {
+        "separateWithCommas": "הפרד מרכיבים בפסיקים"
+      },
+      "error": {
+        "nameAndCaloriesRequired": "שם הארוחה וקלוריות הם שדות חובה",
+        "invalidCalories": "אנא הזן כמות קלוריות תקינה",
+        "addFailed": "הוספת הארוחה נכשלה. אנא נסה שוב."
+      },
+      "success": {
+        "mealAdded": "הארוחה נוספה בהצלחה!"
+      }
+    },
+    "mealPeriods": {
+      "breakfast": "ארוחת בוקר",
+      "lunch": "ארוחת צהריים",
+      "dinner": "ארוחת ערב",
+      "snack": "ארוחת ביניים",
+      "lateNight": "ארוחת לילה",
+      "other": "אחר"
+    }
   },
   "camera": {
     "title": "סורק מזון",
@@ -638,7 +670,7 @@
     "product_not_found_message": "לא הצלחנו למצוא את המוצר במסד הנתונים שלנו",
     "scan_failed": "סריקה נכשלה",
     "scan_failed_message": "לא הצלחנו לזהות את המוצר בתמונה",
-    "enter_barcode":"הכנס ברקוד..."
+    "enter_barcode": "הכנס ברקוד..."
   },
   "profile": {
     "title": "פרופיל",

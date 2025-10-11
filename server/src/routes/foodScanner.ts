@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { FoodScannerService } from "../services/foodScanner";
+import { UsageTrackingService } from "../services/usageTracking";
 import { z } from "zod";
 
 const router = Router();
@@ -101,6 +102,19 @@ router.post(
         });
       }
 
+      const limitCheck = await UsageTrackingService.checkMealScanLimit(userId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          success: false,
+          error: limitCheck.message,
+          usage: {
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining,
+          },
+        });
+      }
+
       console.log("📷 Image scan request received");
       const validationResult = imageSchema.safeParse(req.body);
 
@@ -120,9 +134,16 @@ router.post(
         userId
       );
 
+      await UsageTrackingService.incrementMealScanCount(userId);
+
       res.json({
         success: true,
         data: result,
+        usage: {
+          current: limitCheck.current + 1,
+          limit: limitCheck.limit,
+          remaining: limitCheck.remaining - 1,
+        },
       });
     } catch (error) {
       console.error("❌ Image scan error:", error);

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { mealAnalysisSchema, mealUpdateSchema } from "../types/nutrition";
 import { NutritionService } from "../services/nutrition";
 import { AchievementService } from "../services/achievements";
+import { UsageTrackingService } from "../services/usageTracking";
 
 const router = Router();
 
@@ -322,6 +323,21 @@ router.post("/analyze", authenticateToken, async (req: AuthRequest, res) => {
       req.body.editedIngredients?.length || 0
     );
 
+    const limitCheck = await UsageTrackingService.checkMealScanLimit(
+      req.user.user_id
+    );
+    if (!limitCheck.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: limitCheck.message,
+        usage: {
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          remaining: limitCheck.remaining,
+        },
+      });
+    }
+
     // Validate request body
     const validationResult = mealAnalysisSchema.safeParse(req.body);
 
@@ -421,8 +437,17 @@ router.post("/analyze", authenticateToken, async (req: AuthRequest, res) => {
       ingredientsCount: result.data?.ingredients?.length || 0,
     });
 
+    await UsageTrackingService.incrementMealScanCount(req.user.user_id);
+
     console.log("Analysis completed successfully");
-    res.json(result);
+    res.json({
+      ...result,
+      usage: {
+        current: limitCheck.current + 1,
+        limit: limitCheck.limit,
+        remaining: limitCheck.remaining - 1,
+      },
+    });
   } catch (error) {
     console.error("Analyze meal error:", error);
     const message =
@@ -1153,11 +1178,6 @@ router.get(
           food_category: true,
           cooking_method: true,
           confidence: true,
-          taste_rating: true,
-          satiety_rating: true,
-          energy_rating: true,
-          heaviness_rating: true,
-          is_favorite: true,
         },
       });
 
@@ -1173,6 +1193,119 @@ router.get(
       res.status(500).json({
         success: false,
         error: message,
+      });
+    }
+  }
+);
+
+// Get usage statistics
+router.get(
+  "/usage-stats",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.user_id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const stats = await UsageTrackingService.getUserUsageStats(userId);
+
+      res.json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      console.error("💥 Get usage stats error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get usage stats",
+      });
+    }
+  }
+);
+
+// Manual meal addition endpoint
+router.post(
+  "/meals/manual",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.user_id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      console.log("📝 Manual meal addition request:", req.body);
+
+      const {
+        mealName,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        sugar,
+        sodium,
+        ingredients,
+        mealPeriod,
+        imageUrl,
+        date,
+      } = req.body;
+
+      if (!mealName || !calories) {
+        return res.status(400).json({
+          success: false,
+          error: "Meal name and calories are required",
+        });
+      }
+
+      const mealData = {
+        user_id: userId,
+        meal_name: mealName,
+        calories: parseFloat(calories),
+        protein_g: protein ? parseFloat(protein) : null,
+        carbs_g: carbs ? parseFloat(carbs) : null,
+        fats_g: fat ? parseFloat(fat) : null,
+        fiber_g: fiber ? parseFloat(fiber) : null,
+        sugar_g: sugar ? parseFloat(sugar) : null,
+        sodium_mg: sodium ? parseFloat(sodium) : null,
+        ingredients: ingredients
+          ? JSON.stringify(
+              Array.isArray(ingredients) ? ingredients : [ingredients]
+            )
+          : null,
+        meal_period: mealPeriod || "other",
+        image_url: imageUrl || "",
+        analysis_status: "COMPLETED",
+        upload_time: date ? new Date(date) : new Date(),
+        created_at: date ? new Date(date) : new Date(),
+        confidence: 100,
+      };
+
+      const meal = await prisma.meal.create({
+        data: mealData,
+      });
+
+      console.log("✅ Manual meal added successfully:", meal.meal_id);
+
+      res.json({
+        success: true,
+        data: meal,
+        message: "Meal added successfully",
+      });
+    } catch (error) {
+      console.error("💥 Manual meal addition error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to add meal",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }

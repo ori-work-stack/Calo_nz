@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { ChatService } from "../services/chat";
+import { UsageTrackingService } from "../services/usageTracking";
 import { z } from "zod";
 import { prisma } from "../lib/database";
 
@@ -40,6 +41,24 @@ router.post(
         });
       }
 
+      const estimatedTokens = Math.ceil(message.length / 4) + 100;
+      const limitCheck = await UsageTrackingService.checkAIChatLimit(
+        userId,
+        estimatedTokens
+      );
+
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          success: false,
+          error: limitCheck.message,
+          usage: {
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining,
+          },
+        });
+      }
+
       console.log("🔄 Processing chat message for user:", userId);
       console.log("📝 Message:", message);
       console.log("🌐 Language:", language);
@@ -52,12 +71,24 @@ router.post(
 
       console.log("✅ Chat service response:", response);
 
-      // Ensure consistent response format
+      const actualTokens =
+        Math.ceil(message.length / 4) +
+        Math.ceil((response.response?.length || 0) / 4);
+      await UsageTrackingService.incrementAIChatTokens(userId, actualTokens);
+
       res.json({
         success: true,
         response: {
           response: response.response,
           messageId: response.messageId,
+        },
+        usage: {
+          tokensUsed: actualTokens,
+          current: limitCheck.current + actualTokens,
+          limit: limitCheck.limit,
+          remaining: limitCheck.remaining
+            ? limitCheck.remaining - actualTokens
+            : null,
         },
         timestamp: new Date().toISOString(),
       });

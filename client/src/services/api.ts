@@ -735,6 +735,65 @@ export const nutritionAPI = {
       throw new APIError("Failed to remove meal");
     }
   },
+
+  async addManualMeal(mealData: {
+    mealName: string;
+    calories: string;
+    protein?: string;
+    carbs?: string;
+    fat?: string;
+    fiber?: string;
+    sugar?: string;
+    sodium?: string;
+    ingredients?: string[];
+    mealPeriod?: string;
+    imageUrl?: string;
+    date?: string;
+  }): Promise<any> {
+    try {
+      console.log("📝 Adding manual meal...");
+      const response = await api.post("/nutrition/meals/manual", mealData);
+
+      if (response.data.success) {
+        console.log("✅ Manual meal added successfully");
+        return response;
+      }
+
+      throw new APIError(response.data.error || "Failed to add manual meal");
+    } catch (error) {
+      console.error("💥 Add manual meal error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError(
+        "Network error while adding manual meal",
+        undefined,
+        undefined,
+        true
+      );
+    }
+  },
+
+  async getUsageStats(): Promise<any> {
+    try {
+      console.log("📊 Fetching usage stats...");
+      const response = await api.get("/nutrition/usage-stats");
+
+      if (response.data.success) {
+        console.log("✅ Usage stats fetched successfully");
+        return response.data.data;
+      }
+
+      throw new APIError(response.data.error || "Failed to fetch usage stats");
+    } catch (error) {
+      console.error("💥 Get usage stats error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError(
+        "Network error while fetching usage stats",
+        undefined,
+        undefined,
+        true
+      );
+    }
+  },
 };
 
 // Enhanced user API

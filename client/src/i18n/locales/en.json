@@ -331,6 +331,38 @@
     "favorite": "Favorite",
     "unfavorite": "Remove Favorite",
     "duplicate": "Duplicate",
+    "addMealManually": "Add Meal Manually",
+    "manualMeal": {
+      "title": "Add Meal Manually",
+      "basicInfo": "Basic Information",
+      "nutritionInfo": "Nutrition Information",
+      "additionalInfo": "Additional Information",
+      "mealName": "Meal Name",
+      "mealPeriod": "Meal Period",
+      "placeholders": {
+        "mealName": "e.g., Grilled Chicken Salad",
+        "ingredients": "e.g., Chicken, Lettuce, Tomato, Cucumber"
+      },
+      "helpers": {
+        "separateWithCommas": "Separate ingredients with commas"
+      },
+      "error": {
+        "nameAndCaloriesRequired": "Meal name and calories are required",
+        "invalidCalories": "Please enter a valid calorie amount",
+        "addFailed": "Failed to add meal. Please try again."
+      },
+      "success": {
+        "mealAdded": "Meal added successfully!"
+      }
+    },
+    "mealPeriods": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snack": "Snack",
+      "lateNight": "Late Night",
+      "other": "Other"
+    },
     "update": "Update",
     "feedback_saved": "Feedback saved successfully",
     "feedback_error": "Failed to save feedback",

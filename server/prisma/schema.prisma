@@ -22,6 +22,10 @@ model User {
   birth_date                 DateTime?
   ai_requests_count          Int                   @default(0)
   ai_requests_reset_at       DateTime              @default(now())
+  ai_chat_tokens_used        Int                   @default(0)
+  ai_chat_tokens_reset_at    DateTime              @default(now())
+  meal_scans_count           Int                   @default(0)
+  meal_scans_reset_at        DateTime              @default(now())
   is_questionnaire_completed Boolean               @default(false)
   questionnaires             UserQuestionnaire[]
   meals                      Meal[]
@@ -727,8 +731,8 @@ model AiRecommendation {
 
 enum SubscriptionType {
   FREE
-  PREMIUM
   GOLD
+  PREMIUM
 }
 
 enum SmokingStatus {
