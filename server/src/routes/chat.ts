@@ -32,6 +32,21 @@ router.post(
     }
 
     try {
+      // Check user subscription first
+      const user = await prisma.user.findUnique({
+        where: { user_id: userId },
+        select: { subscription_type: true },
+      });
+
+      if (!user || user.subscription_type === "FREE") {
+        return res.status(403).json({
+          success: false,
+          error:
+            "AI Chat is not available on the Free plan. Please upgrade to Gold or Platinum plan.",
+          subscriptionRequired: true,
+        });
+      }
+
       const { message, language = "hebrew" } = req.body;
 
       if (!message || typeof message !== "string" || message.trim() === "") {

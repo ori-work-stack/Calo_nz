@@ -71,6 +71,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { nutritionAPI } from "@/src/services/api";
+import ManualMealAddition from "@/components/history/ManualMealAddition";
 
 const { width } = Dimensions.get("window");
 
@@ -690,6 +691,8 @@ export default function HistoryScreen() {
     showFavoritesOnly: false,
   });
 
+  const [showManualMealModal, setShowManualMealModal] = useState(false);
+
   useEffect(() => {
     dispatch(fetchMeals());
   }, [dispatch]);
@@ -1306,6 +1309,33 @@ export default function HistoryScreen() {
             </View>
           </BlurView>
         </Modal>
+
+        {/* Manual Meal Addition Button */}
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={() => setShowManualMealModal(true)}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={["#10B981", "#059669"]}
+            style={styles.floatingGradient}
+          >
+            <Plus size={24} color="#FFFFFF" />
+            <Text style={styles.floatingText}>
+              {t("history.addMealManually")}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Manual Meal Modal */}
+        <ManualMealAddition
+          visible={showManualMealModal}
+          onClose={() => setShowManualMealModal(false)}
+          onMealAdded={() => {
+            dispatch(fetchMeals());
+            refreshAllMealData();
+          }}
+        />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -1980,5 +2010,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+
+  floatingButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    borderRadius: 30,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 999,
+  },
+  floatingGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  floatingText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

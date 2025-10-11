@@ -149,10 +149,7 @@ export default function ManualMealAddition({
             { backgroundColor: colors.background },
           ]}
         >
-          <LinearGradient
-            colors={["#10B981", "#059669"]}
-            style={styles.modalHeader}
-          >
+          <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
               {t("history.manualMeal.title")}
             </Text>
@@ -163,7 +160,7 @@ export default function ManualMealAddition({
             >
               <X size={24} color="#FFFFFF" />
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
 
           <ScrollView
             style={styles.modalContent}
@@ -501,6 +498,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    backgroundColor: "#10B981",
   },
   modalTitle: {
     fontSize: 20,
@@ -517,9 +515,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     marginBottom: 16,
+    opacity: 0.8,
   },
   inputGroup: {
     marginBottom: 16,

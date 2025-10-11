@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -22,12 +23,27 @@ import { AppDispatch } from "@/src/store";
 
 const { width, height } = Dimensions.get("window");
 
+// Responsive sizing helpers
+const isTablet = width >= 768;
+const isSmallPhone = width < 375;
+
 export default function EmailVerificationScreen() {
-  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationCode, setVerificationCode] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   const router = useRouter();
   const { email } = useLocalSearchParams();
@@ -36,6 +52,9 @@ export default function EmailVerificationScreen() {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
+    // Auto-focus first input on mount
+    inputRefs.current[0]?.focus();
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -49,14 +68,43 @@ export default function EmailVerificationScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  const shakeInputs = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleVerifyCode = async () => {
-    if (!verificationCode.trim()) {
+    const code = verificationCode.join("");
+
+    if (!code.trim()) {
       Alert.alert(t("common.error"), t("auth.errors.required_field"));
+      shakeInputs();
       return;
     }
 
-    if (verificationCode.length !== 6) {
+    if (code.length !== 6) {
       Alert.alert(t("common.error"), t("auth.email_verification.invalid_code"));
+      shakeInputs();
       return;
     }
 
@@ -72,7 +120,7 @@ export default function EmailVerificationScreen() {
       const result = await dispatch(
         verifyEmail({
           email: userEmail,
-          code: verificationCode,
+          code: code,
         })
       ).unwrap();
 
@@ -94,6 +142,7 @@ export default function EmailVerificationScreen() {
     } catch (error: any) {
       setLoading(false);
       console.error("Email verification error:", error);
+      shakeInputs();
       Alert.alert(
         t("common.error"),
         error.message || t("auth.email_verification.verification_failed")
@@ -131,6 +180,8 @@ export default function EmailVerificationScreen() {
         setResendLoading(false);
         setCanResend(false);
         setCountdown(60);
+        setVerificationCode(["", "", "", "", "", ""]);
+        inputRefs.current[0]?.focus();
         Alert.alert(
           t("common.success"),
           t("auth.email_verification.resend_successful")
@@ -148,6 +199,36 @@ export default function EmailVerificationScreen() {
     }
   };
 
+  const handleCodeChange = (text: string, index: number) => {
+    // Only accept numbers
+    if (text && !/^\d+$/.test(text)) return;
+
+    const newCode = [...verificationCode];
+    newCode[index] = text;
+    setVerificationCode(newCode);
+
+    // Auto-focus next input
+    if (text && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-verify when all 6 digits are entered
+    if (text && index === 5 && newCode.every((digit) => digit !== "")) {
+      setTimeout(() => handleVerifyCode(), 300);
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    // Handle backspace
+    if (
+      e.nativeEvent.key === "Backspace" &&
+      !verificationCode[index] &&
+      index > 0
+    ) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -155,62 +236,66 @@ export default function EmailVerificationScreen() {
     },
     header: {
       paddingTop: Platform.OS === "ios" ? 50 : 30,
-      paddingHorizontal: 24,
+      paddingHorizontal: isTablet ? 40 : 24,
       paddingBottom: 20,
       flexDirection: "row",
       alignItems: "center",
     },
     backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: isTablet ? 48 : 40,
+      height: isTablet ? 48 : 40,
+      borderRadius: isTablet ? 24 : 20,
       backgroundColor: "rgba(0, 0, 0, 0.05)",
       alignItems: "center",
       justifyContent: "center",
     },
     headerTitle: {
       flex: 1,
-      fontSize: 17,
+      fontSize: isTablet ? 22 : 18,
       fontWeight: "600",
       color: "#1C1C1E",
       textAlign: "center",
-      marginRight: 36,
+      marginRight: isTablet ? 48 : 40,
     },
     content: {
       flex: 1,
-      paddingHorizontal: 24,
+      paddingHorizontal: isTablet ? 60 : 24,
       justifyContent: "center",
+      maxWidth: isTablet ? 600 : "100%",
+      alignSelf: "center",
+      width: "100%",
     },
     logoSection: {
       alignItems: "center",
-      marginBottom: 48,
+      marginBottom: isTablet ? 60 : 48,
     },
     logoContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: isTablet ? 110 : 90,
+      height: isTablet ? 110 : 90,
+      borderRadius: isTablet ? 55 : 45,
       backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 16,
+      marginBottom: isTablet ? 28 : 20,
       shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
     },
     title: {
-      fontSize: 28,
+      fontSize: isTablet ? 40 : isSmallPhone ? 28 : 32,
       fontWeight: "700",
       color: "#1C1C1E",
       textAlign: "center",
-      marginBottom: 8,
+      marginBottom: isTablet ? 16 : 12,
+      letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 17,
+      fontSize: isTablet ? 18 : 16,
       color: "#8E8E93",
       textAlign: "center",
-      lineHeight: 24,
+      lineHeight: isTablet ? 28 : 24,
       paddingHorizontal: 20,
     },
     emailText: {
@@ -219,38 +304,51 @@ export default function EmailVerificationScreen() {
     },
     formContainer: {
       backgroundColor: "white",
-      borderRadius: 16,
-      padding: 24,
-      marginTop: 32,
+      borderRadius: isTablet ? 24 : 20,
+      padding: isTablet ? 40 : 28,
+      marginTop: isTablet ? 40 : 32,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 6,
     },
     codeLabel: {
-      fontSize: 17,
+      fontSize: isTablet ? 20 : 16,
       fontWeight: "600",
       color: "#1C1C1E",
       textAlign: "center",
-      marginBottom: 24,
+      marginBottom: isTablet ? 36 : 28,
+      letterSpacing: 0.3,
     },
     codeContainer: {
       flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 32,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: isTablet ? 40 : 32,
+      gap: isTablet ? 16 : isSmallPhone ? 6 : 12,
     },
     codeInput: {
-      width: 45,
-      height: 55,
-      borderRadius: 12,
+      width: isTablet ? 64 : isSmallPhone ? 42 : 52,
+      height: isTablet ? 76 : isSmallPhone ? 54 : 64,
+      borderRadius: isTablet ? 18 : 14,
       backgroundColor: "#F8F9FA",
       borderWidth: 2,
       borderColor: "#E5E5EA",
-      fontSize: 24,
+      fontSize: isTablet ? 36 : isSmallPhone ? 22 : 28,
       fontWeight: "700",
       color: "#1C1C1E",
       textAlign: "center",
+    },
+    codeInputFocused: {
+      borderColor: colors.primary,
+      backgroundColor: "white",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
+      transform: [{ scale: 1.05 }],
     },
     codeInputFilled: {
       borderColor: colors.primary,
@@ -258,21 +356,21 @@ export default function EmailVerificationScreen() {
     },
     verifyButton: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingVertical: 16,
+      borderRadius: isTablet ? 16 : 14,
+      paddingVertical: isTablet ? 20 : 18,
       alignItems: "center",
-      marginBottom: 24,
+      marginBottom: isTablet ? 28 : 24,
       shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      elevation: 6,
     },
     verifyButtonDisabled: {
-      opacity: 0.6,
+      opacity: 0.5,
     },
     verifyButtonText: {
-      fontSize: 17,
+      fontSize: isTablet ? 19 : 17,
       fontWeight: "600",
       color: "white",
       letterSpacing: 0.5,
@@ -281,53 +379,57 @@ export default function EmailVerificationScreen() {
       alignItems: "center",
     },
     resendText: {
-      fontSize: 15,
+      fontSize: isTablet ? 17 : 15,
       color: "#8E8E93",
-      marginBottom: 12,
+      marginBottom: isTablet ? 16 : 12,
       textAlign: "center",
     },
     resendButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: isTablet ? 14 : 10,
+      paddingHorizontal: isTablet ? 28 : 20,
+      backgroundColor: `${colors.primary}15`,
+      borderRadius: isTablet ? 12 : 10,
     },
     resendButtonText: {
-      fontSize: 15,
+      fontSize: isTablet ? 17 : 15,
       color: colors.primary,
-      fontWeight: "500",
+      fontWeight: "600",
     },
     resendDisabledText: {
-      fontSize: 15,
+      fontSize: isTablet ? 17 : 15,
       color: "#C7C7CC",
+      fontWeight: "500",
     },
   });
 
   const renderOTPInputs = () => {
-    const inputs = [];
-    for (let i = 0; i < 6; i++) {
-      inputs.push(
+    return verificationCode.map((digit, index) => (
+      <Animated.View
+        key={index}
+        style={{ transform: [{ translateX: shakeAnimation }] }}
+      >
         <TextInput
-          key={i}
+          ref={(ref) => (inputRefs.current[index] = ref)}
           style={[
             styles.codeInput,
-            verificationCode.length > i && styles.codeInputFilled,
+            digit && styles.codeInputFilled,
+            focusedIndex === index && styles.codeInputFocused,
           ]}
-          value={verificationCode[i] || ""}
-          onChangeText={(text) => {
-            if (text.length <= 1) {
-              const newCode = verificationCode.split("");
-              newCode[i] = text;
-              setVerificationCode(newCode.join("").slice(0, 6));
-            }
-          }}
-          keyboardType="numeric"
+          value={digit}
+          onChangeText={(text) => handleCodeChange(text, index)}
+          onKeyPress={(e) => handleKeyPress(e, index)}
+          onFocus={() => setFocusedIndex(index)}
+          onBlur={() => setFocusedIndex(-1)}
+          keyboardType="number-pad"
           maxLength={1}
           selectTextOnFocus
           editable={!loading}
         />
-      );
-    }
-    return inputs;
+      </Animated.View>
+    ));
   };
+
+  const isCodeComplete = verificationCode.every((digit) => digit !== "");
 
   return (
     <SafeAreaView style={styles.container}>
@@ -342,7 +444,11 @@ export default function EmailVerificationScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={20} color="#1C1C1E" />
+          <Ionicons
+            name="chevron-back"
+            size={isTablet ? 26 : 22}
+            color="#1C1C1E"
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Verify Email</Text>
       </View>
@@ -354,7 +460,7 @@ export default function EmailVerificationScreen() {
         <View style={styles.content}>
           <View style={styles.logoSection}>
             <View style={styles.logoContainer}>
-              <Ionicons name="mail" size={40} color="white" />
+              <Ionicons name="mail" size={isTablet ? 56 : 44} color="white" />
             </View>
             <Text style={styles.title}>Check your email</Text>
             <Text style={styles.subtitle}>
@@ -371,11 +477,10 @@ export default function EmailVerificationScreen() {
             <TouchableOpacity
               style={[
                 styles.verifyButton,
-                (loading || verificationCode.length !== 6) &&
-                  styles.verifyButtonDisabled,
+                (loading || !isCodeComplete) && styles.verifyButtonDisabled,
               ]}
               onPress={handleVerifyCode}
-              disabled={loading || verificationCode.length !== 6}
+              disabled={loading || !isCodeComplete}
             >
               <Text style={styles.verifyButtonText}>
                 {loading ? "Verifying..." : "Verify Email"}

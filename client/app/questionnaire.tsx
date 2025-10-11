@@ -271,11 +271,11 @@ const QuestionnaireScreen: React.FC = () => {
         } else {
           Alert.alert(
             t("questionnaire.success"),
-            t("questionnaire.planCreated"),
+            t("questionnaire.savedSuccessfully"),
             [
               {
-                text: t("questionnaire.continueToApp"),
-                onPress: () => router.replace("/(tabs)"),
+                text: t("common.ok"),
+                onPress: () => router.replace("/payment-plan"),
               },
             ]
           );

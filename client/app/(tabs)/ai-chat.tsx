@@ -27,10 +27,11 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
-import { chatAPI, questionnaireAPI } from "@/src/services/api";
+import { chatAPI, nutritionAPI, questionnaireAPI } from "@/src/services/api";
 import i18n from "@/src/i18n";
 import LoadingScreen from "@/components/LoadingScreen";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -62,6 +63,7 @@ export default function AIChatScreen({
 }: AIChatScreenProps = {}) {
   const { t } = useTranslation();
   const { language } = useLanguage();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -86,6 +88,36 @@ export default function AIChatScreen({
 
   // Load user profile and chat history on component mount
   useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const stats = await nutritionAPI.getUsageStats();
+
+        if (stats.subscriptionType === "FREE") {
+          Alert.alert(
+            t("common.upgradeRequired") || "Upgrade Required",
+            t("ai_chat.upgrade_message") ||
+              "AI Chat is not available on the Free plan. Please upgrade to Gold or Platinum plan to access this feature.",
+            [
+              {
+                text: t("common.cancel") || "Cancel",
+                onPress: () => router.back(),
+              },
+              {
+                text: t("common.upgradePlan") || "Upgrade",
+                onPress: () => router.push("/payment-plan"),
+              },
+            ]
+          );
+          router.back();
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to check AI chat access:", error);
+        router.back();
+      }
+    };
+
+    checkAccess();
     loadUserProfile();
     loadChatHistory();
   }, []);
@@ -500,19 +532,9 @@ export default function AIChatScreen({
           </View>
         </View>
         <View style={styles.headerButtons}>
-          {onMinimize && (
-            <TouchableOpacity style={styles.headerButton} onPress={onMinimize}>
-              <Minus size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
           <TouchableOpacity style={styles.headerButton} onPress={clearChat}>
-            <Trash2 size={20} color="#FFFFFF" />
+            <Trash2 size={22} color="#FFFFFF" />
           </TouchableOpacity>
-          {onClose && (
-            <TouchableOpacity style={styles.headerButton} onPress={onClose}>
-              <X size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
         </View>
       </LinearGradient>
 

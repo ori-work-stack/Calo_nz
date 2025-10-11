@@ -661,6 +661,104 @@ router.get("/meals", authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
+// Add manual meal
+router.post(
+  "/meals/manual",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.user_id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const {
+        mealName,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        sugar,
+        sodium,
+        ingredients,
+        mealPeriod,
+        imageUrl,
+        date,
+      } = req.body;
+
+      if (!mealName || !calories) {
+        return res.status(400).json({
+          success: false,
+          error: "Meal name and calories are required",
+        });
+      }
+
+      const meal = await prisma.meal.create({
+        data: {
+          user_id: userId,
+          meal_name: mealName,
+          calories: parseFloat(calories),
+          protein_g: protein ? parseFloat(protein) : null,
+          carbs_g: carbs ? parseFloat(carbs) : null,
+          fats_g: fat ? parseFloat(fat) : null,
+          fiber_g: fiber ? parseFloat(fiber) : null,
+          sugar_g: sugar ? parseFloat(sugar) : null,
+          sodium_mg: sodium ? parseFloat(sodium) : null,
+          ingredients: ingredients || null,
+          meal_period: mealPeriod || "other",
+          image_url:
+            imageUrl ||
+            "https://via.placeholder.com/400x300.png?text=Manual+Entry",
+          analysis_status: "COMPLETED",
+          upload_time: date ? new Date(date) : new Date(),
+          created_at: new Date(),
+        },
+      });
+
+      res.json({
+        success: true,
+        data: meal,
+      });
+    } catch (error) {
+      console.error("Add manual meal error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to add manual meal",
+      });
+    }
+  }
+);
+
+// Get usage stats
+router.get("/usage-stats", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.user_id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
+    }
+
+    const stats = await UsageTrackingService.getUserUsageStats(userId);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Get usage stats error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to get usage stats",
+    });
+  }
+});
+
 // Get daily stats
 // Get range statistics
 router.get("/stats/range", authenticateToken, async (req: AuthRequest, res) => {

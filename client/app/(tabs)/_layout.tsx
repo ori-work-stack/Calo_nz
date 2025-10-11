@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoutes";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ScrollableTabBar } from "@/components/ScrollableTabBar";
 import { useTheme } from "@/src/context/ThemeContext";
+import { MessageSquare } from "lucide-react-native"; // Assuming MessageSquare is available from lucide-react-native
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -13,6 +14,9 @@ I18nManager.allowRTL(true);
 export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // Assuming 'user' is available and has a 'subscription_type' property
+  // In a real app, you would likely fetch this from context or a state management solution.
+  const user = { subscription_type: "PREMIUM" }; // Placeholder, replace with actual user data
 
   // Since your tab bar is floating, calculate the space it occupies
   // From your ScrollableTabBar config:
@@ -124,15 +128,17 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="ai-chat"
-            options={{
-              title: t("tabs.ai_chat"),
-              tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="message.fill" color={color} />
-              ),
-            }}
-          />
+          {user?.subscription_type !== "FREE" && (
+            <Tabs.Screen
+              name="ai-chat"
+              options={{
+                title: t("tabs.ai_chat"),
+                tabBarIcon: ({ color }) => (
+                  <MessageSquare size={28} color={color} />
+                ),
+              }}
+            />
+          )}
           <Tabs.Screen
             name="devices"
             options={{

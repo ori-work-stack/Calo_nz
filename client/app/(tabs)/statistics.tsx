@@ -1869,197 +1869,199 @@ export default function StatisticsScreen() {
               </View>
             </View>
 
-            {/* Enhanced Achievements Section */}
-            <View style={styles.section}>
-              <View style={styles.achievementsHeader}>
-                <Text style={styles.sectionTitle}>
-                  {t("statistics.achievements") || "Achievements"}
-                </Text>
-                {achievements.length > 3 && (
-                  <TouchableOpacity
-                    style={styles.viewAllButton}
-                    onPress={() => setShowAchievements(true)}
-                  >
-                    <Text style={styles.viewAllText}>
-                      {t("statistics.view_all_achievements") || "View All"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+            {/* Achievements Section */}
+            {achievements.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.achievementsHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {t("statistics.achievements") || "Achievements"}
+                  </Text>
+                  {achievements.length > 3 && (
+                    <TouchableOpacity
+                      style={styles.viewAllButton}
+                      onPress={() => setShowAchievements(true)}
+                    >
+                      <Text style={styles.viewAllText}>
+                        {t("statistics.view_all_achievements") || "View All"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-              {achievements.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.achievementsContainer}>
-                    {achievements.slice(0, 3).map((achievement) => (
-                      <View
-                        key={achievement.id}
-                        style={[
-                          styles.achievementCard,
-                          {
-                            backgroundColor: getAchievementBackgroundColor(
-                              achievement.rarity,
-                              achievement.unlocked
-                            ),
-                            borderWidth: 1,
-                            borderColor: achievement.unlocked
-                              ? `${achievement.color}30`
-                              : "#E5E7EB",
-                          },
-                        ]}
-                      >
-                        <View style={styles.achievementContent}>
-                          <View
-                            style={[
-                              styles.achievementIconContainer,
-                              {
-                                backgroundColor: achievement.unlocked
-                                  ? `${achievement.color}20`
-                                  : "#F3F4F6",
-                              },
-                            ]}
-                          >
-                            {getAchievementIcon(
-                              achievement.icon,
-                              28,
-                              achievement.unlocked
-                                ? achievement.color
-                                : "#9CA3AF"
-                            )}
-                          </View>
+                {achievements.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.achievementsContainer}>
+                      {achievements.slice(0, 3).map((achievement) => (
+                        <View
+                          key={achievement.id}
+                          style={[
+                            styles.achievementCard,
+                            {
+                              backgroundColor: getAchievementBackgroundColor(
+                                achievement.rarity,
+                                achievement.unlocked
+                              ),
+                              borderWidth: 1,
+                              borderColor: achievement.unlocked
+                                ? `${achievement.color}30`
+                                : "#E5E7EB",
+                            },
+                          ]}
+                        >
+                          <View style={styles.achievementContent}>
+                            <View
+                              style={[
+                                styles.achievementIconContainer,
+                                {
+                                  backgroundColor: achievement.unlocked
+                                    ? `${achievement.color}20`
+                                    : "#F3F4F6",
+                                },
+                              ]}
+                            >
+                              {getAchievementIcon(
+                                achievement.icon,
+                                28,
+                                achievement.unlocked
+                                  ? achievement.color
+                                  : "#9CA3AF"
+                              )}
+                            </View>
 
-                          <View style={styles.achievementDetails}>
-                            <View style={styles.achievementHeader}>
-                              <Text
-                                style={[
-                                  styles.achievementTitle,
-                                  {
-                                    color: achievement.unlocked
-                                      ? "#111827"
-                                      : "#6B7280",
-                                  },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {typeof achievement.title === "object"
-                                  ? achievement.title.en
-                                  : achievement.title}
-                              </Text>
-                              <View
-                                style={[
-                                  styles.rarityBadge,
-                                  {
-                                    backgroundColor: achievement.unlocked
-                                      ? `${achievement.color}20`
-                                      : "#F3F4F6",
-                                  },
-                                ]}
-                              >
+                            <View style={styles.achievementDetails}>
+                              <View style={styles.achievementHeader}>
                                 <Text
                                   style={[
-                                    styles.rarityText,
+                                    styles.achievementTitle,
                                     {
                                       color: achievement.unlocked
-                                        ? achievement.color
+                                        ? "#111827"
                                         : "#6B7280",
                                     },
                                   ]}
+                                  numberOfLines={1}
                                 >
-                                  {achievement.rarity}
+                                  {typeof achievement.title === "object"
+                                    ? achievement.title.en
+                                    : achievement.title}
                                 </Text>
-                              </View>
-                            </View>
-
-                            <Text
-                              style={[
-                                styles.achievementDescription,
-                                {
-                                  color: achievement.unlocked
-                                    ? "#374151"
-                                    : "#9CA3AF",
-                                },
-                              ]}
-                              numberOfLines={2}
-                            >
-                              {typeof achievement.description === "object"
-                                ? achievement.description.en
-                                : achievement.description}
-                            </Text>
-
-                            <View style={styles.achievementProgress}>
-                              <View style={styles.progressBarContainer}>
-                                <View style={styles.progressBarBg}>
-                                  <View
-                                    style={[
-                                      styles.progressBarFill,
-                                      {
-                                        width: `${
-                                          achievement.unlocked
-                                            ? 100
-                                            : (achievement.progress /
-                                                (achievement.maxProgress ||
-                                                  1)) *
-                                              100
-                                        }%`,
-                                        backgroundColor: achievement.unlocked
-                                          ? achievement.color
-                                          : "#D1D5DB",
-                                      },
-                                    ]}
-                                  />
-                                </View>
-                                <Text style={styles.progressText}>
-                                  {achievement.progress}/
-                                  {achievement.maxProgress || 1}
-                                </Text>
-                              </View>
-
-                              <View style={styles.xpRewardContainer}>
-                                <Sparkles
-                                  size={16}
-                                  color={
-                                    achievement.unlocked
-                                      ? achievement.color
-                                      : "#9CA3AF"
-                                  }
-                                />
-                                <Text
+                                <View
                                   style={[
-                                    styles.xpRewardText,
+                                    styles.rarityBadge,
                                     {
-                                      color: achievement.unlocked
-                                        ? achievement.color
-                                        : "#9CA3AF",
+                                      backgroundColor: achievement.unlocked
+                                        ? `${achievement.color}20`
+                                        : "#F3F4F6",
                                     },
                                   ]}
                                 >
-                                  +{achievement.xpReward} XP
-                                </Text>
+                                  <Text
+                                    style={[
+                                      styles.rarityText,
+                                      {
+                                        color: achievement.unlocked
+                                          ? achievement.color
+                                          : "#6B7280",
+                                      },
+                                    ]}
+                                  >
+                                    {achievement.rarity}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <Text
+                                style={[
+                                  styles.achievementDescription,
+                                  {
+                                    color: achievement.unlocked
+                                      ? "#374151"
+                                      : "#9CA3AF",
+                                  },
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {typeof achievement.description === "object"
+                                  ? achievement.description.en
+                                  : achievement.description}
+                              </Text>
+
+                              <View style={styles.achievementProgress}>
+                                <View style={styles.progressBarContainer}>
+                                  <View style={styles.progressBarBg}>
+                                    <View
+                                      style={[
+                                        styles.progressBarFill,
+                                        {
+                                          width: `${
+                                            achievement.unlocked
+                                              ? 100
+                                              : (achievement.progress /
+                                                  (achievement.maxProgress ||
+                                                    1)) *
+                                                100
+                                          }%`,
+                                          backgroundColor: achievement.unlocked
+                                            ? achievement.color
+                                            : "#D1D5DB",
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                  <Text style={styles.progressText}>
+                                    {achievement.progress}/
+                                    {achievement.maxProgress || 1}
+                                  </Text>
+                                </View>
+
+                                <View style={styles.xpRewardContainer}>
+                                  <Sparkles
+                                    size={16}
+                                    color={
+                                      achievement.unlocked
+                                        ? achievement.color
+                                        : "#9CA3AF"
+                                    }
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.xpRewardText,
+                                      {
+                                        color: achievement.unlocked
+                                          ? achievement.color
+                                          : "#9CA3AF",
+                                      },
+                                    ]}
+                                  >
+                                    +{achievement.xpReward} XP
+                                  </Text>
+                                </View>
                               </View>
                             </View>
-                          </View>
 
-                          {achievement.unlocked && (
-                            <View style={styles.unlockedBadge}>
-                              <CheckCircle
-                                size={24}
-                                color={achievement.color}
-                              />
-                            </View>
-                          )}
+                            {achievement.unlocked && (
+                              <View style={styles.unlockedBadge}>
+                                <CheckCircle
+                                  size={24}
+                                  color={achievement.color}
+                                />
+                              </View>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    ))}
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <View style={styles.noDataContainer}>
+                    <Trophy size={64} color="#BDC3C7" />
+                    <Text style={styles.noDataText}>
+                      {t("statistics.no_achievements") || "No achievements yet"}
+                    </Text>
                   </View>
-                </ScrollView>
-              ) : (
-                <View style={styles.noDataContainer}>
-                  <Trophy size={64} color="#BDC3C7" />
-                  <Text style={styles.noDataText}>
-                    {t("statistics.no_achievements") || "No achievements yet"}
-                  </Text>
-                </View>
-              )}
-            </View>
+                )}
+              </View>
+            )}
             <Animated.View entering={FadeInDown.delay(700)}>
               <AIRecommendationsSection
                 recommendations={aiRecommendations}

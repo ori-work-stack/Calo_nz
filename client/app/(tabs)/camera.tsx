@@ -58,6 +58,7 @@ import {
   MealTypeSelector,
   MealType,
 } from "@/components/camera/MealTypeSelector";
+import { nutritionAPI } from "@/src/services/api";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -389,6 +390,43 @@ function CameraScreenContent() {
     if (!selectedMealType) {
       Alert.alert(t("common.error"), "Please select a meal type first");
       return;
+    }
+
+    // Check usage limit first
+    try {
+      const stats = await nutritionAPI.getUsageStats();
+      const { current, limit, remaining } = stats.mealScans;
+
+      if (remaining === 0) {
+        Alert.alert(
+          t("common.limitReached") || "Limit Reached",
+          `You've used all ${limit} meal scans this month. Upgrade your plan for more scans or add meals manually.`,
+          [
+            {
+              text: t("common.addManually") || "Add Manually",
+              onPress: () => router.push("/(tabs)/history"),
+            },
+            {
+              text: t("common.upgradePlan") || "Upgrade",
+              onPress: () => router.push("/payment-plan"),
+            },
+            { text: t("common.cancel") || "Cancel", style: "cancel" },
+          ]
+        );
+        return;
+      }
+
+      if (remaining <= 2) {
+        Alert.alert(
+          t("common.lowOnScans") || "Low on Scans",
+          `You have ${remaining} meal scan${
+            remaining > 1 ? "s" : ""
+          } remaining this month.`,
+          [{ text: t("common.ok") || "OK" }]
+        );
+      }
+    } catch (error) {
+      console.error("Error checking limits:", error);
     }
 
     // Check and cleanup storage before analysis
