@@ -9,15 +9,20 @@ import {
   Alert,
   Modal,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Svg, {
   Circle,
   Path,
   Text as SvgText,
   Line,
   Rect,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
 } from "react-native-svg";
 import {
   ChartBar as BarChart3,
@@ -61,12 +66,12 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { api, userAPI } from "@/src/services/api";
 import LoadingScreen from "@/components/LoadingScreen";
-import { StatisticsData } from "@/src/store/calendarSlice"; // This import seems redundant with the new definition. Keeping for now as per instructions.
+import { StatisticsData } from "@/src/store/calendarSlice";
 import {
   UserQuestionnaire,
   NutritionMetric,
   ProgressData,
-  Achievement, // This import also seems redundant with the new definition.
+  Achievement,
   TimeFilterOption,
 } from "@/src/types/statistics";
 import * as Print from "expo-print";
@@ -82,7 +87,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 const { width, height } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
-// Chart Types
+
 type ChartType = "weekly" | "macros" | "progress" | "hydration";
 interface ChartNavigationProps {
   charts: { key: ChartType; title: string; available: boolean }[];
@@ -90,7 +95,6 @@ interface ChartNavigationProps {
   onChartChange: (chart: ChartType) => void;
 }
 
-// Custom Chart Components
 const CircularProgress = ({
   percentage,
   size = 120,
@@ -121,6 +125,18 @@ const CircularProgress = ({
       }}
     >
       <Svg width={size} height={size}>
+        <Defs>
+          <SvgLinearGradient
+            id="progressGradient"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor={color} stopOpacity="1" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0.6" />
+          </SvgLinearGradient>
+        </Defs>
         <Circle
           stroke={backgroundColor}
           fill="none"
@@ -130,7 +146,7 @@ const CircularProgress = ({
           strokeWidth={strokeWidth}
         />
         <Circle
-          stroke={color}
+          stroke="url(#progressGradient)"
           fill="none"
           cx={size / 2}
           cy={size / 2}
@@ -168,6 +184,7 @@ const ChartNavigation = ({
               ]}
               onPress={() => chart.available && onChartChange(chart.key)}
               disabled={!chart.available}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -240,17 +257,39 @@ const WeeklyProgressChart = ({
     <View style={styles.chartContainer}>
       <View style={styles.chartLegend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#16A085" }]} />
+          <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
           <Text style={styles.legendText}>Calories</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#3498DB" }]} />
+          <View style={[styles.legendDot, { backgroundColor: "#3B82F6" }]} />
           <Text style={styles.legendText}>Protein (g)</Text>
         </View>
       </View>
 
       <Svg width={width} height={height}>
-        {/* Grid lines */}
+        <Defs>
+          <SvgLinearGradient
+            id="caloriesGradient"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
+            <Stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+          </SvgLinearGradient>
+          <SvgLinearGradient
+            id="proteinGradient"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
+            <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+          </SvgLinearGradient>
+        </Defs>
+
         {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
           const y = padding + chartHeight * ratio;
           return (
@@ -262,36 +301,41 @@ const WeeklyProgressChart = ({
               y2={y}
               stroke="#F1F5F9"
               strokeWidth={1}
+              strokeDasharray="4,4"
             />
           );
         })}
 
-        {/* Calories line */}
         {caloriesPath && (
-          <Path
-            d={caloriesPath}
-            stroke="#16A085"
-            strokeWidth={3}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <>
+            <Path
+              d={`${caloriesPath} L ${padding + (data.length - 1) * xStep} ${
+                padding + chartHeight
+              } L ${padding} ${padding + chartHeight} Z`}
+              fill="url(#caloriesGradient)"
+            />
+            <Path
+              d={caloriesPath}
+              stroke="#10B981"
+              strokeWidth={3}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
         )}
 
-        {/* Protein line */}
         {proteinPath && (
           <Path
             d={proteinPath}
-            stroke="#3498DB"
-            strokeWidth={2}
+            stroke="#3B82F6"
+            strokeWidth={2.5}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeDasharray="5,5"
           />
         )}
 
-        {/* Data points */}
         {data.map((item, index) => {
           const x = padding + index * xStep;
           const yCalories =
@@ -308,24 +352,23 @@ const WeeklyProgressChart = ({
               <Circle
                 cx={x}
                 cy={yCalories}
-                r={4}
-                fill="#16A085"
+                r={5}
+                fill="#10B981"
                 stroke="#FFFFFF"
-                strokeWidth={2}
+                strokeWidth={3}
               />
               <Circle
                 cx={x}
                 cy={yProtein}
-                r={3}
-                fill="#3498DB"
+                r={4}
+                fill="#3B82F6"
                 stroke="#FFFFFF"
-                strokeWidth={1}
+                strokeWidth={2}
               />
             </React.Fragment>
           );
         })}
 
-        {/* Y-axis labels */}
         {[0, 0.5, 1].map((ratio, index) => {
           const value = Math.round(maxCalories * (1 - ratio));
           const y = padding + chartHeight * ratio;
@@ -334,9 +377,10 @@ const WeeklyProgressChart = ({
               key={`y-label-${index}`}
               x={padding - 10}
               y={y + 4}
-              fontSize="10"
-              fill="#64748B"
+              fontSize="11"
+              fill="#94A3B8"
               textAnchor="end"
+              fontWeight="600"
             >
               {value}
             </SvgText>
@@ -344,7 +388,6 @@ const WeeklyProgressChart = ({
         })}
       </Svg>
 
-      {/* X-axis labels */}
       <View style={styles.chartXLabels}>
         {data.map((item, index) => (
           <Text key={`x-label-${index}`} style={styles.chartXLabel}>
@@ -382,13 +425,29 @@ const MacronutrientChart = ({
 
   const total = macros.reduce((sum, macro) => sum + (macro.value || 0), 0) || 1;
   let currentAngle = 0;
-  const radius = 80;
+  const radius = 90;
   const centerX = width / 2;
-  const centerY = 120;
+  const centerY = 130;
 
   return (
     <View style={styles.chartContainer}>
-      <Svg width={width} height={240}>
+      <Svg width={width} height={260}>
+        <Defs>
+          {macros.map((macro, index) => (
+            <SvgLinearGradient
+              key={`gradient-${index}`}
+              id={`macroGradient-${index}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <Stop offset="0%" stopColor={macro.color} stopOpacity="1" />
+              <Stop offset="100%" stopColor={macro.color} stopOpacity="0.7" />
+            </SvgLinearGradient>
+          ))}
+        </Defs>
+
         {macros.map((macro, index) => {
           const percentage = ((macro.value || 0) / total) * 100;
           const angle = (percentage / 100) * 360;
@@ -418,11 +477,12 @@ const MacronutrientChart = ({
             <Path
               key={`macro-${index}`}
               d={pathData}
-              fill={macro.color}
-              opacity={0.8}
+              fill={`url(#macroGradient-${index})`}
             />
           );
         })}
+
+        <Circle cx={centerX} cy={centerY} r={65} fill="#FFFFFF" />
       </Svg>
 
       <View style={styles.macroLegend}>
@@ -464,14 +524,30 @@ const ProgressBarChart = ({
     );
   }
 
-  const barHeight = 24;
-  const barSpacing = 40;
+  const barHeight = 28;
+  const barSpacing = 48;
   const chartHeight = displayMetrics.length * barSpacing + 40;
 
   return (
     <View style={styles.chartContainer}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <Svg width={Math.max(width, 300)} height={chartHeight}>
+          <Defs>
+            {displayMetrics.map((metric, index) => (
+              <SvgLinearGradient
+                key={`barGradient-${index}`}
+                id={`barGradient-${index}`}
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+              >
+                <Stop offset="0%" stopColor={metric.color} stopOpacity="0.8" />
+                <Stop offset="100%" stopColor={metric.color} stopOpacity="1" />
+              </SvgLinearGradient>
+            ))}
+          </Defs>
+
           {displayMetrics.map((metric, index) => {
             const y = 20 + index * barSpacing;
             const barWidth = Math.min(width - 120, 200);
@@ -479,46 +555,43 @@ const ProgressBarChart = ({
 
             return (
               <React.Fragment key={`progress-bar-${index}`}>
-                {/* Background bar */}
                 <Rect
                   x={100}
                   y={y}
                   width={barWidth}
                   height={barHeight}
                   fill="#F1F5F9"
-                  rx={12}
+                  rx={14}
                 />
 
-                {/* Progress bar */}
                 <Rect
                   x={100}
                   y={y}
                   width={fillWidth}
                   height={barHeight}
-                  fill={metric.color}
-                  rx={12}
+                  fill={`url(#barGradient-${index})`}
+                  rx={14}
                 />
 
-                {/* Label */}
                 <SvgText
                   x={95}
-                  y={y + barHeight / 2 + 4}
-                  fontSize="12"
+                  y={y + barHeight / 2 + 5}
+                  fontSize="13"
                   fill="#64748B"
                   textAnchor="end"
+                  fontWeight="600"
                 >
                   {(metric.nameEn || "").length > 8
                     ? (metric.nameEn || "").substring(0, 8) + "..."
                     : metric.nameEn}
                 </SvgText>
 
-                {/* Percentage */}
                 <SvgText
                   x={100 + barWidth + 10}
-                  y={y + barHeight / 2 + 4}
-                  fontSize="12"
+                  y={y + barHeight / 2 + 5}
+                  fontSize="13"
                   fill="#0F172A"
-                  fontWeight="600"
+                  fontWeight="700"
                 >
                   {metric.percentage || 0}%
                 </SvgText>
@@ -559,23 +632,44 @@ const HydrationChart = ({
   const padding = 40;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
-  const barWidth = (chartWidth / data.length) * 0.8;
+  const barWidth = (chartWidth / data.length) * 0.7;
 
   return (
     <View style={styles.chartContainer}>
       <Svg width={width} height={height}>
-        {/* Target line */}
+        <Defs>
+          <SvgLinearGradient
+            id="hydrationAbove"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor="#3B82F6" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0.6" />
+          </SvgLinearGradient>
+          <SvgLinearGradient
+            id="hydrationBelow"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor="#94A3B8" stopOpacity="0.8" />
+            <Stop offset="100%" stopColor="#94A3B8" stopOpacity="0.4" />
+          </SvgLinearGradient>
+        </Defs>
+
         <Line
           x1={padding}
           y1={padding + chartHeight - (target / maxValue) * chartHeight}
           x2={width - padding}
           y2={padding + chartHeight - (target / maxValue) * chartHeight}
-          stroke="#E67E22"
+          stroke="#F59E0B"
           strokeWidth={2}
-          strokeDasharray="5,5"
+          strokeDasharray="6,4"
         />
 
-        {/* Bars */}
         {data.map((item, index) => {
           const x =
             padding +
@@ -592,13 +686,14 @@ const HydrationChart = ({
               y={y}
               width={barWidth}
               height={barHeightCalc}
-              fill={isAboveTarget ? "#3498DB" : "#95A5A6"}
-              rx={4}
+              fill={
+                isAboveTarget ? "url(#hydrationAbove)" : "url(#hydrationBelow)"
+              }
+              rx={8}
             />
           );
         })}
 
-        {/* Y-axis labels */}
         {[0, 0.5, 1].map((ratio, index) => {
           const value = Math.round(maxValue * (1 - ratio));
           const y = padding + chartHeight * ratio;
@@ -607,9 +702,10 @@ const HydrationChart = ({
               key={`hydration-y-label-${index}`}
               x={padding - 10}
               y={y + 4}
-              fontSize="12"
-              fill="#64748B"
+              fontSize="11"
+              fill="#94A3B8"
               textAnchor="end"
+              fontWeight="600"
             >
               {value}ml
             </SvgText>
@@ -617,7 +713,6 @@ const HydrationChart = ({
         })}
       </Svg>
 
-      {/* X-axis labels */}
       <View style={styles.chartXLabels}>
         {data.map((item, index) => (
           <Text key={`hydration-x-label-${index}`} style={styles.chartXLabel}>
@@ -631,7 +726,6 @@ const HydrationChart = ({
   );
 };
 
-// Helper function to get the appropriate Lucide icon component
 const getAchievementIcon = (
   iconName: string,
   size: number = 20,
@@ -686,7 +780,6 @@ const getAchievementIcon = (
   }
 };
 
-// Helper functions for achievement styling
 const getAchievementBackgroundColor = (rarity: string, unlocked: boolean) => {
   if (!unlocked) return "#FFFFFF";
 
@@ -726,7 +819,6 @@ export default function StatisticsScreen() {
   const { language } = useLanguage();
   const isRTL = language === "he";
   const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
-  // State management
   const [selectedPeriod, setSelectedPeriod] = useState<
     "today" | "week" | "month"
   >("week");
@@ -746,7 +838,6 @@ export default function StatisticsScreen() {
 
   const { user } = useSelector((state: RootState) => state.auth);
 
-  // Fetch achievements data separately
   const fetchAchievements = async () => {
     try {
       const response = await api.get("/statistics/achievements");
@@ -776,7 +867,6 @@ export default function StatisticsScreen() {
     }
   };
 
-  // Fetch statistics data from API
   const fetchAIRecommendations = async () => {
     try {
       console.log("🤖 Fetching AI recommendations...");
@@ -784,14 +874,13 @@ export default function StatisticsScreen() {
       console.log("📊 AI Recommendations Response:", response.data);
 
       if (response.data.success && Array.isArray(response.data.data)) {
-        // Transform the actual server data
         const transformedRecommendations = response.data.data.map(
           (rec: any) => ({
             id: rec.id,
             date: rec.date,
             created_at: rec.created_at,
             is_read: rec.is_read,
-            recommendations: rec.recommendations, // Keep the actual recommendations object from server
+            recommendations: rec.recommendations,
             priority_level: rec.priority_level,
             confidence_score: rec.confidence_score,
             based_on: rec.based_on,
@@ -813,6 +902,7 @@ export default function StatisticsScreen() {
       setAiRecommendations([]);
     }
   };
+
   const fetchStatistics = async (period: "today" | "week" | "month") => {
     setIsLoading(true);
     setError(null);
@@ -863,12 +953,10 @@ export default function StatisticsScreen() {
     }
   };
 
-  // Initialize data
   useEffect(() => {
     fetchStatistics(selectedPeriod);
   }, [selectedPeriod]);
 
-  // Generate nutrition data from real API response
   const generateNutritionMetrics = (): NutritionMetric[] => {
     if (!statisticsData || !userQuestionnaire) {
       return [];
@@ -900,8 +988,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageCalories || 0,
         target: userQuestionnaire.dailyCalories,
         unit: t("statistics.kcal") || "kcal",
-        icon: <Flame size={20} color="#E74C3C" />,
-        color: "#E74C3C",
+        icon: <Flame size={20} color="#EF4444" />,
+        color: "#EF4444",
         category: "macros" as const,
         description:
           language === "he"
@@ -924,8 +1012,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageProtein || 0,
         target: userQuestionnaire.dailyProtein,
         unit: t("statistics.g") || "g",
-        icon: <Zap size={20} color="#9B59B6" />,
-        color: "#9B59B6",
+        icon: <Zap size={20} color="#8B5CF6" />,
+        color: "#8B5CF6",
         category: "macros" as const,
         description:
           language === "he"
@@ -948,8 +1036,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageCarbs || 0,
         target: userQuestionnaire.dailyCarbs,
         unit: t("statistics.g") || "g",
-        icon: <Wheat size={20} color="#F39C12" />,
-        color: "#F39C12",
+        icon: <Wheat size={20} color="#F59E0B" />,
+        color: "#F59E0B",
         category: "macros" as const,
         description:
           language === "he"
@@ -972,8 +1060,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageFats || 0,
         target: userQuestionnaire.dailyFats,
         unit: t("statistics.g") || "g",
-        icon: <Fish size={20} color="#16A085" />,
-        color: "#16A085",
+        icon: <Fish size={20} color="#10B981" />,
+        color: "#10B981",
         category: "macros" as const,
         description:
           language === "he"
@@ -996,8 +1084,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageFiber || 0,
         target: userQuestionnaire.dailyFiber,
         unit: t("statistics.g") || "g",
-        icon: <Leaf size={20} color="#27AE60" />,
-        color: "#27AE60",
+        icon: <Leaf size={20} color="#22C55E" />,
+        color: "#22C55E",
         category: "micros" as const,
         description:
           language === "he"
@@ -1022,8 +1110,8 @@ export default function StatisticsScreen() {
         target: 50,
         maxTarget: 50,
         unit: t("statistics.g") || "g",
-        icon: <Apple size={20} color="#E67E22" />,
-        color: "#E67E22",
+        icon: <Apple size={20} color="#F97316" />,
+        color: "#F97316",
         category: "micros" as const,
         description:
           language === "he"
@@ -1045,8 +1133,8 @@ export default function StatisticsScreen() {
         target: 2300,
         maxTarget: 2300,
         unit: t("statistics.mg") || "mg",
-        icon: <Shield size={20} color="#E74C3C" />,
-        color: "#E74C3C",
+        icon: <Shield size={20} color="#EF4444" />,
+        color: "#EF4444",
         category: "micros" as const,
         description:
           language === "he"
@@ -1067,8 +1155,8 @@ export default function StatisticsScreen() {
         value: statisticsData.averageFluids || 0,
         target: userQuestionnaire.dailyWater,
         unit: t("statistics.ml") || "ml",
-        icon: <Droplets size={20} color="#3498DB" />,
-        color: "#3498DB",
+        icon: <Droplets size={20} color="#3B82F6" />,
+        color: "#3B82F6",
         category: "lifestyle" as const,
         description:
           language === "he" ? "רמת הידרציה יומית" : "Daily hydration level",
@@ -1112,7 +1200,6 @@ export default function StatisticsScreen() {
     });
   };
 
-  // Generate weekly progress data
   const generateWeeklyData = (): ProgressData[] => {
     if (
       !statisticsData?.dailyBreakdown ||
@@ -1140,10 +1227,8 @@ export default function StatisticsScreen() {
     }));
   };
 
-  // Generate achievements from real API data
   const generateAchievements = (): Achievement[] => {
     if (!statisticsData?.achievements && achievements.length === 0) {
-      // Fetch achievements separately if not in stats data
       fetchAchievements();
       return [];
     }
@@ -1171,7 +1256,6 @@ export default function StatisticsScreen() {
     return achievements;
   };
 
-  // Update metrics when data changes
   useEffect(() => {
     if (statisticsData && userQuestionnaire) {
       setMetrics(generateNutritionMetrics());
@@ -1180,7 +1264,6 @@ export default function StatisticsScreen() {
     }
   }, [statisticsData, userQuestionnaire, t]);
 
-  // Refresh handler
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -1196,49 +1279,47 @@ export default function StatisticsScreen() {
     { key: "month", label: t("statistics.month") || "Month" },
   ];
 
-  // Helper functions for status and trends
   const getStatusColor = (status: string) => {
     switch (status) {
       case "excellent":
-        return "#2ECC71";
+        return "#22C55E";
       case "good":
-        return "#F39C12";
+        return "#F59E0B";
       case "warning":
-        return "#E67E22";
+        return "#F97316";
       case "danger":
-        return "#E74C3C";
+        return "#EF4444";
       default:
-        return "#95A5A6";
+        return "#94A3B8";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "excellent":
-        return <CheckCircle size={16} color="#2ECC71" />;
+        return <CheckCircle size={16} color="#22C55E" />;
       case "good":
-        return <CheckCircle size={16} color="#F39C12" />;
+        return <CheckCircle size={16} color="#F59E0B" />;
       case "warning":
-        return <AlertTriangle size={16} color="#E67E22" />;
+        return <AlertTriangle size={16} color="#F97316" />;
       case "danger":
-        return <AlertTriangle size={16} color="#E74C3C" />;
+        return <AlertTriangle size={16} color="#EF4444" />;
       default:
-        return <CheckCircle size={16} color="#95A5A6" />;
+        return <CheckCircle size={16} color="#94A3B8" />;
     }
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "up":
-        return <TrendingUp size={14} color="#2ECC71" />;
+        return <TrendingUp size={14} color="#22C55E" />;
       case "down":
-        return <TrendingDown size={14} color="#E74C3C" />;
+        return <TrendingDown size={14} color="#EF4444" />;
       default:
-        return <Target size={14} color="#95A5A6" />;
+        return <Target size={14} color="#94A3B8" />;
     }
   };
 
-  // Calculate progress statistics
   const calculateProgressStats = () => {
     if (!statisticsData) {
       return {
@@ -1269,7 +1350,6 @@ export default function StatisticsScreen() {
     };
   };
 
-  // Calculate gamification stats
   const calculateGamificationStats = () => {
     if (!statisticsData) {
       return {
@@ -1303,7 +1383,6 @@ export default function StatisticsScreen() {
     };
   };
 
-  // Check if user has completed daily meals for warnings
   const shouldShowWarnings = (): boolean => {
     if (!userQuestionnaire) return false;
     const today = new Date().toISOString().split("T")[0];
@@ -1320,7 +1399,6 @@ export default function StatisticsScreen() {
   const progressStats = calculateProgressStats();
   const gamificationStats = calculateGamificationStats();
 
-  // Chart configuration
   const availableCharts = [
     {
       key: "weekly" as ChartType,
@@ -1344,7 +1422,6 @@ export default function StatisticsScreen() {
     },
   ];
 
-  // Render chart based on active selection
   const renderActiveChart = () => {
     switch (activeChart) {
       case "weekly":
@@ -1365,16 +1442,23 @@ export default function StatisticsScreen() {
     }
   };
 
-  // Render metric card
   const renderMetricCard = (metric: NutritionMetric) => (
     <TouchableOpacity
       key={metric.id}
       style={styles.metricCard}
       onPress={() => Alert.alert(metric.name, metric.description)}
+      activeOpacity={0.7}
     >
       <View style={styles.metricCardContent}>
         <View style={styles.metricHeader}>
-          <View style={styles.metricIconContainer}>{metric.icon}</View>
+          <View
+            style={[
+              styles.metricIconContainer,
+              { backgroundColor: `${metric.color}15` },
+            ]}
+          >
+            {metric.icon}
+          </View>
           <View style={styles.metricInfo}>
             <Text style={styles.metricName} numberOfLines={1}>
               {metric.name}
@@ -1421,12 +1505,14 @@ export default function StatisticsScreen() {
 
         <View style={styles.metricProgress}>
           <View style={styles.metricProgressBg}>
-            <View
+            <LinearGradient
+              colors={[metric.color, `${metric.color}CC`]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={[
                 styles.metricProgressFill,
                 {
                   width: `${Math.min(metric.percentage || 0, 100)}%`,
-                  backgroundColor: metric.color,
                 },
               ]}
             />
@@ -1434,7 +1520,12 @@ export default function StatisticsScreen() {
         </View>
 
         {metric.recommendation && shouldShowWarnings() && (
-          <View style={styles.metricRecommendation}>
+          <View
+            style={[
+              styles.metricRecommendation,
+              { backgroundColor: `${metric.color}10` },
+            ]}
+          >
             <Sparkles size={12} color={metric.color} />
             <Text style={styles.metricRecommendationText} numberOfLines={2}>
               {metric.recommendation}
@@ -1445,7 +1536,6 @@ export default function StatisticsScreen() {
     </TouchableOpacity>
   );
 
-  // Meal completion status component
   const renderMealCompletionStatus = () => {
     const today = new Date().toISOString().split("T")[0];
     const todayData = weeklyData.find((day) => day.date === today);
@@ -1461,9 +1551,9 @@ export default function StatisticsScreen() {
         <View style={styles.mealCompletionHeader}>
           <View style={styles.mealCompletionIcon}>
             {isCompleted ? (
-              <CheckCircle size={24} color="#2ECC71" />
+              <CheckCircle size={24} color="#22C55E" />
             ) : (
-              <Clock size={24} color="#E67E22" />
+              <Clock size={24} color="#F97316" />
             )}
           </View>
           <Text style={styles.mealCompletionTitle}>
@@ -1476,7 +1566,7 @@ export default function StatisticsScreen() {
             percentage={Math.min(completionPercentage, 100)}
             size={100}
             strokeWidth={8}
-            color={isCompleted ? "#2ECC71" : "#E67E22"}
+            color={isCompleted ? "#22C55E" : "#F97316"}
           >
             <Text style={styles.mealCompletionText}>
               {todayData.mealsCount}
@@ -1497,7 +1587,6 @@ export default function StatisticsScreen() {
     );
   };
 
-  // PDF generation function
   const generatePdf = async () => {
     if (!statisticsData) {
       Alert.alert("No Data", "There is no data to generate a PDF from.");
@@ -1515,34 +1604,34 @@ export default function StatisticsScreen() {
         <meta charset="utf-8">
         <title>Statistics Report</title>
         <style>
-          body { 
-            font-family: 'Arial', sans-serif; 
-            padding: 20px; 
-            color: #333; 
+          body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            color: #333;
             line-height: 1.4;
           }
-          h1 { 
-            color: #16A085; 
-            text-align: center; 
-            margin-bottom: 30px; 
+          h1 {
+            color: #10B981;
+            text-align: center;
+            margin-bottom: 30px;
           }
-          h2 { 
-            color: #0F172A; 
-            border-bottom: 2px solid #EEE; 
-            padding-bottom: 10px; 
-            margin-top: 25px; 
-            margin-bottom: 15px; 
-            font-size: 20px; 
+          h2 {
+            color: #0F172A;
+            border-bottom: 2px solid #EEE;
+            padding-bottom: 10px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 20px;
           }
-          .section { 
-            margin-bottom: 20px; 
+          .section {
+            margin-bottom: 20px;
             page-break-inside: avoid;
           }
-          .metric-card { 
-            background-color: #F8FAFC; 
-            border-radius: 12px; 
-            padding: 16px; 
-            margin-bottom: 12px; 
+          .metric-card {
+            background-color: #F8FAFC;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
             border: 1px solid #E5E7EB;
           }
           .progress-bar {
@@ -1641,13 +1730,12 @@ export default function StatisticsScreen() {
     }
   };
 
-  // Loading state
   if (isLoading) {
     return <LoadingScreen text={t("statistics.loading")} />;
   }
+
   const { colors } = useTheme();
 
-  // Error state
   if (error) {
     return (
       <View
@@ -1666,6 +1754,7 @@ export default function StatisticsScreen() {
             setError(null);
             fetchStatistics(selectedPeriod);
           }}
+          activeOpacity={0.7}
         >
           <RotateCcw size={20} color={colors.onPrimary} />
           <Text style={[styles.retryButtonText, { color: colors.onPrimary }]}>
@@ -1677,7 +1766,7 @@ export default function StatisticsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -1688,8 +1777,8 @@ export default function StatisticsScreen() {
             tintColor="#10B981"
           />
         }
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* Modern Green Gradient Header */}
         <LinearGradient
           colors={["#10B981", "#059669", "#047857"]}
           style={styles.modernHeader}
@@ -1708,13 +1797,13 @@ export default function StatisticsScreen() {
             <TouchableOpacity
               style={styles.downloadButton}
               onPress={generatePdf}
+              activeOpacity={0.7}
             >
               <Download size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </LinearGradient>
 
-        {/* Time Filter */}
         <View style={styles.timeFilterContainer}>
           <View style={styles.timeFilter}>
             {timeFilters.map((filter) => (
@@ -1726,11 +1815,14 @@ export default function StatisticsScreen() {
                     styles.timeFilterButtonActive,
                 ]}
                 onPress={() => setSelectedPeriod(filter.key)}
+                activeOpacity={0.7}
               >
                 {selectedPeriod === filter.key ? (
                   <LinearGradient
-                    colors={["#16A085", "#1ABC9C"]}
+                    colors={["#10B981", "#059669"]}
                     style={styles.timeFilterGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
                   >
                     <Text style={styles.timeFilterTextActive}>
                       {filter.label}
@@ -1744,7 +1836,6 @@ export default function StatisticsScreen() {
           </View>
         </View>
 
-        {/* No Data Message */}
         {!statisticsData && !isLoading && (
           <View style={styles.noDataContainer}>
             <BarChart3 size={64} color="#BDC3C7" />
@@ -1754,30 +1845,24 @@ export default function StatisticsScreen() {
           </View>
         )}
 
-        {/* Main Content */}
         {statisticsData && (
           <>
-            {/* Meal Completion Status */}
             {renderMealCompletionStatus()}
 
-            {/* Charts Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 {t("statistics.data_visualization") || "Data Visualization"}
               </Text>
 
-              {/* Chart Navigation */}
               <ChartNavigation
                 charts={availableCharts}
                 activeChart={activeChart}
                 onChartChange={setActiveChart}
               />
 
-              {/* Active Chart */}
               {renderActiveChart()}
             </View>
 
-            {/* Gamification Dashboard */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 {t("statistics.gamification") || "Gamification"}
@@ -1785,12 +1870,15 @@ export default function StatisticsScreen() {
               <View style={styles.gamificationContainer}>
                 <View style={styles.levelContainer}>
                   <View style={styles.levelInfo}>
-                    <View style={styles.levelIcon}>
-                      <Crown size={32} color="#F39C12" />
-                    </View>
+                    <LinearGradient
+                      colors={["#FEF3C7", "#FCD34D"]}
+                      style={styles.levelIcon}
+                    >
+                      <Crown size={36} color="#F59E0B" />
+                    </LinearGradient>
                     <View style={styles.levelDetails}>
                       <Text style={styles.levelText}>
-                        {t("statistics.level") || "Level"}
+                        {t("statistics.level") || "Level"}{" "}
                         {gamificationStats.level}
                       </Text>
                       <Text style={styles.xpText}>
@@ -1802,7 +1890,10 @@ export default function StatisticsScreen() {
                   </View>
                   <View style={styles.xpProgress}>
                     <View style={styles.xpProgressBg}>
-                      <View
+                      <LinearGradient
+                        colors={["#F59E0B", "#FBBF24"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
                         style={[
                           styles.xpProgressFill,
                           { width: `${gamificationStats.xpProgress}%` },
@@ -1818,7 +1909,14 @@ export default function StatisticsScreen() {
 
                 <View style={styles.gamificationStats}>
                   <View style={styles.gamificationStatItem}>
-                    <Flame size={20} color="#E74C3C" />
+                    <View
+                      style={[
+                        styles.gamificationStatIconBg,
+                        { backgroundColor: "#FEE2E2" },
+                      ]}
+                    >
+                      <Flame size={22} color="#EF4444" />
+                    </View>
                     <Text style={styles.gamificationStatValue}>
                       {gamificationStats.dailyStreak}
                     </Text>
@@ -1830,7 +1928,14 @@ export default function StatisticsScreen() {
                     </Text>
                   </View>
                   <View style={styles.gamificationStatItem}>
-                    <Calendar size={20} color="#3498DB" />
+                    <View
+                      style={[
+                        styles.gamificationStatIconBg,
+                        { backgroundColor: "#DBEAFE" },
+                      ]}
+                    >
+                      <Calendar size={22} color="#3B82F6" />
+                    </View>
                     <Text style={styles.gamificationStatValue}>
                       {gamificationStats.weeklyStreak}
                     </Text>
@@ -1842,7 +1947,14 @@ export default function StatisticsScreen() {
                     </Text>
                   </View>
                   <View style={styles.gamificationStatItem}>
-                    <Star size={20} color="#F39C12" />
+                    <View
+                      style={[
+                        styles.gamificationStatIconBg,
+                        { backgroundColor: "#FEF3C7" },
+                      ]}
+                    >
+                      <Star size={22} color="#F59E0B" />
+                    </View>
                     <Text style={styles.gamificationStatValue}>
                       {gamificationStats.perfectDays}
                     </Text>
@@ -1854,7 +1966,14 @@ export default function StatisticsScreen() {
                     </Text>
                   </View>
                   <View style={styles.gamificationStatItem}>
-                    <Trophy size={20} color="#16A085" />
+                    <View
+                      style={[
+                        styles.gamificationStatIconBg,
+                        { backgroundColor: "#D1FAE5" },
+                      ]}
+                    >
+                      <Trophy size={22} color="#10B981" />
+                    </View>
                     <Text style={styles.gamificationStatValue}>
                       {gamificationStats.totalPoints.toLocaleString()}
                     </Text>
@@ -1869,7 +1988,6 @@ export default function StatisticsScreen() {
               </View>
             </View>
 
-            {/* Achievements Section */}
             {achievements.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.achievementsHeader}>
@@ -1880,6 +1998,7 @@ export default function StatisticsScreen() {
                     <TouchableOpacity
                       style={styles.viewAllButton}
                       onPress={() => setShowAchievements(true)}
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.viewAllText}>
                         {t("statistics.view_all_achievements") || "View All"}
@@ -1901,9 +2020,9 @@ export default function StatisticsScreen() {
                                 achievement.rarity,
                                 achievement.unlocked
                               ),
-                              borderWidth: 1,
+                              borderWidth: 1.5,
                               borderColor: achievement.unlocked
-                                ? `${achievement.color}30`
+                                ? `${achievement.color}40`
                                 : "#E5E7EB",
                             },
                           ]}
@@ -1921,7 +2040,7 @@ export default function StatisticsScreen() {
                             >
                               {getAchievementIcon(
                                 achievement.icon,
-                                28,
+                                32,
                                 achievement.unlocked
                                   ? achievement.color
                                   : "#9CA3AF"
@@ -1989,7 +2108,17 @@ export default function StatisticsScreen() {
                               <View style={styles.achievementProgress}>
                                 <View style={styles.progressBarContainer}>
                                   <View style={styles.progressBarBg}>
-                                    <View
+                                    <LinearGradient
+                                      colors={
+                                        achievement.unlocked
+                                          ? [
+                                              achievement.color,
+                                              `${achievement.color}CC`,
+                                            ]
+                                          : ["#D1D5DB", "#E5E7EB"]
+                                      }
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 0 }}
                                       style={[
                                         styles.progressBarFill,
                                         {
@@ -2001,9 +2130,6 @@ export default function StatisticsScreen() {
                                                     1)) *
                                                 100
                                           }%`,
-                                          backgroundColor: achievement.unlocked
-                                            ? achievement.color
-                                            : "#D1D5DB",
                                         },
                                       ]}
                                     />
@@ -2062,13 +2188,14 @@ export default function StatisticsScreen() {
                 )}
               </View>
             )}
+
             <Animated.View entering={FadeInDown.delay(700)}>
               <AIRecommendationsSection
                 recommendations={aiRecommendations}
                 period={selectedPeriod}
               />
             </Animated.View>
-            {/* Progress Overview */}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 {t("statistics.progress_overview") || "Progress Overview"}
@@ -2077,8 +2204,13 @@ export default function StatisticsScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={styles.progressStatsGrid}>
                     <View style={styles.progressStatItem}>
-                      <View style={styles.progressStatIcon}>
-                        <CheckCircle size={20} color="#2ECC71" />
+                      <View
+                        style={[
+                          styles.progressStatIcon,
+                          { backgroundColor: "#D1FAE5" },
+                        ]}
+                      >
+                        <CheckCircle size={24} color="#22C55E" />
                       </View>
                       <Text style={styles.progressStatValue}>
                         {progressStats.successfulDays}/{progressStats.totalDays}
@@ -2089,8 +2221,13 @@ export default function StatisticsScreen() {
                     </View>
 
                     <View style={styles.progressStatItem}>
-                      <View style={styles.progressStatIcon}>
-                        <Target size={20} color="#3498DB" />
+                      <View
+                        style={[
+                          styles.progressStatIcon,
+                          { backgroundColor: "#DBEAFE" },
+                        ]}
+                      >
+                        <Target size={24} color="#3B82F6" />
                       </View>
                       <Text style={styles.progressStatValue}>
                         {progressStats.averageCompletion}%
@@ -2102,8 +2239,13 @@ export default function StatisticsScreen() {
                     </View>
 
                     <View style={styles.progressStatItem}>
-                      <View style={styles.progressStatIcon}>
-                        <Award size={20} color="#F39C12" />
+                      <View
+                        style={[
+                          styles.progressStatIcon,
+                          { backgroundColor: "#FEF3C7" },
+                        ]}
+                      >
+                        <Award size={24} color="#F59E0B" />
                       </View>
                       <Text style={styles.progressStatValue}>
                         {progressStats.bestStreak}
@@ -2114,8 +2256,13 @@ export default function StatisticsScreen() {
                     </View>
 
                     <View style={styles.progressStatItem}>
-                      <View style={styles.progressStatIcon}>
-                        <Trophy size={20} color="#E74C3C" />
+                      <View
+                        style={[
+                          styles.progressStatIcon,
+                          { backgroundColor: "#FEE2E2" },
+                        ]}
+                      >
+                        <Trophy size={24} color="#EF4444" />
                       </View>
                       <Text style={styles.progressStatValue}>
                         {progressStats.currentStreak}
@@ -2127,7 +2274,6 @@ export default function StatisticsScreen() {
                   </View>
                 </ScrollView>
 
-                {/* Nutrition averages */}
                 <View style={styles.nutritionAverages}>
                   <Text style={styles.nutritionAveragesTitle}>
                     {language === "he"
@@ -2137,7 +2283,14 @@ export default function StatisticsScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.nutritionAveragesGrid}>
                       <View style={styles.nutritionAverage}>
-                        <Flame size={16} color="#E74C3C" />
+                        <View
+                          style={[
+                            styles.nutritionAverageIconBg,
+                            { backgroundColor: "#FEE2E2" },
+                          ]}
+                        >
+                          <Flame size={18} color="#EF4444" />
+                        </View>
                         <Text style={styles.nutritionAverageValue}>
                           {progressStats.averages.calories}
                         </Text>
@@ -2146,7 +2299,14 @@ export default function StatisticsScreen() {
                         </Text>
                       </View>
                       <View style={styles.nutritionAverage}>
-                        <Zap size={16} color="#9B59B6" />
+                        <View
+                          style={[
+                            styles.nutritionAverageIconBg,
+                            { backgroundColor: "#EDE9FE" },
+                          ]}
+                        >
+                          <Zap size={18} color="#8B5CF6" />
+                        </View>
                         <Text style={styles.nutritionAverageValue}>
                           {progressStats.averages.protein}
                         </Text>
@@ -2155,7 +2315,14 @@ export default function StatisticsScreen() {
                         </Text>
                       </View>
                       <View style={styles.nutritionAverage}>
-                        <Wheat size={16} color="#F39C12" />
+                        <View
+                          style={[
+                            styles.nutritionAverageIconBg,
+                            { backgroundColor: "#FEF3C7" },
+                          ]}
+                        >
+                          <Wheat size={18} color="#F59E0B" />
+                        </View>
                         <Text style={styles.nutritionAverageValue}>
                           {progressStats.averages.carbs}
                         </Text>
@@ -2164,7 +2331,14 @@ export default function StatisticsScreen() {
                         </Text>
                       </View>
                       <View style={styles.nutritionAverage}>
-                        <Fish size={16} color="#16A085" />
+                        <View
+                          style={[
+                            styles.nutritionAverageIconBg,
+                            { backgroundColor: "#D1FAE5" },
+                          ]}
+                        >
+                          <Fish size={18} color="#10B981" />
+                        </View>
                         <Text style={styles.nutritionAverageValue}>
                           {progressStats.averages.fats}
                         </Text>
@@ -2173,7 +2347,14 @@ export default function StatisticsScreen() {
                         </Text>
                       </View>
                       <View style={styles.nutritionAverage}>
-                        <Droplets size={16} color="#3498DB" />
+                        <View
+                          style={[
+                            styles.nutritionAverageIconBg,
+                            { backgroundColor: "#DBEAFE" },
+                          ]}
+                        >
+                          <Droplets size={18} color="#3B82F6" />
+                        </View>
                         <Text style={styles.nutritionAverageValue}>
                           {progressStats.averages.water}
                         </Text>
@@ -2187,7 +2368,6 @@ export default function StatisticsScreen() {
               </View>
             </View>
 
-            {/* Macronutrients */}
             {categorizedMetrics.macros.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
@@ -2199,7 +2379,6 @@ export default function StatisticsScreen() {
               </View>
             )}
 
-            {/* Micronutrients */}
             {categorizedMetrics.micros.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
@@ -2211,7 +2390,6 @@ export default function StatisticsScreen() {
               </View>
             )}
 
-            {/* Lifestyle Metrics */}
             {categorizedMetrics.lifestyle.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
@@ -2225,7 +2403,6 @@ export default function StatisticsScreen() {
           </>
         )}
 
-        {/* Achievements Modal */}
         <Modal
           visible={showAchievements}
           animationType="slide"
@@ -2233,13 +2410,17 @@ export default function StatisticsScreen() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowAchievements(false)}>
-                <X size={24} color="#2C3E50" />
+              <TouchableOpacity
+                onPress={() => setShowAchievements(false)}
+                style={styles.modalCloseButton}
+                activeOpacity={0.7}
+              >
+                <X size={24} color="#64748B" />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>
                 {t("statistics.achievements") || "Achievements"}
               </Text>
-              <View style={{ width: 24 }} />
+              <View style={{ width: 40 }} />
             </View>
 
             <ScrollView style={styles.modalContent}>
@@ -2254,9 +2435,9 @@ export default function StatisticsScreen() {
                         achievement.rarity,
                         achievement.unlocked
                       ),
-                      borderWidth: 1,
+                      borderWidth: 1.5,
                       borderColor: achievement.unlocked
-                        ? `${achievement.color}30`
+                        ? `${achievement.color}40`
                         : "#E5E7EB",
                     },
                   ]}
@@ -2274,7 +2455,7 @@ export default function StatisticsScreen() {
                     >
                       {getAchievementIcon(
                         achievement.icon,
-                        28,
+                        32,
                         achievement.unlocked ? achievement.color : "#9CA3AF"
                       )}
                     </View>
@@ -2338,7 +2519,17 @@ export default function StatisticsScreen() {
                       <View style={styles.achievementProgress}>
                         <View style={styles.progressBarContainer}>
                           <View style={styles.progressBarBg}>
-                            <View
+                            <LinearGradient
+                              colors={
+                                achievement.unlocked
+                                  ? [
+                                      achievement.color,
+                                      `${achievement.color}CC`,
+                                    ]
+                                  : ["#D1D5DB", "#E5E7EB"]
+                              }
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
                               style={[
                                 styles.progressBarFill,
                                 {
@@ -2347,9 +2538,6 @@ export default function StatisticsScreen() {
                                       (achievement.maxProgress || 1)) *
                                     100
                                   }%`,
-                                  backgroundColor: achievement.unlocked
-                                    ? achievement.color
-                                    : "#D1D5DB",
                                 },
                               ]}
                             />
@@ -2407,13 +2595,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
 
-  // Header Styles
   modernHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   headerTop: {
     flexDirection: "row",
@@ -2421,58 +2619,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 17,
     color: "rgba(255, 255, 255, 0.9)",
-    fontWeight: "500",
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   titleContainer: {
     flex: 1,
   },
-  title: {
-    fontSize: Math.min(32, width * 0.08),
-    fontWeight: "800",
-    color: "#0F172A",
-    letterSpacing: -0.5,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#64748B",
-    fontWeight: "500",
-    lineHeight: 24,
-    letterSpacing: 0.1,
-  },
   downloadButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
 
-  // Error & Loading States
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -2480,44 +2661,61 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: "#FFFFFF",
     margin: 20,
-    borderRadius: 24,
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+    borderRadius: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#EF4444",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   errorTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
     marginTop: 20,
     marginBottom: 10,
+    letterSpacing: -0.3,
   },
   errorText: {
-    fontSize: 16,
-    color: "#1E293B",
+    fontSize: 17,
+    color: "#64748B",
     textAlign: "center",
     marginVertical: 10,
     fontWeight: "600",
     lineHeight: 26,
+    letterSpacing: -0.2,
   },
   retryButton: {
     paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: "#EF4444",
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#EF4444",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   retryButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: -0.2,
   },
 
   noDataContainer: {
@@ -2527,11 +2725,18 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     backgroundColor: "#FFFFFF",
     margin: 20,
-    borderRadius: 24,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
+    borderRadius: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   noDataText: {
     marginTop: 24,
@@ -2540,6 +2745,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
     lineHeight: 26,
+    letterSpacing: -0.2,
   },
 
   noChartDataContainer: {
@@ -2553,99 +2759,115 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#64748B",
     textAlign: "center",
-    fontWeight: "500",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
 
-  // Time Filter
   timeFilterContainer: {
     paddingHorizontal: 20,
+    marginTop: -20,
     marginBottom: 24,
   },
   timeFilter: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 6,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
+    borderRadius: 24,
+    padding: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   timeFilterButton: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
   },
   timeFilterButtonActive: {},
   timeFilterGradient: {
     paddingVertical: 14,
     alignItems: "center",
-    shadowColor: "#16A085",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    borderRadius: 20,
   },
   timeFilterText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#64748B",
     textAlign: "center",
     paddingVertical: 14,
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   timeFilterTextActive: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
     color: "#FFFFFF",
-    letterSpacing: 0.3,
+    letterSpacing: -0.2,
   },
 
-  // Meal Completion Status
   mealCompletionCard: {
     marginHorizontal: 20,
     marginBottom: 24,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    padding: 20,
+    padding: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   mealCompletionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   mealCompletionIcon: {
     marginRight: 12,
   },
   mealCompletionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     color: "#0F172A",
+    letterSpacing: -0.3,
   },
   mealCompletionContent: {
     alignItems: "center",
-    gap: 16,
+    gap: 20,
   },
   mealCompletionText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
     color: "#0F172A",
+    letterSpacing: -0.5,
   },
   mealCompletionSubtext: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748B",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   mealCompletionMessage: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748B",
     fontStyle: "italic",
     textAlign: "center",
+    fontWeight: "500",
+    letterSpacing: -0.2,
   },
 
-  // Chart Navigation
   chartNavigation: {
     marginBottom: 20,
   },
@@ -2654,54 +2876,73 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   chartNavButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    minWidth: 100,
+    borderRadius: 16,
+    minWidth: 110,
   },
   chartNavButtonActive: {
-    backgroundColor: "#16A085",
+    backgroundColor: "#10B981",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10B981",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   chartNavButtonDisabled: {
     opacity: 0.5,
   },
   chartNavButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: "#64748B",
     textAlign: "center",
+    letterSpacing: -0.2,
   },
   chartNavButtonTextActive: {
     color: "#FFFFFF",
+    fontWeight: "700",
   },
   chartNavButtonTextDisabled: {
     color: "#9CA3AF",
   },
 
-  // Chart Styles
   chartContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 20,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   chartLegend: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 24,
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   legendDot: {
     width: 12,
@@ -2709,92 +2950,92 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   legendText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
-    marginBottom: 16,
-    textAlign: "center",
+    fontSize: 15,
+    color: "#64748B",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   chartXLabels: {
     flexDirection: "row",
     justifyContent: "space-around",
     paddingHorizontal: 40,
-    marginTop: 8,
+    marginTop: 12,
   },
   chartXLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#64748B",
     fontWeight: "600",
     textAlign: "center",
+    letterSpacing: -0.2,
   },
   macroLegend: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 20,
     gap: 12,
   },
   macroLegendItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: "#F8FAFC",
-    borderRadius: 12,
+    borderRadius: 16,
   },
   macroLegendColor: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: 8,
+    marginRight: 10,
   },
   macroLegendText: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#64748B",
     fontWeight: "600",
+    letterSpacing: -0.2,
   },
 
-  // Section Styling
   section: {
     paddingHorizontal: 20,
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: Math.min(24, width * 0.06),
-    fontWeight: "700",
+    fontSize: 28,
+    fontWeight: "800",
     color: "#0F172A",
     marginBottom: 20,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
 
-  // Gamification
   gamificationContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
+    borderRadius: 28,
+    padding: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.1,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   levelContainer: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   levelInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   levelIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#FEF3E2",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 20,
@@ -2803,17 +3044,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   levelText: {
-    fontSize: Math.min(28, width * 0.07),
+    fontSize: 32,
     fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 4,
-    letterSpacing: -0.5,
+    marginBottom: 6,
+    letterSpacing: -0.7,
   },
   xpText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#64748B",
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
   xpProgress: {
     gap: 12,
@@ -2827,44 +3068,50 @@ const styles = StyleSheet.create({
   xpProgressFill: {
     height: "100%",
     borderRadius: 6,
-    backgroundColor: "#F39C12",
   },
   xpToNext: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748B",
     fontWeight: "600",
     textAlign: "center",
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
 
   gamificationStats: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingTop: 20,
+    paddingTop: 24,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
   gamificationStatItem: {
     alignItems: "center",
-    paddingHorizontal: Math.max(8, width * 0.02),
+    paddingHorizontal: 8,
     flex: 1,
   },
+  gamificationStatIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   gamificationStatValue: {
-    fontSize: Math.min(24, width * 0.06),
+    fontSize: 24,
     fontWeight: "800",
     color: "#0F172A",
-    marginTop: 12,
     marginBottom: 6,
+    letterSpacing: -0.5,
   },
   gamificationStatLabel: {
-    fontSize: Math.min(13, width * 0.03),
+    fontSize: 13,
     color: "#64748B",
     fontWeight: "600",
     textAlign: "center",
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
 
-  // Achievements
   achievementsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -2872,16 +3119,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   viewAllButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#E0F2F1",
-    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#D1FAE5",
+    borderRadius: 16,
   },
   viewAllText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#16A085",
-    letterSpacing: 0.3,
+    color: "#10B981",
+    letterSpacing: -0.2,
   },
 
   achievementsContainer: {
@@ -2889,13 +3136,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   achievementCard: {
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    borderRadius: 24,
+    padding: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10B981",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
     width: width * 0.8,
     minWidth: 300,
     maxWidth: 400,
@@ -2905,9 +3158,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   achievementIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 20,
@@ -2919,31 +3172,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   achievementTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "700",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
     flex: 1,
     marginRight: 12,
   },
   rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   rarityText: {
     fontSize: 10,
     fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   achievementDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 18,
     fontWeight: "500",
+    letterSpacing: -0.2,
   },
   achievementProgress: {
     flexDirection: "row",
@@ -2966,88 +3220,102 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#64748B",
+    letterSpacing: -0.2,
   },
   xpRewardContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   xpRewardText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   unlockedBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
 
-  // Progress Overview
   progressOverviewContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
+    borderRadius: 28,
+    padding: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   progressStatsGrid: {
     flexDirection: "row",
     gap: 20,
-    marginBottom: 24,
+    marginBottom: 28,
   },
   progressStatItem: {
     alignItems: "center",
-    paddingHorizontal: 12,
-    minWidth: 100,
+    paddingHorizontal: 16,
+    minWidth: 110,
   },
   progressStatIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#F8FAFC",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
   },
   progressStatValue: {
-    fontSize: Math.min(20, width * 0.05),
+    fontSize: 22,
     fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.4,
   },
   progressStatLabel: {
-    fontSize: Math.min(13, width * 0.03),
+    fontSize: 13,
     color: "#64748B",
     textAlign: "center",
     fontWeight: "600",
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
 
-  // Nutrition Averages
   nutritionAverages: {
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
-    paddingTop: 24,
+    paddingTop: 28,
   },
   nutritionAveragesTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: "center",
+    letterSpacing: -0.3,
   },
   nutritionAveragesGrid: {
     flexDirection: "row",
@@ -3055,34 +3323,48 @@ const styles = StyleSheet.create({
   },
   nutritionAverage: {
     alignItems: "center",
-    paddingHorizontal: 12,
-    minWidth: 80,
+    paddingHorizontal: 16,
+    minWidth: 90,
+  },
+  nutritionAverageIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
   },
   nutritionAverageValue: {
-    fontSize: Math.min(18, width * 0.045),
+    fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
-    marginTop: 8,
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.4,
   },
   nutritionAverageLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#64748B",
     fontWeight: "600",
+    letterSpacing: -0.2,
   },
 
-  // Metrics
   metricsGrid: {
-    gap: 20,
+    gap: 16,
   },
   metricCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10B981",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   metricCardContent: {
     padding: 24,
@@ -3093,10 +3375,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   metricIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#F8FAFC",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
@@ -3105,34 +3386,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricName: {
-    fontSize: Math.min(18, width * 0.045),
+    fontSize: 19,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 6,
-    letterSpacing: -0.2,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   metricStatus: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
   },
   metricStatusText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "capitalize",
+    letterSpacing: -0.2,
   },
   metricTrend: {
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    minWidth: 60,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    minWidth: 65,
   },
   metricTrendText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#64748B",
     marginTop: 4,
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
   metricValues: {
     flexDirection: "row",
@@ -3144,61 +3428,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricValueText: {
-    fontSize: Math.min(24, width * 0.06),
+    fontSize: 28,
     fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    marginBottom: 8,
+    letterSpacing: -0.7,
   },
   metricTargetText: {
-    fontSize: 15,
+    fontSize: 16,
     color: "#64748B",
     fontWeight: "600",
+    letterSpacing: -0.2,
   },
   metricPercentage: {
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    minWidth: 80,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+    minWidth: 90,
   },
   metricPercentageText: {
-    fontSize: Math.min(28, width * 0.07),
+    fontSize: 32,
     fontWeight: "800",
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   metricProgress: {
     marginBottom: 16,
   },
   metricProgressBg: {
-    height: 10,
+    height: 12,
     backgroundColor: "#F1F5F9",
-    borderRadius: 5,
+    borderRadius: 6,
     overflow: "hidden",
   },
   metricProgressFill: {
     height: "100%",
-    borderRadius: 5,
+    borderRadius: 6,
   },
   metricRecommendation: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 18,
   },
   metricRecommendationText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: "#0F172A",
     marginLeft: 12,
     flex: 1,
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
 
-  // Modal
   modalContainer: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -3210,18 +3493,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     backgroundColor: "#FFFFFF",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#0F172A",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   modalContent: {
     flex: 1,

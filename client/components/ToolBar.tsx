@@ -579,6 +579,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
     alignItems: "center",
     justifyContent: "center",
+    top: 900
   },
   menuContainer: {
     position: "absolute",

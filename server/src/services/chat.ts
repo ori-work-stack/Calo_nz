@@ -49,12 +49,12 @@ export class ChatService {
 
           // Call OpenAI with improved error handling
           const response = await openai.chat.completions.create({
-            model: "gpt-5",
+            model: "gpt-4o",
             messages: [
               { role: "system", content: systemPrompt },
               ...conversationHistory,
             ],
-            max_tokens: 1000,
+            max_completion_tokens: 1000,
             temperature: 0.7,
           });
 
@@ -442,7 +442,7 @@ For cooking questions: give suggestions for nutritional improvement of the recip
       }
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -454,7 +454,7 @@ For cooking questions: give suggestions for nutritional improvement of the recip
             content: healthPrompt,
           },
         ],
-        max_tokens: 500,
+        max_completion_tokens: 500,
         temperature: 0.7,
       });
 

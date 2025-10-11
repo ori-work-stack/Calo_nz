@@ -432,12 +432,16 @@ const AppContent = React.memo(() => {
           console.log("✅ REAL notifications initialized successfully");
 
           // Send welcome notification if user is available
+          // FIX: Check that both name and email are defined (not just truthy)
           if (user?.name && user?.email) {
+            const userName = user.name; // Capture in const for type narrowing
+            const userEmail = user.email;
+
             setTimeout(async () => {
               try {
                 await NotificationService.sendWelcomeNotification(
-                  user.name,
-                  user.email
+                  userName,
+                  userEmail
                 );
               } catch (welcomeError) {
                 console.warn("⚠️ Welcome notification failed:", welcomeError);
@@ -511,7 +515,6 @@ const AppContent = React.memo(() => {
 const MainApp = React.memo(() => {
   const helpContent = useHelpContent();
   const authState = useOptimizedAuthSelector();
-  const { isAuthenticated = false } = authState || {};
 
   return (
     <View style={styles.container}>
