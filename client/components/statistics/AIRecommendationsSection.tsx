@@ -18,11 +18,10 @@ import {
   X,
   Star,
   Clock,
-  CircleCheck as CheckCircle,
-  CircleAlert as AlertCircle,
+  CheckCircle,
+  AlertCircle,
   Info,
   Sparkles,
-  Zap,
   ArrowRight,
   Eye,
   Award,
@@ -30,11 +29,8 @@ import {
 import Animated, {
   FadeInUp,
   FadeInDown,
-  FadeIn,
   SlideInRight,
-  SlideInLeft,
   BounceIn,
-  ZoomIn,
 } from "react-native-reanimated";
 import { useTheme } from "@/src/context/ThemeContext";
 
@@ -43,7 +39,7 @@ const { width } = Dimensions.get("window");
 interface AIRecommendation {
   id: string;
   date: string;
-  recommendations: any; // Made more flexible to handle different data structures
+  recommendations: any;
   priority_level: "low" | "medium" | "high";
   confidence_score: number;
   is_read: boolean;
@@ -55,6 +51,32 @@ interface AIRecommendation {
 interface AIRecommendationsSectionProps {
   recommendations?: AIRecommendation[];
   period: "today" | "week" | "month";
+  colors: {
+    primary: string;
+    surface: string;
+    background: string;
+    text: string;
+    textSecondary: string;
+    textTertiary: string;
+    card: string;
+    border: string;
+    error: string;
+    warning: string;
+    success: string;
+    info: string;
+    emerald400: string;
+    emerald500: string;
+    emerald600: string;
+    emerald700: string;
+    muted: string;
+  };
+}
+
+interface ExtractedRecommendations {
+  nutrition_tips: string[];
+  meal_suggestions: string[];
+  goal_adjustments: string[];
+  behavioral_insights: string[];
 }
 
 const AnimatedTouchableOpacity =
@@ -94,7 +116,7 @@ const getPriorityConfig = (priority: string, colors: any) => {
 };
 
 const getRecommendationConfig = (type: string, colors: any) => {
-  const configs = {
+  const configs: Record<string, any> = {
     nutrition_tips: {
       icon: Lightbulb,
       gradient: [colors.emerald400, colors.emerald500, colors.emerald600],
@@ -119,11 +141,7 @@ const getRecommendationConfig = (type: string, colors: any) => {
   return configs[type] || configs.nutrition_tips;
 };
 
-// Helper function to extract recommendations from various data structures
-const extractRecommendationsData = (recData: any) => {
-  console.log("🔍 Raw recommendation data:", JSON.stringify(recData, null, 2));
-
-  // If recData is null or undefined, return empty structure
+const extractRecommendationsData = (recData: any): ExtractedRecommendations => {
   if (!recData) {
     return {
       nutrition_tips: [],
@@ -133,17 +151,14 @@ const extractRecommendationsData = (recData: any) => {
     };
   }
 
-  // Handle different possible data structures
-  let extractedData = {
+  let extractedData: ExtractedRecommendations = {
     nutrition_tips: [],
     meal_suggestions: [],
     goal_adjustments: [],
     behavioral_insights: [],
   };
 
-  // Try to extract data from various possible structures
   if (typeof recData === "object") {
-    // Direct structure (what the component originally expected)
     if (Array.isArray(recData.nutrition_tips)) {
       extractedData.nutrition_tips = recData.nutrition_tips;
     }
@@ -157,14 +172,11 @@ const extractRecommendationsData = (recData: any) => {
       extractedData.behavioral_insights = recData.behavioral_insights;
     }
 
-    // Alternative structures - maybe the data is nested differently
     if (recData.data) {
       return extractRecommendationsData(recData.data);
     }
 
-    // Maybe it's an array of recommendations
     if (Array.isArray(recData)) {
-      // If it's an array, treat each item as a tip and categorize them
       extractedData.nutrition_tips = recData.slice(
         0,
         Math.ceil(recData.length / 2)
@@ -174,7 +186,6 @@ const extractRecommendationsData = (recData: any) => {
       );
     }
 
-    // Maybe the structure has different field names
     Object.keys(recData).forEach((key) => {
       const value = recData[key];
       if (
@@ -182,7 +193,6 @@ const extractRecommendationsData = (recData: any) => {
         value.length > 0 &&
         typeof value[0] === "string"
       ) {
-        // Try to map based on key names
         if (
           key.toLowerCase().includes("nutrition") ||
           key.toLowerCase().includes("food") ||
@@ -206,7 +216,6 @@ const extractRecommendationsData = (recData: any) => {
         ) {
           extractedData.behavioral_insights = value;
         } else {
-          // Default to behavioral insights if we can't categorize
           extractedData.behavioral_insights = [
             ...extractedData.behavioral_insights,
             ...value,
@@ -216,7 +225,6 @@ const extractRecommendationsData = (recData: any) => {
     });
   }
 
-  // If all arrays are still empty, check if there's actual data that we can use
   const allEmpty =
     extractedData.nutrition_tips.length === 0 &&
     extractedData.meal_suggestions.length === 0 &&
@@ -224,16 +232,15 @@ const extractRecommendationsData = (recData: any) => {
     extractedData.behavioral_insights.length === 0;
 
   if (allEmpty && recData && typeof recData === "object") {
-    // Try to extract any string values as general recommendations
     const allValues: string[] = [];
-    const extractStrings = (obj: any, path: string = "") => {
+    const extractStrings = (obj: any) => {
       if (typeof obj === "string" && obj.trim().length > 10) {
         allValues.push(obj);
       } else if (Array.isArray(obj)) {
-        obj.forEach((item) => extractStrings(item, path));
+        obj.forEach((item) => extractStrings(item));
       } else if (typeof obj === "object" && obj !== null) {
-        Object.entries(obj).forEach(([key, value]) => {
-          extractStrings(value, path ? `${path}.${key}` : key);
+        Object.values(obj).forEach((value) => {
+          extractStrings(value);
         });
       }
     };
@@ -241,7 +248,6 @@ const extractRecommendationsData = (recData: any) => {
     extractStrings(recData);
 
     if (allValues.length > 0) {
-      // Distribute the found strings across categories
       const quarter = Math.ceil(allValues.length / 4);
       extractedData.nutrition_tips = allValues.slice(0, quarter);
       extractedData.meal_suggestions = allValues.slice(quarter, quarter * 2);
@@ -253,40 +259,18 @@ const extractRecommendationsData = (recData: any) => {
     }
   }
 
-  console.log("✅ Extracted recommendation data:", extractedData);
   return extractedData;
 };
 
 export const AIRecommendationsSection: React.FC<
   AIRecommendationsSectionProps
 > = ({ recommendations = [], period }) => {
-  const { colors } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<AIRecommendation | null>(null);
-
-  // Debug logging
-  console.log("🚀 AIRecommendationsSection received:", {
-    recommendationsLength: recommendations.length,
-    period,
-    firstRecommendation: recommendations[0]
-      ? {
-          id: recommendations[0].id,
-          date: recommendations[0].date,
-          recommendationsType: typeof recommendations[0].recommendations,
-          recommendationsKeys: recommendations[0].recommendations
-            ? Object.keys(recommendations[0].recommendations)
-            : "none",
-        }
-      : "none",
-  });
-
+  const { colors } = useTheme();
   const filteredRecommendations = useMemo(() => {
     if (!Array.isArray(recommendations)) {
-      console.warn(
-        "AIRecommendationsSection: recommendations prop is not an array:",
-        recommendations
-      );
       return [];
     }
 
@@ -305,12 +289,9 @@ export const AIRecommendationsSection: React.FC<
         break;
     }
 
-    const filtered = recommendations
+    return recommendations
       .filter((rec) => new Date(rec.date) >= filterDate)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    console.log("🔢 Filtered recommendations:", filtered.length);
-    return filtered;
   }, [recommendations, period]);
 
   const latestRecommendation = filteredRecommendations[0];
@@ -344,116 +325,6 @@ export const AIRecommendationsSection: React.FC<
     </Animated.View>
   );
 
-  const renderFullRecommendationsList = () => {
-    return (
-      <ScrollView
-        style={styles.fullListContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.fullListContent}
-      >
-        {filteredRecommendations.map((recommendation, index) => {
-          const priorityConfig = getPriorityConfig(
-            recommendation.priority_level,
-            colors
-          );
-          const extractedRecs = extractRecommendationsData(
-            recommendation.recommendations
-          );
-          const allTips = [
-            ...extractedRecs.nutrition_tips,
-            ...extractedRecs.meal_suggestions,
-            ...extractedRecs.goal_adjustments,
-            ...extractedRecs.behavioral_insights,
-          ];
-
-          if (allTips.length === 0) {
-            allTips.push(
-              `AI Analysis from ${new Date(
-                recommendation.date
-              ).toLocaleDateString()}`,
-              `Priority: ${recommendation.priority_level.toUpperCase()}`,
-              `Confidence: ${Math.round(
-                (recommendation.confidence_score || 0) * 100
-              )}%`
-            );
-          }
-
-          return (
-            <Animated.View
-              key={recommendation.id}
-              entering={FadeInUp.delay(index * 100)}
-              style={[
-                styles.cleanRecommendationCard,
-                { backgroundColor: colors.surface },
-              ]}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.headerLeft}>
-                  <View
-                    style={[
-                      styles.priorityDot,
-                      { backgroundColor: priorityConfig.colors[0] },
-                    ]}
-                  />
-                  <Text style={[styles.cardDate, { color: colors.text }]}>
-                    {new Date(recommendation.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.confidenceBadge,
-                    { backgroundColor: colors.background },
-                  ]}
-                >
-                  <Star size={12} color={colors.warning} />
-                  <Text
-                    style={[
-                      styles.confidenceScore,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {Math.round((recommendation.confidence_score || 0) * 100)}%
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>
-                  AI Insights & Recommendations
-                </Text>
-                <View style={styles.tipsContainer}>
-                  {allTips.map((tip, tipIndex) => (
-                    <View key={tipIndex} style={styles.tipRow}>
-                      <View
-                        style={[
-                          styles.tipBullet,
-                          { backgroundColor: colors.primary },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.tipText,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        {tip}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </Animated.View>
-          );
-        })}
-      </ScrollView>
-    );
-  };
-
   const renderRecommendationPreview = () => {
     if (!latestRecommendation) {
       return renderEmptyState();
@@ -474,16 +345,17 @@ export const AIRecommendationsSection: React.FC<
     ];
 
     if (allTips.length === 0) {
+      const recDate = new Date(latestRecommendation.date);
       allTips.push(
-        `AI Analysis from ${new Date(
-          latestRecommendation.date
-        ).toLocaleDateString()}`,
+        `AI Analysis from ${recDate.toLocaleDateString()}`,
         `Priority: ${latestRecommendation.priority_level.toUpperCase()}`,
         `Confidence: ${Math.round(
           (latestRecommendation.confidence_score || 0) * 100
         )}%`
       );
     }
+
+    const recDate = new Date(latestRecommendation.date);
 
     return (
       <TouchableOpacity
@@ -495,7 +367,6 @@ export const AIRecommendationsSection: React.FC<
           colors={[colors.surface, colors.background]}
           style={styles.previewGradient}
         >
-          {/* Header */}
           <View style={styles.previewHeader}>
             <View style={styles.previewHeaderLeft}>
               <LinearGradient
@@ -529,7 +400,6 @@ export const AIRecommendationsSection: React.FC<
             </View>
           </View>
 
-          {/* AI Badge */}
           <LinearGradient
             colors={[colors.primary, colors.emerald600]}
             style={styles.previewAiBadge}
@@ -538,7 +408,6 @@ export const AIRecommendationsSection: React.FC<
             <Text style={styles.previewAiText}>AI INSIGHTS</Text>
           </LinearGradient>
 
-          {/* Content Preview */}
           <View style={styles.previewContent}>
             {allTips.slice(0, 2).map((tip, index) => (
               <View key={index} style={styles.previewTipRow}>
@@ -569,7 +438,6 @@ export const AIRecommendationsSection: React.FC<
             )}
           </View>
 
-          {/* Footer */}
           <View
             style={[styles.previewFooter, { borderTopColor: colors.border }]}
           >
@@ -578,15 +446,12 @@ export const AIRecommendationsSection: React.FC<
               <Text
                 style={[styles.previewDateText, { color: colors.textTertiary }]}
               >
-                {new Date(latestRecommendation.date).toLocaleDateString(
-                  "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  }
-                )}
+                {recDate.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
               </Text>
             </View>
 
@@ -603,6 +468,190 @@ export const AIRecommendationsSection: React.FC<
       </TouchableOpacity>
     );
   };
+
+  const renderAppleStyleList = () => (
+    <ScrollView
+      style={[styles.newListContainer, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.newListContent}
+    >
+      {filteredRecommendations.map((recommendation, index) => {
+        const priorityConfig = getPriorityConfig(
+          recommendation.priority_level,
+          colors
+        );
+        const extractedRecs = extractRecommendationsData(
+          recommendation.recommendations
+        );
+        const allTips = [
+          ...extractedRecs.nutrition_tips,
+          ...extractedRecs.meal_suggestions,
+          ...extractedRecs.goal_adjustments,
+          ...extractedRecs.behavioral_insights,
+        ];
+
+        if (allTips.length === 0) {
+          const recDate = new Date(recommendation.date);
+          allTips.push(
+            `AI Analysis completed on ${recDate.toLocaleDateString()}`,
+            `Priority Level: ${recommendation.priority_level.toUpperCase()}`,
+            `Confidence Score: ${Math.round(
+              (recommendation.confidence_score || 0) * 100
+            )}%`,
+            "Detailed insights are being processed"
+          );
+        }
+
+        const recDate = new Date(recommendation.date);
+
+        return (
+          <Animated.View
+            key={recommendation.id}
+            entering={FadeInUp.delay(index * 100)}
+            style={[styles.newListCard, { backgroundColor: colors.surface }]}
+          >
+            <TouchableOpacity
+              onPress={() => setSelectedRecommendation(recommendation)}
+              style={styles.newListCardTouchable}
+              activeOpacity={0.7}
+            >
+              <View style={styles.newCardHeader}>
+                <View style={styles.newCardTopRow}>
+                  <View style={styles.newCardDateSection}>
+                    <Text style={[styles.newCardDay, { color: colors.text }]}>
+                      {recDate.toLocaleDateString(undefined, {
+                        day: "numeric",
+                      })}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.newCardMonth,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {recDate.toLocaleDateString(undefined, {
+                        month: "short",
+                      })}
+                    </Text>
+                  </View>
+
+                  <LinearGradient
+                    colors={priorityConfig.colors}
+                    style={styles.newCardPriorityFloat}
+                  >
+                    <priorityConfig.icon size={12} color="white" />
+                    <Text style={styles.newCardPriorityText}>
+                      {recommendation.priority_level.charAt(0).toUpperCase() +
+                        recommendation.priority_level.slice(1)}
+                    </Text>
+                  </LinearGradient>
+                </View>
+
+                <View style={styles.newCardBadgeRow}>
+                  <LinearGradient
+                    colors={[colors.primary, colors.emerald600]}
+                    style={styles.newCardAiBadge}
+                  >
+                    <Sparkles size={8} color="white" />
+                    <Text style={styles.newCardAiText}>AI</Text>
+                  </LinearGradient>
+
+                  <View style={styles.newCardConfidence}>
+                    <Star size={10} color={colors.warning} />
+                    <Text
+                      style={[
+                        styles.newCardConfidenceText,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {Math.round((recommendation.confidence_score || 0) * 100)}
+                      % confidence
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.newCardContent}>
+                <Text
+                  style={[styles.newCardPreviewTitle, { color: colors.text }]}
+                >
+                  Latest Insights
+                </Text>
+
+                {allTips.slice(0, 2).map((tip, tipIndex) => (
+                  <View key={tipIndex} style={styles.newCardTipRow}>
+                    <View
+                      style={[
+                        styles.newCardTipDot,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.newCardTipText,
+                        { color: colors.textSecondary },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {tip}
+                    </Text>
+                  </View>
+                ))}
+
+                {allTips.length > 2 && (
+                  <View style={styles.newCardMoreSection}>
+                    <Text
+                      style={[
+                        styles.newCardMoreText,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      +{allTips.length - 2} more insights
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.newCardFooter,
+                  { borderTopColor: colors.border },
+                ]}
+              >
+                <View style={styles.newCardFooterLeft}>
+                  <Clock size={10} color={colors.textTertiary} />
+                  <Text
+                    style={[
+                      styles.newCardFooterTime,
+                      { color: colors.textTertiary },
+                    ]}
+                  >
+                    {recDate.toLocaleDateString(undefined, {
+                      weekday: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+
+                <View style={styles.newCardFooterRight}>
+                  <Text
+                    style={[
+                      styles.newCardFooterAction,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    View Details
+                  </Text>
+                  <ChevronRight size={12} color={colors.primary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        );
+      })}
+    </ScrollView>
+  );
 
   const renderFullRecommendation = (recommendation: AIRecommendation) => {
     const extractedRecs = extractRecommendationsData(
@@ -640,6 +689,8 @@ export const AIRecommendationsSection: React.FC<
       },
     ];
 
+    const recDate = new Date(recommendation.date);
+
     return (
       <ScrollView
         style={[
@@ -648,7 +699,6 @@ export const AIRecommendationsSection: React.FC<
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <Animated.View entering={FadeInDown} style={styles.fullHeader}>
           <LinearGradient
             colors={priorityConfig.colors}
@@ -656,7 +706,7 @@ export const AIRecommendationsSection: React.FC<
           >
             <View style={styles.fullHeaderContent}>
               <Text style={styles.fullHeaderDate}>
-                {new Date(recommendation.date).toLocaleDateString("en-US", {
+                {recDate.toLocaleDateString(undefined, {
                   weekday: "long",
                   year: "numeric",
                   month: "long",
@@ -682,7 +732,6 @@ export const AIRecommendationsSection: React.FC<
           </LinearGradient>
         </Animated.View>
 
-        {/* Sections */}
         <View style={styles.sectionsContainer}>
           {sections.map(
             (section, sectionIndex) =>
@@ -757,201 +806,6 @@ export const AIRecommendationsSection: React.FC<
     );
   };
 
-  // Apple-style list with refined design
-  const renderAppleStyleList = () => (
-    <ScrollView
-      style={[styles.newListContainer, { backgroundColor: colors.background }]}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.newListContent}
-    >
-      {filteredRecommendations.map((recommendation, index) => {
-        const priorityConfig = getPriorityConfig(
-          recommendation.priority_level,
-          colors
-        );
-        const extractedRecs = extractRecommendationsData(
-          recommendation.recommendations
-        );
-        const allTips = [
-          ...extractedRecs.nutrition_tips,
-          ...extractedRecs.meal_suggestions,
-          ...extractedRecs.goal_adjustments,
-          ...extractedRecs.behavioral_insights,
-        ];
-
-        // Fallback if no tips - show meaningful information
-        if (allTips.length === 0) {
-          allTips.push(
-            `AI Analysis completed on ${new Date(
-              recommendation.date
-            ).toLocaleDateString()}`,
-            `Priority Level: ${recommendation.priority_level.toUpperCase()}`,
-            `Confidence Score: ${Math.round(
-              (recommendation.confidence_score || 0) * 100
-            )}%`,
-            "Detailed insights are being processed"
-          );
-        }
-
-        return (
-          <Animated.View
-            key={recommendation.id}
-            entering={FadeInUp.delay(index * 100)}
-            style={[styles.newListCard, { backgroundColor: colors.surface }]}
-          >
-            <TouchableOpacity
-              onPress={() => setSelectedRecommendation(recommendation)}
-              style={styles.newListCardTouchable}
-              activeOpacity={0.7}
-            >
-              {/* Card Header with floating priority badge */}
-              <View style={styles.newCardHeader}>
-                <View style={styles.newCardTopRow}>
-                  <View style={styles.newCardDateSection}>
-                    <Text style={[styles.newCardDay, { color: colors.text }]}>
-                      {new Date(recommendation.date).toLocaleDateString(
-                        "en-US",
-                        {
-                          day: "numeric",
-                        }
-                      )}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.newCardMonth,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {new Date(recommendation.date).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                        }
-                      )}
-                    </Text>
-                  </View>
-
-                  <LinearGradient
-                    colors={priorityConfig.colors}
-                    style={styles.newCardPriorityFloat}
-                  >
-                    <priorityConfig.icon size={12} color="white" />
-                    <Text style={styles.newCardPriorityText}>
-                      {recommendation.priority_level.charAt(0).toUpperCase() +
-                        recommendation.priority_level.slice(1)}
-                    </Text>
-                  </LinearGradient>
-                </View>
-
-                {/* AI Badge and Confidence Score */}
-                <View style={styles.newCardBadgeRow}>
-                  <LinearGradient
-                    colors={[colors.primary, colors.emerald600]}
-                    style={styles.newCardAiBadge}
-                  >
-                    <Sparkles size={8} color="white" />
-                    <Text style={styles.newCardAiText}>AI</Text>
-                  </LinearGradient>
-
-                  <View style={styles.newCardConfidence}>
-                    <Star size={10} color={colors.warning} />
-                    <Text
-                      style={[
-                        styles.newCardConfidenceText,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {Math.round((recommendation.confidence_score || 0) * 100)}
-                      % confidence
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Main Content Preview */}
-              <View style={styles.newCardContent}>
-                <Text
-                  style={[styles.newCardPreviewTitle, { color: colors.text }]}
-                >
-                  Latest Insights
-                </Text>
-
-                {allTips.slice(0, 2).map((tip, tipIndex) => (
-                  <View key={tipIndex} style={styles.newCardTipRow}>
-                    <View
-                      style={[
-                        styles.newCardTipDot,
-                        { backgroundColor: colors.primary },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.newCardTipText,
-                        { color: colors.textSecondary },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {tip}
-                    </Text>
-                  </View>
-                ))}
-
-                {allTips.length > 2 && (
-                  <View style={styles.newCardMoreSection}>
-                    <Text
-                      style={[
-                        styles.newCardMoreText,
-                        { color: colors.primary },
-                      ]}
-                    >
-                      +{allTips.length - 2} more insights
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Card Footer */}
-              <View
-                style={[
-                  styles.newCardFooter,
-                  { borderTopColor: colors.border },
-                ]}
-              >
-                <View style={styles.newCardFooterLeft}>
-                  <Clock size={10} color={colors.textTertiary} />
-                  <Text
-                    style={[
-                      styles.newCardFooterTime,
-                      { color: colors.textTertiary },
-                    ]}
-                  >
-                    {new Date(recommendation.date).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </View>
-
-                <View style={styles.newCardFooterRight}>
-                  <Text
-                    style={[
-                      styles.newCardFooterAction,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    View Details
-                  </Text>
-                  <ChevronRight size={12} color={colors.primary} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        );
-      })}
-    </ScrollView>
-  );
-
   return (
     <Animated.View
       entering={FadeInUp}
@@ -961,20 +815,19 @@ export const AIRecommendationsSection: React.FC<
         colors={[colors.surface, colors.background, colors.surface]}
         style={styles.sectionGradient}
       >
-        {/* Clean Header */}
         <Animated.View entering={SlideInRight.delay(100)} style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.titleContainer}>
               <View
                 style={[
                   styles.titleIcon,
-                  { backgroundColor: colors.primary + "20" },
+                  { backgroundColor: `${colors.primary}20` },
                 ]}
               >
                 <Brain size={16} color={colors.primary} />
               </View>
               <View>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                <Text style={[styles.sectionTitleMain, { color: colors.text }]}>
                   AI Insights
                 </Text>
                 <Text
@@ -990,11 +843,9 @@ export const AIRecommendationsSection: React.FC<
           </View>
         </Animated.View>
 
-        {/* Preview */}
         {renderRecommendationPreview()}
       </LinearGradient>
 
-      {/* Full Recommendations Modal with Apple-style design */}
       <Modal
         visible={showModal}
         animationType="slide"
@@ -1007,7 +858,6 @@ export const AIRecommendationsSection: React.FC<
             { backgroundColor: colors.background },
           ]}
         >
-          {/* Apple-style modal header */}
           <View
             style={[
               styles.appleModalHeader,
@@ -1055,12 +905,10 @@ export const AIRecommendationsSection: React.FC<
             </View>
           </View>
 
-          {/* Enhanced list with Apple design */}
           {renderAppleStyleList()}
         </View>
       </Modal>
 
-      {/* Individual Recommendation Modal */}
       <Modal
         visible={!!selectedRecommendation}
         animationType="slide"
@@ -1102,9 +950,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: "hidden",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
   },
   sectionGradient: {
     padding: 20,
@@ -1120,152 +968,55 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   titleIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
   },
-  sectionTitle: {
-    fontSize: 18,
+  sectionTitleMain: {
+    fontSize: 20,
     fontWeight: "700",
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   sectionSubtitle: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 13,
+    marginTop: 2,
     fontWeight: "500",
   },
-  headerViewAllButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  headerViewAllGradient: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Empty State
   emptyState: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
   },
   emptyGradient: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 20,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
-    marginTop: 12,
+    marginTop: 16,
     textAlign: "center",
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: "center",
-    marginTop: 6,
-    lineHeight: 20,
+    marginTop: 8,
+    lineHeight: 22,
   },
-
-  // Full Recommendations List
-  fullListContainer: {
-    flex: 1,
-  },
-  fullListContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  cleanRecommendationCard: {
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  cardDate: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  confidenceBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  confidenceScore: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  cardContent: {
-    gap: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  tipsContainer: {
-    gap: 8,
-  },
-  tipRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  tipBullet: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 6,
-    flexShrink: 0,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-
-  // Preview Container
   previewContainer: {
     borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
-    marginBottom: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   previewGradient: {
     padding: 20,
@@ -1285,35 +1036,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
     gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
   },
   previewPriorityText: {
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "white",
     letterSpacing: 0.5,
   },
   previewConfidenceContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
   previewConfidenceText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   previewViewAllButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1327,17 +1073,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
   previewAiText: {
     fontSize: 10,
     fontWeight: "800",
     color: "white",
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   previewContent: {
     gap: 12,
@@ -1349,17 +1090,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   previewTipBullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
   },
   previewTipBulletInner: {
     width: 6,
@@ -1369,19 +1105,19 @@ const styles = StyleSheet.create({
   },
   previewTipText: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: "500",
   },
   previewMoreIndicator: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingLeft: 32,
+    paddingLeft: 34,
     marginTop: 4,
   },
   previewMoreText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
   previewFooter: {
@@ -1397,7 +1133,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   previewDateText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
   },
   previewViewAllContainer: {
@@ -1406,16 +1142,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   previewViewAllText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
-
-  // Modal Styles
   modalContainer: {
     flex: 1,
   },
-
-  // Apple-style Modal Header
   appleModalHeader: {
     paddingTop: 8,
     paddingBottom: 20,
@@ -1425,7 +1157,7 @@ const styles = StyleSheet.create({
   appleModalHandle: {
     width: 36,
     height: 5,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.2)",
     borderRadius: 3,
     alignSelf: "center",
     marginBottom: 20,
@@ -1442,11 +1174,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   appleModalTitleContainer: {
     flexDirection: "row",
@@ -1462,11 +1189,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
   appleModalTitle: {
     fontSize: 18,
@@ -1479,8 +1201,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
-
-  // NEW LIST DESIGN STYLES
   newListContainer: {
     flex: 1,
   },
@@ -1493,9 +1213,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 6,
     overflow: "hidden",
   },
   newListCardTouchable: {
@@ -1514,9 +1234,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   newCardDay: {
-    fontSize: 24,
-    fontWeight: "800",
-    lineHeight: 28,
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 32,
   },
   newCardMonth: {
     fontSize: 11,
@@ -1531,11 +1251,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
   newCardPriorityText: {
     fontSize: 11,
@@ -1552,8 +1267,8 @@ const styles = StyleSheet.create({
   newCardAiBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 12,
     gap: 4,
   },
@@ -1561,7 +1276,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     color: "white",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   newCardConfidence: {
     flexDirection: "row",
@@ -1569,44 +1284,44 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   newCardConfidenceText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
   },
   newCardContent: {
     marginBottom: 16,
   },
   newCardPreviewTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 10,
     letterSpacing: -0.2,
   },
   newCardTipRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 10,
     paddingRight: 8,
   },
   newCardTipDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 6,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginTop: 7,
     marginRight: 10,
     flexShrink: 0,
   },
   newCardTipText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: "400",
   },
   newCardMoreSection: {
     marginTop: 4,
-    paddingLeft: 14,
+    paddingLeft: 15,
   },
   newCardMoreText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   newCardFooter: {
@@ -1619,23 +1334,21 @@ const styles = StyleSheet.create({
   newCardFooterLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
   newCardFooterTime: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
   },
   newCardFooterRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
   newCardFooterAction: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
-
-  // Individual Modal
   individualModalHeader: {
     padding: 16,
     paddingTop: 50,
@@ -1646,13 +1359,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   individualModalCloseGradient: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // Full Recommendation
   fullRecommendationContainer: {
     flex: 1,
   },
@@ -1660,8 +1371,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   fullHeaderGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   fullHeaderContent: {
     alignItems: "center",
@@ -1680,75 +1391,74 @@ const styles = StyleSheet.create({
   fullHeaderBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
   },
   fullHeaderBadgeText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "white",
   },
   fullHeaderScore: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
   },
   fullHeaderScoreText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "white",
   },
-
-  // Sections
   sectionsContainer: {
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
   recommendationSection: {
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
+    padding: 16,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: 14,
+    gap: 12,
   },
   sectionIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
   },
   sectionTitleContainer: {
     flex: 1,
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+  },
   sectionCount: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
-    marginTop: 1,
+    marginTop: 2,
   },
   sectionContent: {
-    gap: 10,
+    gap: 12,
   },
   recommendationItem: {
     flexDirection: "row",
@@ -1756,22 +1466,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   itemBullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
   },
   itemBulletInner: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: "white",
   },
   itemContent: {
@@ -1779,7 +1484,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 14,
-    lineHeight: 19,
+    lineHeight: 20,
     fontWeight: "500",
   },
 });
