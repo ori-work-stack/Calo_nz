@@ -30,47 +30,49 @@ export class EnhancedAIRecommendationService {
     try {
       const today = new Date().toISOString().split("T")[0];
 
-      // Get users who need recommendations with optimized query
-      const eligibleUsers = await prisma.user.findMany({
-        where: {
-          AND: [
-            { is_questionnaire_completed: true },
-            {
-              // Only users without recommendations for today
-              aiRecommendations: {
-                none: {
-                  date: today,
-                },
-              },
-            },
-          ],
+      // Get all users with signup date
+      const users = await prisma.user.findMany({
+        select: {
+          user_id: true,
+          subscription_type: true,
+          signup_date: true,
         },
-        include: {
-          questionnaires: {
-            orderBy: { date_completed: "desc" },
-            take: 1,
-          },
-        },
-        take: 50, // Limit to prevent overwhelming the system
       });
 
-      console.log(
-        `🎯 Found ${eligibleUsers.length} users needing AI recommendations`
-      );
+      console.log(`🎯 Found ${users.length} users to process.`);
 
-      if (eligibleUsers.length === 0) {
-        console.log("📝 No users need AI recommendations today");
+      if (users.length === 0) {
+        console.log("📝 No users found for AI recommendations.");
         return result;
       }
 
       // Process users in smaller batches
       const batchSize = 5;
-      for (let i = 0; i < eligibleUsers.length; i += batchSize) {
-        const batch = eligibleUsers.slice(i, i + batchSize);
+      for (let i = 0; i < users.length; i += batchSize) {
+        const batch = users.slice(i, i + batchSize);
 
         await Promise.all(
           batch.map(async (user) => {
             try {
+              // Import plan limits
+              const { shouldCreateAIRecommendationToday } = await import(
+                "../../config/planLimits"
+              );
+
+              // Check if user is eligible based on their tier
+              if (
+                !shouldCreateAIRecommendationToday(
+                  user.subscription_type,
+                  user.signup_date
+                )
+              ) {
+                result.skipped++;
+                console.log(
+                  `⏭️ Skipped user ${user.user_id} - tier not eligible for AI recommendations today.`
+                );
+                return;
+              }
+
               // Double-check for duplicates
               const duplicateCheck =
                 await DatabaseOptimizationService.checkForDuplicates(
@@ -90,7 +92,10 @@ export class EnhancedAIRecommendationService {
               const recommendation =
                 await this.generatePersonalizedRecommendation(
                   user.user_id,
-                  user.questionnaires[0]
+                  // Assuming questionnaire data can be fetched here if needed,
+                  // or passed if available in the user object.
+                  // For now, let's assume it's fetched within generatePersonalizedRecommendation.
+                  null // Placeholder, as questionnaire is not directly fetched here.
                 );
 
               if (recommendation) {
@@ -114,7 +119,7 @@ export class EnhancedAIRecommendationService {
         );
 
         // Delay between batches to be respectful to API limits
-        if (i + batchSize < eligibleUsers.length) {
+        if (i + batchSize < users.length) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
@@ -138,6 +143,33 @@ export class EnhancedAIRecommendationService {
   ): Promise<DailyRecommendation> {
     try {
       console.log("🤖 Generating daily AI recommendations for user:", userId);
+
+      // Get user's tier and signup date for eligibility check
+      const user = await prisma.user.findUnique({
+        where: { user_id: userId },
+        select: {
+          subscription_type: true,
+          signup_date: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Import plan limits
+      const { shouldCreateDailyGoals } = await import(
+        "../../config/planLimits"
+      );
+
+      // Check if user is eligible for daily goals based on their tier
+      if (!shouldCreateDailyGoals(user.subscription_type, user.signup_date)) {
+        console.log(
+          `⏭️ Skipping daily goals for user ${userId} - tier not eligible.`
+        );
+        // Return a default/empty recommendation if not eligible
+        return this.getFallbackRecommendations(userId);
+      }
 
       // Get user's recent performance (last 7 days)
       const recentStats = await StatisticsService.getNutritionStatistics(
@@ -186,7 +218,7 @@ export class EnhancedAIRecommendationService {
     } catch (error) {
       console.error("💥 Error generating daily recommendations:", error);
 
-      // Return fallback recommendations if AI fails
+      // Return fallback recommendations if AI fails or user is not eligible
       return this.getFallbackRecommendations(userId);
     }
   }
@@ -318,13 +350,21 @@ Be specific, actionable, and encouraging. Focus on realistic improvements.
    */
   private static async generatePersonalizedRecommendation(
     userId: string,
-    questionnaire: any
+    questionnaire: any // This parameter might need to be fetched if not passed
   ): Promise<DailyRecommendation | null> {
     try {
       console.log(
         "🎯 Generating personalized recommendation for user:",
         userId
       );
+
+      // Fetch questionnaire if not provided
+      if (!questionnaire) {
+        questionnaire = await prisma.userQuestionnaire.findFirst({
+          where: { user_id: userId },
+          orderBy: { date_completed: "desc" },
+        });
+      }
 
       // Get user's recent performance data
       const recentData = await this.getUserRecentPerformance(userId);
