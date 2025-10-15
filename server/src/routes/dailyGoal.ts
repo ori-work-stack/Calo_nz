@@ -13,6 +13,21 @@ router.get("/", authenticateToken, async (req: AuthRequest, res) => {
     console.log("📊 === DAILY GOALS GET REQUEST ===");
     console.log("📊 User ID:", userId);
 
+    // Check user subscription
+    const user = await prisma.user.findUnique({
+      where: { user_id: userId },
+      select: { subscription_type: true },
+    });
+
+    if (!user || user.subscription_type === "FREE") {
+      return res.status(403).json({
+        success: false,
+        error:
+          "Daily goals are not available on the Free plan. Please upgrade to Gold or Platinum.",
+        subscriptionRequired: true,
+      });
+    }
+
     // Use enhanced service to get goals (creates if missing)
     const goals = await EnhancedDailyGoalsService.getUserDailyGoals(userId);
 

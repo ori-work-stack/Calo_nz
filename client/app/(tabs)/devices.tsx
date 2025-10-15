@@ -15,6 +15,9 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useSelector } from "react-redux";
+import { RootState } from "@/src/store";
 import {
   deviceAPI,
   ConnectedDevice,
@@ -114,6 +117,8 @@ export default function DevicesScreen() {
   const { t } = useTranslation();
   const { isRTL, language } = useLanguage();
   const { colors, isDark } = useTheme();
+  const router = useRouter();
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const [connectedDevices, setConnectedDevices] = useState<ConnectedDevice[]>(
     []
@@ -129,8 +134,31 @@ export default function DevicesScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check subscription access
+    if (!user || user.subscription_type === "FREE") {
+      Alert.alert(
+        language === "he" ? "שדרוג נדרש" : "Upgrade Required",
+        language === "he"
+          ? "חיבור מכשירים זמין רק במנויי Gold ו-Platinum"
+          : "Device integration is only available on Gold and Platinum plans.",
+        [
+          {
+            text: language === "he" ? "ביטול" : "Cancel",
+            onPress: () => router.replace("/(tabs)"),
+            style: "cancel",
+          },
+          {
+            text: language === "he" ? "שדרג" : "Upgrade",
+            onPress: () => router.replace("/payment-plan"),
+          },
+        ]
+      );
+      setTimeout(() => router.replace("/(tabs)"), 100);
+      return;
+    }
+
     loadDeviceData();
-  }, []);
+  }, [user]);
 
   const loadDeviceData = async () => {
     try {

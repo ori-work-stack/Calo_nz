@@ -75,16 +75,27 @@ const createApiInstance = (): AxiosInstance => {
         return instance(originalRequest);
       }
 
-      // Handle 401 errors (token expiration)
+      // Handle 401 errors (token expiration/invalid token)
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
 
         try {
           // Clear invalid token
           await clearStoredToken();
-          console.log("🔄 Token expired, cleared from storage");
+          console.log("🔒 Token invalid/expired - clearing and logging out");
+
+          // Import store dynamically to avoid circular dependencies
+          const { store } = await import("../store");
+          const { signOut } = await import("../store/authSlice");
+
+          // Dispatch logout
+          store.dispatch(signOut());
+
+          // Redirect to welcome page using router
+          const { router } = await import("expo-router");
+          router.replace("/(auth)/welcome");
         } catch (clearError) {
-          console.warn("Failed to clear token:", clearError);
+          console.warn("⚠️ Failed to handle 401 error:", clearError);
         }
       }
 

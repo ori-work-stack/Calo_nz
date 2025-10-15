@@ -6,7 +6,6 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
-  Dimensions,
   Platform,
   Pressable,
 } from "react-native";
@@ -28,11 +27,14 @@ import {
   Moon,
   CircleHelp as HelpCircle,
   X,
-  Sparkles,
+  Star,
 } from "lucide-react-native";
 import { useTheme } from "../src/context/ThemeContext";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import { ToastService } from "@/src/services/totastService";
+import { useSelector } from "react-redux";
+import { RootState } from "@/src/store";
+import SubscriptionComparison from "./SubscriptionComparison";
 
 interface HelpContent {
   title: string;
@@ -66,7 +68,10 @@ const ToolBar: React.FC<ToolBarProps> = ({
   const { isDark, toggleTheme, colors } = useTheme();
   const [showHelp, setShowHelp] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSubscriptionComparison, setShowSubscriptionComparison] =
+    useState(false);
   const insets = useSafeAreaInsets();
+  const { user } = useSelector((state: RootState) => state.auth);
 
   // Animation values
   const fabScale = useSharedValue(1);
@@ -75,15 +80,19 @@ const ToolBar: React.FC<ToolBarProps> = ({
   const backdropOpacity = useSharedValue(0);
   const pulseScale = useSharedValue(1);
 
-  // Button positions for radial menu
+  // Button positions for radial menu (4 buttons)
   const button1Position = useSharedValue({ x: 0, y: 0 });
   const button2Position = useSharedValue({ x: 0, y: 0 });
   const button3Position = useSharedValue({ x: 0, y: 0 });
+  const button4Position = useSharedValue({ x: 0, y: 0 });
 
   // Button scales for staggered animation
   const button1Scale = useSharedValue(0);
   const button2Scale = useSharedValue(0);
   const button3Scale = useSharedValue(0);
+  const button4Scale = useSharedValue(0);
+
+  const isFreeUser = user?.subscription_type === "FREE";
 
   const handleToggleMenu = useCallback(() => {
     const newExpanded = !isExpanded;
@@ -91,30 +100,24 @@ const ToolBar: React.FC<ToolBarProps> = ({
 
     const expandDirection = isRTL ? 1 : -1;
 
-    // Add haptic feedback
     fabScale.value = withSequence(
       withTiming(0.95, { duration: 100 }),
       withSpring(1, SPRING_CONFIG)
     );
 
     if (newExpanded) {
-      // Opening animation
       fabRotation.value = withSpring(45, SPRING_CONFIG);
       menuOpacity.value = withTiming(1, TIMING_CONFIG);
       backdropOpacity.value = withTiming(0.4, TIMING_CONFIG);
 
-      // Staggered button animations
-      // Perfect quarter circle animation for buttons
-      const radius = 80; // Adjust this to change the size of the arc
+      const radius = 80;
 
-      // Calculate positions for a perfect quarter circle
-      // Angles: 15°, 45°, 75° (or adjust as needed)
-      const angle1 = (15 * Math.PI) / 180; // 15 degrees in radians
-      const angle2 = (45 * Math.PI) / 180; // 45 degrees in radians
-      const angle3 = (75 * Math.PI) / 180; // 75 degrees in radians
+      const angle1 = (0 * Math.PI) / 180; // 0 degrees (right-top)
+      const angle2 = (30 * Math.PI) / 180; // 30 degrees (right)
+      const angle3 = (60 * Math.PI) / 180; // 60 degrees (right-bottom)
+      const angle4 = (90 * Math.PI) / 180; // -90 degrees (right-bottom)
 
-      // For right expansion (expandDirection = 1)
-      // For left expansion (expandDirection = -1), we flip the x coordinates
+      // Language button
       button1Position.value = withSpring(
         {
           x: expandDirection * radius * Math.cos(angle1),
@@ -124,6 +127,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
       );
       button1Scale.value = withDelay(50, withSpring(1, SPRING_CONFIG));
 
+      // Theme button
       button2Position.value = withSpring(
         {
           x: expandDirection * radius * Math.cos(angle2),
@@ -133,6 +137,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
       );
       button2Scale.value = withDelay(100, withSpring(1, SPRING_CONFIG));
 
+      // Help button - ALWAYS visible
       button3Position.value = withSpring(
         {
           x: expandDirection * radius * Math.cos(angle3),
@@ -141,17 +146,27 @@ const ToolBar: React.FC<ToolBarProps> = ({
         SPRING_CONFIG
       );
       button3Scale.value = withDelay(150, withSpring(1, SPRING_CONFIG));
-      button3Scale.value = withDelay(150, withSpring(1, SPRING_CONFIG));
+
+      // Sparkles/Subscription button (only for FREE users)
+      if (isFreeUser) {
+        button4Position.value = withSpring(
+          {
+            x: expandDirection * radius * Math.cos(angle4),
+            y: -radius * Math.sin(angle4),
+          },
+          SPRING_CONFIG
+        );
+        button4Scale.value = withDelay(200, withSpring(1, SPRING_CONFIG));
+      }
     } else {
-      // Closing animation
       fabRotation.value = withSpring(0, SPRING_CONFIG);
       menuOpacity.value = withTiming(0, { duration: 200 });
       backdropOpacity.value = withTiming(0, { duration: 200 });
 
-      // Reset button scales first, then positions
       button1Scale.value = withTiming(0, { duration: 150 });
       button2Scale.value = withTiming(0, { duration: 150 });
       button3Scale.value = withTiming(0, { duration: 150 });
+      button4Scale.value = withTiming(0, { duration: 150 });
 
       button1Position.value = withDelay(
         100,
@@ -165,10 +180,15 @@ const ToolBar: React.FC<ToolBarProps> = ({
         100,
         withSpring({ x: 0, y: 0 }, SPRING_CONFIG)
       );
+      button4Position.value = withDelay(
+        100,
+        withSpring({ x: 0, y: 0 }, SPRING_CONFIG)
+      );
     }
   }, [
     isExpanded,
     isRTL,
+    isFreeUser,
     fabRotation,
     fabScale,
     menuOpacity,
@@ -176,20 +196,19 @@ const ToolBar: React.FC<ToolBarProps> = ({
     button1Position,
     button2Position,
     button3Position,
+    button4Position,
     button1Scale,
     button2Scale,
     button3Scale,
+    button4Scale,
   ]);
 
   const handleLanguageToggle = useCallback(async () => {
-    console.log("Language button pressed!");
     const newLanguage = language === "he" ? "en" : "he";
     try {
       await changeLanguage(newLanguage);
       onLanguageChange?.(newLanguage);
       handleToggleMenu();
-
-      // Show feedback
       ToastService.success(
         "Language Changed",
         `Switched to ${newLanguage === "he" ? "Hebrew" : "English"}`
@@ -201,19 +220,16 @@ const ToolBar: React.FC<ToolBarProps> = ({
   }, [language, changeLanguage, handleToggleMenu, onLanguageChange]);
 
   const handleThemeToggle = useCallback(() => {
-    console.log("Theme button pressed!");
     try {
       toggleTheme();
       onThemeChange?.(!isDark);
       handleToggleMenu();
 
-      // Add a pulse animation for feedback
       pulseScale.value = withSequence(
         withTiming(1.1, { duration: 150 }),
         withTiming(1, { duration: 150 })
       );
 
-      // Show feedback
       ToastService.success(
         "Theme Changed",
         `Switched to ${!isDark ? "dark" : "light"} theme`
@@ -225,8 +241,12 @@ const ToolBar: React.FC<ToolBarProps> = ({
   }, [toggleTheme, handleToggleMenu, onThemeChange, isDark, pulseScale]);
 
   const handleHelpPress = useCallback(() => {
-    console.log("Help button pressed!");
     setShowHelp(true);
+    handleToggleMenu();
+  }, [handleToggleMenu]);
+
+  const handleSubscriptionComparisonPress = useCallback(() => {
+    setShowSubscriptionComparison(true);
     handleToggleMenu();
   }, [handleToggleMenu]);
 
@@ -271,6 +291,14 @@ const ToolBar: React.FC<ToolBarProps> = ({
       { translateX: button3Position.value.x },
       { translateY: button3Position.value.y },
       { scale: button3Scale.value },
+    ],
+  }));
+
+  const button4Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: button4Position.value.x },
+      { translateY: button4Position.value.y },
+      { scale: button4Scale.value },
     ],
   }));
 
@@ -340,23 +368,39 @@ const ToolBar: React.FC<ToolBarProps> = ({
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Help Button */}
-          {helpContent && (
-            <Animated.View style={[styles.menuButton, button3Style]}>
+          {/* Help Button - ALWAYS VISIBLE with ? icon */}
+          <Animated.View style={[styles.menuButton, button3Style]}>
+            <TouchableOpacity
+              style={[
+                styles.buttonTouchable,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={handleHelpPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonContent}>
+                <HelpCircle
+                  size={20}
+                  color={colors.onPrimary}
+                  strokeWidth={2.5}
+                />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Sparkles/Subscription Button - ONLY for FREE users */}
+          {isFreeUser && (
+            <Animated.View style={[styles.menuButton, button4Style]}>
               <TouchableOpacity
                 style={[
                   styles.buttonTouchable,
                   { backgroundColor: colors.primary },
                 ]}
-                onPress={handleHelpPress}
+                onPress={handleSubscriptionComparisonPress}
                 activeOpacity={0.8}
               >
                 <View style={styles.buttonContent}>
-                  <HelpCircle
-                    size={20}
-                    color={colors.onPrimary}
-                    strokeWidth={2.5}
-                  />
+                  <Star size={25} color="#FFFFFF" strokeWidth={2.5} />
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -391,7 +435,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
         visible={showHelp}
         transparent={true}
         animationType="fade"
-        onRequestClose={handleCloseHelp}
+        onRequestClose={() => setShowHelp(false)}
         statusBarTranslucent={true}
         presentationStyle="overFullScreen"
       >
@@ -403,7 +447,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
         >
           <Pressable
             style={StyleSheet.absoluteFillObject}
-            onPress={handleCloseHelp}
+            onPress={() => setShowHelp(false)}
           />
 
           <View style={styles.modalContainer}>
@@ -436,7 +480,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
                       { backgroundColor: colors.primaryContainer },
                     ]}
                   >
-                    <Sparkles size={20} color={colors.primary} />
+                    <HelpCircle size={20} color={colors.primary} />
                   </View>
                   <Text
                     style={[styles.modalTitle, { color: colors.onSurface }]}
@@ -446,7 +490,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={handleCloseHelp}
+                  onPress={() => setShowHelp(false)}
                   style={[
                     styles.closeButton,
                     { backgroundColor: colors.surfaceVariant },
@@ -550,8 +594,8 @@ const ToolBar: React.FC<ToolBarProps> = ({
                         ]}
                       >
                         {language === "he"
-                          ? "תוכן העזרה נטען..."
-                          : "Help content is loading..."}
+                          ? "איך אפשר לעזור לך?"
+                          : "How can we help you?"}
                       </Text>
                     </View>
                   )}
@@ -561,6 +605,12 @@ const ToolBar: React.FC<ToolBarProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Subscription Comparison Modal */}
+      <SubscriptionComparison
+        visible={showSubscriptionComparison}
+        onClose={() => setShowSubscriptionComparison(false)}
+      />
     </>
   );
 };
@@ -572,6 +622,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 998,
   },
   container: {
@@ -579,7 +630,6 @@ const styles = StyleSheet.create({
     zIndex: 999,
     alignItems: "center",
     justifyContent: "center",
-    top: 900
   },
   menuContainer: {
     position: "absolute",
@@ -609,10 +659,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   buttonLabel: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
+    letterSpacing: 0.5,
     textAlign: "center",
     marginTop: 2,
   },

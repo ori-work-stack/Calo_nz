@@ -827,6 +827,8 @@ export default function StatisticsScreen() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] =
+    useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statisticsData, setStatisticsData] = useState<StatisticsData | null>(
     null
@@ -870,6 +872,7 @@ export default function StatisticsScreen() {
   };
 
   const fetchAIRecommendations = async () => {
+    setIsLoadingRecommendations(true);
     try {
       console.log("🤖 Fetching AI recommendations...");
       const response = await api.get("/recommendations");
@@ -902,6 +905,8 @@ export default function StatisticsScreen() {
     } catch (error) {
       console.error("Failed to fetch AI recommendations:", error);
       setAiRecommendations([]);
+    } finally {
+      setIsLoadingRecommendations(false);
     }
   };
 
@@ -2003,10 +2008,15 @@ export default function StatisticsScreen() {
               entering={FadeInDown.delay(700)}
               style={styles.section}
             >
-              <AIRecommendationsSection
-                recommendations={aiRecommendations}
-                period={selectedPeriod}
-              />
+              {/* AI Recommendations Section - Only for GOLD/PLATINUM users */}
+              {user?.subscription_type !== "FREE" && (
+                <AIRecommendationsSection
+                  recommendations={aiRecommendations}
+                  isLoading={isLoadingRecommendations}
+                  onRefresh={fetchAIRecommendations}
+                  language={language}
+                />
+              )}
             </Animated.View>
 
             <View style={styles.section}>

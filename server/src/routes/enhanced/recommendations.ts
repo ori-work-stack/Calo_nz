@@ -11,9 +11,25 @@ const router = Router();
 router.get("/", authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user.user_id;
-    const { limit = 7 } = req.query;
 
-    console.log("🤖 Enhanced recommendations request for user:", userId);
+    console.log("📊 Getting AI recommendations for user:", userId);
+
+    // Check user subscription
+    const user = await prisma.user.findUnique({
+      where: { user_id: userId },
+      select: { subscription_type: true },
+    });
+
+    if (!user || user.subscription_type === "FREE") {
+      return res.status(403).json({
+        success: false,
+        error:
+          "AI recommendations are not available on the Free plan. Please upgrade to Gold or Platinum.",
+        subscriptionRequired: true,
+      });
+    }
+
+    const { limit = 7 } = req.query;
 
     const recommendations =
       await EnhancedAIRecommendationService.getUserRecommendations(

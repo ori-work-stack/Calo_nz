@@ -6,7 +6,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoutes";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ScrollableTabBar } from "@/components/ScrollableTabBar";
 import { useTheme } from "@/src/context/ThemeContext";
-import { MessageSquare } from "lucide-react-native"; // Assuming MessageSquare is available from lucide-react-native
+import { MessageSquare } from "lucide-react-native";
+import { useSelector } from "react-redux";
+import { RootState } from "@/src/store";
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -14,9 +16,7 @@ I18nManager.allowRTL(true);
 export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  // Assuming 'user' is available and has a 'subscription_type' property
-  // In a real app, you would likely fetch this from context or a state management solution.
-  const user = { subscription_type: "PREMIUM" }; // Placeholder, replace with actual user data
+  const { user } = useSelector((state: RootState) => state.auth);
 
   // Since your tab bar is floating, calculate the space it occupies
   // From your ScrollableTabBar config:
@@ -128,7 +128,8 @@ export default function TabLayout() {
               ),
             }}
           />
-          {user?.subscription_type !== "FREE" && (
+          {(user?.subscription_type === "GOLD" ||
+            user?.subscription_type === "PLATINUM") && (
             <Tabs.Screen
               name="ai-chat"
               options={{
@@ -139,15 +140,18 @@ export default function TabLayout() {
               }}
             />
           )}
-          <Tabs.Screen
-            name="devices"
-            options={{
-              title: t("tabs.devices"),
-              tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="watch.digital" color={color} />
-              ),
-            }}
-          />
+          {(user?.subscription_type === "GOLD" ||
+            user?.subscription_type === "PLATINUM") && (
+            <Tabs.Screen
+              name="devices"
+              options={{
+                title: t("tabs.devices"),
+                tabBarIcon: ({ color }) => (
+                  <IconSymbol size={24} name="watch.digital" color={color} />
+                ),
+              }}
+            />
+          )}
           <Tabs.Screen
             name="profile"
             options={{

@@ -32,6 +32,8 @@ import i18n from "@/src/i18n";
 import LoadingScreen from "@/components/LoadingScreen";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
+import { useSelector } from "react-redux";
+import { RootState } from "@/src/store";
 
 const { width } = Dimensions.get("window");
 
@@ -63,6 +65,7 @@ export default function AIChatScreen({
 }: AIChatScreenProps = {}) {
   const { t } = useTranslation();
   const { language } = useLanguage();
+  const { user } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -90,8 +93,29 @@ export default function AIChatScreen({
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const stats = await nutritionAPI.getUsageStats();
+        // Check user subscription directly from Redux
+        if (!user || user.subscription_type === "FREE") {
+          Alert.alert(
+            t("common.upgradeRequired") || "Upgrade Required",
+            t("ai_chat.upgrade_message") ||
+              "AI Chat is not available on the Free plan. Please upgrade to Gold or Platinum plan to access this feature.",
+            [
+              {
+                text: t("common.cancel") || "Cancel",
+                onPress: () => router.replace("/(tabs)"),
+              },
+              {
+                text: t("common.upgradePlan") || "Upgrade",
+                onPress: () => router.replace("/payment-plan"),
+              },
+            ]
+          );
+          router.replace("/(tabs)");
+          return;
+        }
 
+        // Additional server-side check
+        const stats = await nutritionAPI.getUsageStats();
         if (stats.subscriptionType === "FREE") {
           Alert.alert(
             t("common.upgradeRequired") || "Upgrade Required",
@@ -100,27 +124,28 @@ export default function AIChatScreen({
             [
               {
                 text: t("common.cancel") || "Cancel",
-                onPress: () => router.back(),
+                onPress: () => router.replace("/(tabs)"),
               },
               {
                 text: t("common.upgradePlan") || "Upgrade",
-                onPress: () => router.push("/payment-plan"),
+                onPress: () => router.replace("/payment-plan"),
               },
             ]
           );
-          router.back();
+          router.replace("/(tabs)");
           return;
         }
+
+        loadUserProfile();
+        loadChatHistory();
       } catch (error) {
         console.error("Failed to check AI chat access:", error);
-        router.back();
+        router.replace("/(tabs)");
       }
     };
 
     checkAccess();
-    loadUserProfile();
-    loadChatHistory();
-  }, []);
+  }, [user]);
 
   // Auto-scroll when messages change
   useEffect(() => {

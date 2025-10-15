@@ -1601,19 +1601,27 @@ const styles = StyleSheet.create({
   },
 
   startButton: {
-    flex: 2,
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  startButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 6,
   },
-
   startButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
+    color: "#ffffff",
   },
 
   // Empty State

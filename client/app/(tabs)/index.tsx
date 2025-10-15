@@ -134,7 +134,9 @@ const HomeScreen = React.memo(() => {
 
   const isLoadingRef = useRef(false);
   const lastDataLoadRef = useRef<number>(0);
-  const waterSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const waterSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const processedMealsData = useMemo(() => {
     if (!meals || meals.length === 0) {
@@ -185,6 +187,18 @@ const HomeScreen = React.memo(() => {
   const loadDailyGoals = useCallback(async () => {
     if (!user?.user_id) return;
 
+    // FREE users don't get daily goals
+    if (user.subscription_type === "FREE") {
+      setDailyGoals((prev) => ({
+        ...prev,
+        targetCalories: 2000,
+        targetProtein: 100,
+        targetCarbs: 250,
+        targetFat: 65,
+      }));
+      return;
+    }
+
     try {
       const { dailyGoalsAPI } = await import("@/src/services/api");
       const goalsResponse = await dailyGoalsAPI.getDailyGoals();
@@ -219,7 +233,7 @@ const HomeScreen = React.memo(() => {
         targetFat: 60,
       }));
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, user?.subscription_type]);
 
   const loadWaterIntake = useCallback(async () => {
     if (!user?.user_id) return;
@@ -673,14 +687,21 @@ const HomeScreen = React.memo(() => {
                         styles.lastActivityItem,
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.activityIcon,
-                        { backgroundColor: "#F0FDF4" },
-                      ]}
-                    >
-                      <Camera size={20} color="#10B981" />
-                    </View>
+                    {meal.image_url ? (
+                      <Image
+                        source={{ uri: meal.image_url }}
+                        style={styles.mealImage}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.activityIcon,
+                          { backgroundColor: "#F0FDF4" },
+                        ]}
+                      >
+                        <Camera size={20} color="#10B981" />
+                      </View>
+                    )}
                     <View style={styles.activityContent}>
                       <Text style={styles.activityTitle}>
                         {meal.name || "Unknown Meal"}
@@ -967,6 +988,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 12,
+  },
+  mealImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
   },
   activityContent: {

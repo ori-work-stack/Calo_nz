@@ -1,6 +1,5 @@
 import { prisma } from "../../lib/database";
 import { NutritionGoals } from "../../types/statistics";
-import { DatabaseOptimizationService } from "../databaseOptimization"; // Assuming this service exists and is used
 
 export interface DailyGoalCreationResult {
   created: number;
@@ -42,21 +41,21 @@ export class EnhancedDailyGoalsService {
       console.log(`📅 TODAY: ${todayString}`);
       console.log(`📅 TODAY DATE OBJECT: ${todayDate.toISOString()}`);
 
-      // Get all users with signup date
-      const users = await prisma.user.findMany({
+      // Step 2: Get ALL users from database
+      console.log("👥 FETCHING ALL USERS...");
+      const allUsers = await prisma.user.findMany({
         select: {
           user_id: true,
           email: true,
           subscription_type: true,
           is_questionnaire_completed: true,
-          created_at: true, // Assuming this is the signup date or equivalent
-          signup_date: true, // Explicitly select signup_date if it exists
+          created_at: true,
         },
       });
 
-      console.log(`👥 TOTAL USERS FOUND: ${users.length}`);
+      console.log(`👥 TOTAL USERS FOUND: ${allUsers.length}`);
 
-      if (users.length === 0) {
+      if (allUsers.length === 0) {
         console.log("❌ NO USERS FOUND IN DATABASE!");
         return result;
       }
@@ -104,45 +103,15 @@ export class EnhancedDailyGoalsService {
       const existingUserIds = new Set(existingGoals.map((g) => g.user_id));
 
       // Step 5: Process EACH user individually with UPSERT operations
-      for (const user of users) {
+      for (let i = 0; i < allUsers.length; i++) {
+        const user = allUsers[i];
+
         try {
           console.log(
-            `\n📊 [PROCESSING USER] USER_ID: ${user.user_id} (${user.email})`
+            `\n📊 [${i + 1}/${allUsers.length}] PROCESSING USER: ${
+              user.user_id
+            } (${user.email})`
           );
-
-          // Import plan limits
-          const { shouldCreateDailyGoalToday } = await import(
-            "../../config/planLimits"
-          );
-
-          // Check if user is eligible based on their tier
-          if (
-            !shouldCreateDailyGoalToday(
-              user.subscription_type,
-              user.signup_date
-            )
-          ) {
-            console.log(
-              `⏭️ SKIPPING user ${user.user_id} due to tier restrictions.`
-            );
-            result.skipped++;
-            continue;
-          }
-
-          // Check if goals already exist
-          const duplicateCheck =
-            await DatabaseOptimizationService.checkForDuplicates(
-              user.user_id,
-              todayDate
-            );
-
-          if (duplicateCheck.hasDailyGoal) {
-            console.log(
-              `⏭️ SKIPPING user ${user.user_id} - Goal already exists for today.`
-            );
-            result.skipped++;
-            continue;
-          }
 
           // Get questionnaire for this user
           const questionnaire = questionnaireMap.get(user.user_id);
@@ -328,13 +297,6 @@ export class EnhancedDailyGoalsService {
             orderBy: { date_completed: "desc" },
             take: 1,
           },
-          // Add signup_date to the user selection
-          select: {
-            user_id: true,
-            email: true,
-            subscription_type: true,
-            signup_date: true,
-          },
         },
       });
 
@@ -362,25 +324,6 @@ export class EnhancedDailyGoalsService {
               user.user_id
             } (${user.email})`
           );
-
-          // Import plan limits
-          const { shouldCreateDailyGoalToday } = await import(
-            "../../config/planLimits"
-          );
-
-          // Check if user is eligible based on their tier
-          if (
-            !shouldCreateDailyGoalToday(
-              user.subscription_type,
-              user.signup_date
-            )
-          ) {
-            console.log(
-              `⏭️ SKIPPING user ${user.user_id} due to tier restrictions.`
-            );
-            result.skipped++;
-            continue;
-          }
 
           const questionnaire = user.questionnaires[0];
           const goals = this.calculatePersonalizedGoals(questionnaire);
@@ -519,7 +462,9 @@ export class EnhancedDailyGoalsService {
       return result;
     } catch (error) {
       console.error("💥 ERROR in force creation:", error);
-      result.errors.push(error instanceof Error ? "Unknown error");
+      result.errors.push(
+        error instanceof Error ? error.message : "Unknown error"
+      );
       return result;
     }
   }
@@ -619,14 +564,9 @@ export class EnhancedDailyGoalsService {
       console.log(`🔄 === FORCE CREATING DAILY GOALS FOR USER: ${userId} ===`);
 
       // Get user with questionnaire
-      // Get user with questionnaire
       const user = await prisma.user.findUnique({
         where: { user_id: userId },
-        select: {
-          user_id: true,
-          email: true,
-          subscription_type: true,
-          signup_date: true,
+        include: {
           questionnaires: {
             orderBy: { date_completed: "desc" },
             take: 1,
@@ -640,22 +580,6 @@ export class EnhancedDailyGoalsService {
 
       console.log(`👤 Found user: ${user.email}`);
       console.log(`📋 Questionnaires: ${user.questionnaires.length}`);
-
-      // Import plan limits
-      const { shouldCreateDailyGoalToday } = await import(
-        "../../config/planLimits"
-      );
-
-      // Check if user is eligible based on their tier
-      if (
-        !shouldCreateDailyGoalToday(user.subscription_type, user.signup_date)
-      ) {
-        console.log(
-          `⏭️ SKIPPING user ${user.user_id} due to tier restrictions.`
-        );
-        // Depending on desired behavior, you might throw an error or return default goals
-        throw new Error("User not eligible for daily goals based on tier.");
-      }
 
       const questionnaire = user.questionnaires[0];
       const goals = this.calculatePersonalizedGoals(questionnaire);
@@ -1003,29 +927,16 @@ export class EnhancedDailyGoalsService {
           user_id: true,
           email: true,
           subscription_type: true,
-          signup_date: true, // Include signup_date for tier checks
         },
       });
 
       console.log(`👥 All users:`);
       allUsers.forEach((user, index) => {
         const hasGoal = goalsToday.some((g) => g.user_id === user.user_id);
-
-        // Import plan limits to check eligibility
-        const {
-          shouldCreateDailyGoalToday,
-        } = require("../../config/planLimits"); // Using require for dynamic import
-        const isEligible = shouldCreateDailyGoalToday(
-          user.subscription_type,
-          user.signup_date
-        );
-
         console.log(
           `  ${index + 1}. ${user.user_id} (${user.email}) - ${
             user.subscription_type
-          } - Goal Today: ${hasGoal ? "YES" : "NO"} - Eligible: ${
-            isEligible ? "YES" : "NO"
-          }`
+          } - Goal: ${hasGoal ? "YES" : "NO"}`
         );
       });
 
@@ -1038,31 +949,5 @@ export class EnhancedDailyGoalsService {
       console.error("💥 Error debugging database state:", error);
       return null;
     }
-  }
-
-  // Placeholder for scanning unused files and schemas
-  // This part requires a separate implementation and depends on project structure.
-  // It's not directly related to the daily goals logic but was requested.
-  static async findUnusedFilesAndSchemas(): Promise<void> {
-    console.log("\n🔍 === SCANNING FOR UNUSED FILES AND SCHEMAS ===");
-    console.log(
-      "This feature requires a separate implementation based on project structure and tooling."
-    );
-    console.log(
-      "Consider using tools like 'depcheck' or custom scripts for this task."
-    );
-
-    // Example of what this might involve (conceptual):
-    // 1. Get a list of all files in the project.
-    // 2. Get a list of all imported modules/schemas within the codebase.
-    // 3. Compare the two lists to find files that are not imported or used.
-    // 4. For schemas, analyze where they are referenced in queries, mutations, or type definitions.
-
-    // For now, we'll just log a message indicating this functionality is not yet implemented.
-    const unusedReport = "unused_files_and_schemas_report.txt";
-    console.log(
-      `\n📝 A report of unused files and schemas will be generated in: ${unusedReport}`
-    );
-    console.log("Please implement the logic to populate this report.");
   }
 }
