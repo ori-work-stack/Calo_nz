@@ -504,7 +504,26 @@
     "personal_data": "Personal Data",
     "stats": "Goals",
     "account": "Account",
-    "preferences": "Personal preferences"
+    "preferences": "Personal preferences",
+    "dangerZone": "Danger Zone",
+    "deleteAccount": "Delete Account",
+    "confirmDelete": "Confirm Delete",
+    "accountDeleted": "Your account has been permanently deleted"
+  },
+  "admin": {
+    "dashboard": "Admin Dashboard",
+    "overview": "Overview",
+    "totalUsers": "Total Users",
+    "todaySignups": "Today's Signups",
+    "todayLogins": "Today's Logins",
+    "totalMeals": "Total Meals",
+    "totalMenus": "Total Menus",
+    "revenue": "Revenue",
+    "subscriptions": "Subscriptions",
+    "users": "Users",
+    "activity": "Recent Activity",
+    "userDetails": "User Details",
+    "deleteUser": "Delete User"
   },
   "statistics": {
     "title": "Progress & Statistics",

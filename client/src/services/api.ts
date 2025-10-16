@@ -819,26 +819,16 @@ export const userAPI = {
     }
   },
 
-  async updateSubscription(subscriptionType: string): Promise<any> {
-    try {
-      console.log("🔄 Updating subscription to:", subscriptionType);
-      const response = await api.put("/user/subscription", {
-        subscription_type: subscriptionType,
-      });
+  updateSubscription: async (subscriptionType: string) => {
+    const response = await api.put("/user/subscription", {
+      subscription_type: subscriptionType,
+    });
+    return response.data;
+  },
 
-      if (response.data.success) {
-        console.log("✅ Subscription updated successfully");
-        return response.data;
-      }
-
-      throw new APIError(
-        response.data.error || "Failed to update subscription"
-      );
-    } catch (error) {
-      console.error("💥 Update subscription error:", error);
-      if (error instanceof APIError) throw error;
-      throw new APIError("Network error while updating subscription");
-    }
+  deleteAccount: async () => {
+    const response = await api.delete("/user/delete");
+    return response.data;
   },
 
   getUserProfile: async (): Promise<any> => {

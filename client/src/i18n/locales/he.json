@@ -707,7 +707,26 @@
     "personal_data": "מידע אישי",
     "stats": "יעדים",
     "account": "חשבון",
-    "preferences": "העדפות אישיות"
+    "preferences": "העדפות אישיות",
+    "dangerZone": "אזור מסוכן",
+    "deleteAccount": "מחק חשבון",
+    "confirmDelete": "אשר מחיקה",
+    "accountDeleted": "החשבון שלך נמחק לצמיתות"
+  },
+  "admin": {
+    "dashboard": "לוח בקרה למנהל",
+    "overview": "סקירה",
+    "totalUsers": "סה\"כ משתמשים",
+    "todaySignups": "הרשמות היום",
+    "todayLogins": "כניסות היום",
+    "totalMeals": "סה\"כ ארוחות",
+    "totalMenus": "סה\"כ תפריטים",
+    "revenue": "הכנסות",
+    "subscriptions": "מנויים",
+    "users": "משתמשים",
+    "activity": "פעילות אחרונה",
+    "userDetails": "פרטי משתמש",
+    "deleteUser": "מחק משתמש"
   },
   "statistics": {
     "title": "התקדמות וסטטיסטיקות",

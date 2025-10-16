@@ -20,7 +20,7 @@ import { calendarRoutes } from "./routes/calendar";
 import statisticsRoutes from "./routes/statistics";
 import foodScannerRoutes from "./routes/foodScanner";
 import { EnhancedCronJobService } from "./services/cron/enhanced";
-import { UserCleanupService } from "./services/userCleanup";
+// User cleanup is now manual-only via profile deletion
 import { enhancedDailyGoalsRoutes } from "./routes/enhanced/dailyGoals";
 import { enhancedRecommendationsRoutes } from "./routes/enhanced/recommendations";
 import { enhancedDatabaseRoutes } from "./routes/enhanced/database";
@@ -31,6 +31,7 @@ import mealCompletionRouter from "./routes/mealCompletion";
 import { schemaValidationRoutes } from "./routes/schema-validation";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
 import enhancedMenuRouter from "./routes/enhancedMenu";
+import adminRoutes from "./routes/admin";
 
 // Load environment variables
 dotenv.config();
@@ -274,6 +275,7 @@ apiRouter.post(
 );
 
 app.use("/api", apiRouter);
+app.use("/api/admin", adminRoutes);
 
 // 404 handler for undefined routes
 app.use("*", (req, res) => {
@@ -334,7 +336,6 @@ async function startServer() {
     console.log("🚀 Initializing enhanced cron jobs...");
     EnhancedCronJobService.initializeEnhancedCronJobs();
     console.log("✅ Enhanced cron jobs initialized");
-    UserCleanupService.initializeCleanupJobs();
 
     // Store the server instance
     server = app.listen(config.port, "0.0.0.0", () => {

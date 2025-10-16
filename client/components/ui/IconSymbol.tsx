@@ -1,4 +1,4 @@
-import { LucideIcon } from "lucide-react-native";
+import { LucideIcon, Shield } from "lucide-react-native";
 import {
   Home,
   Utensils,
@@ -31,6 +31,7 @@ type SupportedSymbolName =
   | "message.fill"
   | "barcode.viewfinder"
   | "trophy.fill"
+  | "shield.fill"
   | "doc.text.fill";
 
 type IconMapping = Record<SupportedSymbolName, LucideIcon>;
@@ -49,6 +50,7 @@ const MAPPING: IconMapping = {
   "barcode.viewfinder": Scan,
   "doc.text.fill": FileText,
   "trophy.fill": TrophyIcon,
+  "shield.fill": Shield,
 };
 
 export function IconSymbol({

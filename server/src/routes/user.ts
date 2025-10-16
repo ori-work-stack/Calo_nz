@@ -19,7 +19,7 @@ router.put(
       const validatedData = updateProfileSchema.parse(req.body);
 
       const updatedUser = await prisma.user.update({
-        where: { user_id: req.user.user_id },
+        where: { user_id: req.user?.user_id },
         data: validatedData,
         select: {
           user_id: true,
@@ -56,7 +56,7 @@ router.put(
 // Upload avatar endpoint
 router.post("/avatar", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user?.user_id;
 
     const validationResult = avatarUploadSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -127,7 +127,7 @@ router.put(
   authenticateToken,
   async (req: AuthRequest, res) => {
     try {
-      const userId = req.user.user_id;
+      const userId = req.user?.user_id;
       const { subscription_type } = req.body;
 
       if (!["FREE", "PREMIUM", "GOLD"].includes(subscription_type)) {
@@ -161,7 +161,7 @@ router.get(
       PREMIUM: { dailyRequests: 50, name: "Premium Plan" },
     };
 
-    const userSubscriptionType = req.user.subscription_type;
+    const userSubscriptionType = req.user?.subscription_type;
     const info =
       subscriptionInfo[userSubscriptionType as keyof typeof subscriptionInfo] ||
       subscriptionInfo.FREE;
@@ -170,10 +170,47 @@ router.get(
       success: true,
       subscription: {
         ...info,
-        currentRequests: req.user.ai_requests_count,
-        resetAt: req.user.ai_requests_reset_at,
+        currentRequests: req.user?.ai_requests_count,
+        resetAt: req.user?.ai_requests_reset_at,
       },
     });
+  }
+);
+
+// Promote user to admin (use with caution - should be restricted)
+router.post(
+  "/promote-admin",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const { secret_key, user_email } = req.body;
+      const ADMIN_SECRET =
+        process.env.ADMIN_PROMOTION_SECRET || "change-this-secret-key";
+
+      if (secret_key !== ADMIN_SECRET) {
+        return res.status(403).json({
+          success: false,
+          error: "Invalid secret key",
+        });
+      }
+
+      const targetUser = await prisma.user.update({
+        where: { email: user_email },
+        data: { subscription_type: "ADMIN" },
+      });
+
+      return res.json({
+        success: true,
+        message: `User ${user_email} promoted to ADMIN`,
+        data: targetUser,
+      });
+    } catch (error) {
+      console.error("Admin promotion error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to promote user",
+      });
+    }
   }
 );
 
@@ -183,14 +220,14 @@ router.get(
   authenticateToken,
   async (req: AuthRequest, res) => {
     try {
-      console.log("📊 Global statistics request from user:", req.user.user_id);
+      console.log("📊 Global statistics request from user:", req.user?.user_id);
 
       // You can optionally accept a query param ?period=week|month|custom
       const period =
         (req.query.period as "week" | "month" | "custom") || "week";
 
       const statistics = await StatisticsService.getNutritionStatistics(
-        req.user.user_id,
+        req.user?.user_id,
         period
       );
 
@@ -245,7 +282,7 @@ router.patch(
       }
 
       const updatedUser = await prisma.user.update({
-        where: { user_id: req.user.user_id },
+        where: { user_id: req.user?.user_id },
         data: updateData,
         select: {
           user_id: true,
@@ -289,7 +326,7 @@ router.delete(
     try {
       console.log(
         "🗑️ Permanent delete user request for user:",
-        req.user.user_id
+        req.user?.user_id
       );
 
       // Use a transaction to ensure all deletions succeed or fail together
@@ -298,62 +335,62 @@ router.delete(
 
         // Delete nutrition logs/entries
         await tx.connectedDevice.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete meal plans
         await tx.userMealPlan.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user goals/targets
         await tx.dailyActivitySummary.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user preferences/settings
         await tx.userMealPreference.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user recipes
         await tx.meal.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user workouts (if applicable)
         // await tx.mealPlanSchedule.deleteMany({
-        //   where: { user_id: req.user.user_id },
+        //   where: { user_id: req.user?.user_id },
         // });
 
         // Delete user progress tracking
         await tx.userQuestionnaire.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user notifications
         await tx.shoppingList.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user sessions/tokens
         await tx.nutritionPlan.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Delete user subscriptions/payments (if applicable)
         await tx.subscriptionPayment.deleteMany({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         // Finally, delete the user
         await tx.user.delete({
-          where: { user_id: req.user.user_id },
+          where: { user_id: req.user?.user_id },
         });
 
         console.log(
           "✅ Successfully deleted user and all related data:",
-          req.user.user_id
+          req.user?.user_id
         );
       });
 
@@ -378,7 +415,7 @@ router.delete(
 // GET USER PROFILE ENDPOINT
 router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user?.user_id;
     console.log("📋 Getting profile for user:", userId);
 
     const user = await prisma.user.findUnique({

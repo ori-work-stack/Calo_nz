@@ -61,3 +61,88 @@ export async function authenticateToken(
     });
   }
 }
+export const requireAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    // Check if user has admin privileges
+    if (!req.user.is_admin && !req.user.is_super_admin) {
+      console.warn(
+        `⚠️ Unauthorized admin access attempt by user: ${req.user.email}`
+      );
+      return res.status(403).json({
+        success: false,
+        error: "Insufficient permissions. Admin access required.",
+      });
+    }
+
+    // Additional security: Verify email is verified
+    if (!req.user.email_verified) {
+      return res.status(403).json({
+        success: false,
+        error: "Email verification required for admin access",
+      });
+    }
+
+    console.log(`✅ Admin access granted to: ${req.user.email}`);
+    next();
+  } catch (error) {
+    console.error("Admin authorization error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Authorization failed",
+    });
+  }
+};
+// Super admin middleware for sensitive operations
+export const requireSuperAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    // Must have super admin flag
+    if (!req.user.is_super_admin) {
+      console.warn(
+        `⚠️ Unauthorized super admin access attempt by: ${req.user.email}`
+      );
+      return res.status(403).json({
+        success: false,
+        error: "Super admin access required",
+      });
+    }
+
+    // Additional security check
+    if (!req.user.email_verified) {
+      return res.status(403).json({
+        success: false,
+        error: "Email verification required for super admin access",
+      });
+    }
+
+    console.log(`✅ Super admin access granted to: ${req.user.email}`);
+    next();
+  } catch (error) {
+    console.error("Super admin authorization error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Authorization failed",
+    });
+  }
+};

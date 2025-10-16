@@ -9,6 +9,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { MessageSquare } from "lucide-react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "@/src/store";
+import { TabBarIcon } from "@/components/navigation/TabBarIcon"; // Assuming TabBarIcon is in this path
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -17,6 +18,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { user } = useSelector((state: RootState) => state.auth);
+  const language = useTranslation().i18n.language; // Assuming you have access to the current language
 
   // Since your tab bar is floating, calculate the space it occupies
   // From your ScrollableTabBar config:
@@ -87,11 +89,16 @@ export default function TabLayout() {
             name="recommended-menus"
             options={{
               title: t("tabs.recommended_menus"),
-              tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="dining" color={color} />
+              headerShown: false,
+              tabBarIcon: ({ color, focused }) => (
+                <TabBarIcon
+                  name={focused ? "restaurant" : "restaurant-outline"}
+                  color={color}
+                />
               ),
             }}
           />
+
           <Tabs.Screen
             name="camera"
             options={{
@@ -148,6 +155,18 @@ export default function TabLayout() {
                 title: t("tabs.devices"),
                 tabBarIcon: ({ color }) => (
                   <IconSymbol size={24} name="watch.digital" color={color} />
+                ),
+              }}
+            />
+          )}
+          {/* Admin tab - only visible to admins */}
+          {(user?.is_admin || user?.is_super_admin) && (
+            <Tabs.Screen
+              name="admin-dashboard"
+              options={{
+                title: t("tabs.admin"),
+                tabBarIcon: ({ color }) => (
+                  <IconSymbol size={24} name="shield.fill" color={color} />
                 ),
               }}
             />

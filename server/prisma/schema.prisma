@@ -77,6 +77,10 @@ model User {
 
   active_meal_plan_id String?
   active_menu_id      String?
+
+  // Admin fields
+  is_admin      Boolean @default(false)
+  is_super_admin Boolean @default(false)
 }
 
 model Session {
@@ -733,6 +737,7 @@ enum SubscriptionType {
   FREE
   GOLD
   PREMIUM
+  ADMIN
 }
 
 enum SmokingStatus {

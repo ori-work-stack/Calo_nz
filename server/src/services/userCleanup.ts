@@ -114,9 +114,12 @@ export class UserCleanupService {
 
   /**
    * Completely delete a user and all related data
+   * This should ONLY be called when user explicitly requests deletion
    */
   static async deleteUserCompletely(userId: string) {
     try {
+      console.log(`🗑️ Starting manual user deletion for: ${userId}`);
+
       // Delete in order to respect foreign key constraints
       await prisma.$transaction(async (tx) => {
         // Delete related data first
@@ -138,6 +141,12 @@ export class UserCleanupService {
         await tx.gamificationBadge.deleteMany({ where: { user_id: userId } });
         await tx.waterIntake.deleteMany({ where: { user_id: userId } });
         await tx.foodProduct.deleteMany({ where: { user_id: userId } });
+        await tx.mealCompletion.deleteMany({ where: { user_id: userId } });
+        await tx.aiRecommendation.deleteMany({ where: { user_id: userId } });
+        await tx.menuReview.deleteMany({ where: { user_id: userId } });
+        await tx.dailyActivitySummary.deleteMany({
+          where: { user_id: userId },
+        });
 
         // Delete user last
         await tx.user.delete({ where: { user_id: userId } });
@@ -146,6 +155,7 @@ export class UserCleanupService {
       console.log(
         `✅ Successfully deleted user and all related data: ${userId}`
       );
+      return { success: true };
     } catch (error) {
       console.error(`❌ Error deleting user ${userId}:`, error);
       throw error;

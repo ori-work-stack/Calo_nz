@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/src/i18n/context/LanguageContext";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/src/store";
 import { Ionicons } from "@expo/vector-icons";
 import { userAPI } from "@/src/services/api";
+import { signOut } from "@/src/store/authSlice";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 interface EditProfileProps {
@@ -23,8 +24,9 @@ interface EditProfileProps {
 }
 
 export default function EditProfile({ onClose }: EditProfileProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isRTL } = useLanguage();
+  const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   const [profile, setProfile] = useState({
     name: user?.name || "",
@@ -37,13 +39,13 @@ export default function EditProfile({ onClose }: EditProfileProps) {
   const [showPicker, setShowPicker] = useState(false);
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === "ios"); // for iOS keep picker open
+    setShowPicker(Platform.OS === "ios");
     if (selectedDate) {
       setDate(selectedDate);
       setProfile({
         ...profile,
         birth_date: selectedDate.toISOString().split("T")[0],
-      }); // yyyy-mm-dd format
+      });
     }
   };
 
@@ -63,6 +65,39 @@ export default function EditProfile({ onClose }: EditProfileProps) {
       },
       { text: t("common.cancel"), style: "cancel" },
     ]);
+  };
+
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    const confirmWord = t("profile.deleteConfirmWord");
+    if (deleteConfirmText !== confirmWord) {
+      Alert.alert(
+        t("common.error"),
+        t("profile.deleteConfirmError", { confirmWord })
+      );
+      return;
+    }
+
+    try {
+      const response = await userAPI.deleteAccount();
+      if (response.success) {
+        Alert.alert(t("common.success"), t("profile.accountDeleted"), [
+          {
+            text: t("common.ok"),
+            onPress: () => {
+              dispatch(signOut());
+            },
+          },
+        ]);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        t("common.error"),
+        error.message || t("profile.deleteAccountError")
+      );
+    }
   };
 
   return (
@@ -143,6 +178,59 @@ export default function EditProfile({ onClose }: EditProfileProps) {
               />
             )}
           </View>
+        </View>
+
+        {/* Danger Zone */}
+        <View style={styles.dangerZone}>
+          <Text style={[styles.dangerTitle, isRTL && styles.labelRTL]}>
+            {t("profile.dangerZone")}
+          </Text>
+
+          {!showDeleteConfirm ? (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => setShowDeleteConfirm(true)}
+            >
+              <Ionicons name="warning" size={20} color="white" />
+              <Text style={styles.deleteButtonText}>
+                {t("profile.deleteAccount")}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.deleteConfirmSection}>
+              <Text style={[styles.deleteWarning, isRTL && styles.labelRTL]}>
+                {t("profile.deleteConfirmMessage")}
+              </Text>
+              <TextInput
+                style={[styles.input, isRTL && styles.inputRTL]}
+                value={deleteConfirmText}
+                onChangeText={setDeleteConfirmText}
+                placeholder={t("profile.deleteConfirmWord")}
+                autoCapitalize="characters"
+              />
+              <View style={styles.deleteActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText("");
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>
+                    {t("common.cancel")}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmDeleteButton}
+                  onPress={handleDeleteAccount}
+                >
+                  <Text style={styles.confirmDeleteButtonText}>
+                    {t("profile.confirmDelete")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -240,5 +328,69 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: "top",
+  },
+  dangerZone: {
+    marginTop: 32,
+    padding: 16,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  dangerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#DC2626",
+    marginBottom: 12,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#DC2626",
+    padding: 12,
+    borderRadius: 8,
+  },
+  deleteButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteConfirmSection: {
+    gap: 12,
+  },
+  deleteWarning: {
+    fontSize: 14,
+    color: "#991B1B",
+    fontWeight: "500",
+  },
+  deleteActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  confirmDeleteButton: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: "#DC2626",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmDeleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
   },
 });
