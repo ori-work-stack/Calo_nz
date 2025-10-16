@@ -28,7 +28,7 @@ export interface QuestionnaireData {
   additional_activity_info: string[];
 
   // Health
-  medical_conditions: string[];
+  medical_conditions?: string[];
   medical_conditions_text: string[];
   medications: string[];
   health_goals: string[];

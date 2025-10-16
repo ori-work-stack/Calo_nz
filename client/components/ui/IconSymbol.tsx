@@ -15,7 +15,7 @@ import {
   TrophyIcon,
 } from "lucide-react-native";
 import React from "react";
-import { StyleProp, TextStyle } from "react-native";
+import { StyleProp, ViewStyle } from "react-native";
 
 // Add all the symbols you are actually using in TabLayout
 type SupportedSymbolName =
@@ -62,7 +62,7 @@ export function IconSymbol({
   name: SupportedSymbolName;
   size?: number;
   color: string;
-  style?: StyleProp<TextStyle>;
+  style?: StyleProp<ViewStyle>;
 }) {
   const IconComponent = MAPPING[name];
 

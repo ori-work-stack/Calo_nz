@@ -301,12 +301,14 @@ router.patch("/users/:userId/promote-admin", requireSuperAdmin, async (req: Auth
     const { userId } = req.params;
     const { is_admin, is_super_admin } = req.body;
 
+    // Build update data object conditionally
+    const updateData: any = {};
+    if (is_admin !== undefined) updateData.is_admin = is_admin;
+    if (is_super_admin !== undefined) updateData.is_super_admin = is_super_admin;
+
     const updatedUser = await prisma.user.update({
       where: { user_id: userId },
-      data: { 
-        is_admin: is_admin ?? false,
-        is_super_admin: is_super_admin ?? false
-      },
+      data: updateData,
       select: {
         user_id: true,
         email: true,

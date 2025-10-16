@@ -171,11 +171,11 @@ export default function TabLayout() {
           <Tabs.Screen
             name="dashboard"
             options={{
-              title: t("tabs.admin"),
+              title: t("tabs.dashboard"),
+              href: null, // Hide from tab bar
               tabBarIcon: ({ color }) => (
                 <IconSymbol size={24} name="shield.fill" color={color} />
               ),
-              href: shouldShowDashboard ? undefined : null,
             }}
           />
           <Tabs.Screen

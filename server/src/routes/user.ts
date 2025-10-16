@@ -196,7 +196,10 @@ router.post(
 
       const targetUser = await prisma.user.update({
         where: { email: user_email },
-        data: { subscription_type: "ADMIN" },
+        data: { 
+          is_admin: true,
+          subscription_type: "PREMIUM" // Give them premium access
+        },
       });
 
       return res.json({
