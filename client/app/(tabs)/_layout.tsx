@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { View, I18nManager } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "@/components/ProtectedRoutes";
@@ -9,7 +9,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { MessageSquare } from "lucide-react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "@/src/store";
-import { TabBarIcon } from "@/components/navigation/TabBarIcon"; // Assuming TabBarIcon is in this path
+import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -18,7 +18,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { user } = useSelector((state: RootState) => state.auth);
-  const language = useTranslation().i18n.language; // Assuming you have access to the current language
+  const language = useTranslation().i18n.language;
 
   // Since your tab bar is floating, calculate the space it occupies
   // From your ScrollableTabBar config:
@@ -29,6 +29,19 @@ export default function TabLayout() {
   // Total bottom space needed for floating tab bar
   const totalBottomSpace =
     TAB_BAR_HEIGHT + FLOATING_MARGIN * 2 + SAFE_AREA_PADDING;
+
+  // Determine which tabs should be shown based on user permissions
+  const shouldShowAiChat = useMemo(() => {
+    return user?.subscription_type === "GOLD" || user?.subscription_type === "PLATINUM";
+  }, [user?.subscription_type]);
+
+  const shouldShowDevices = useMemo(() => {
+    return user?.subscription_type === "GOLD" || user?.subscription_type === "PLATINUM";
+  }, [user?.subscription_type]);
+
+  const shouldShowDashboard = useMemo(() => {
+    return user?.is_admin || user?.is_super_admin;
+  }, [user?.is_admin, user?.is_super_admin]);
 
   return (
     <ProtectedRoute>
@@ -135,42 +148,36 @@ export default function TabLayout() {
               ),
             }}
           />
-          {(user?.subscription_type === "GOLD" ||
-            user?.subscription_type === "PLATINUM") && (
-            <Tabs.Screen
-              name="ai-chat"
-              options={{
-                title: t("tabs.ai_chat"),
-                tabBarIcon: ({ color }) => (
-                  <MessageSquare size={28} color={color} />
-                ),
-              }}
-            />
-          )}
-          {(user?.subscription_type === "GOLD" ||
-            user?.subscription_type === "PLATINUM") && (
-            <Tabs.Screen
-              name="devices"
-              options={{
-                title: t("tabs.devices"),
-                tabBarIcon: ({ color }) => (
-                  <IconSymbol size={24} name="watch.digital" color={color} />
-                ),
-              }}
-            />
-          )}
-          {/* Admin tab - only visible to admins */}
-          {(user?.is_admin || user?.is_super_admin) && (
-            <Tabs.Screen
-              name="admin-dashboard"
-              options={{
-                title: t("tabs.admin"),
-                tabBarIcon: ({ color }) => (
-                  <IconSymbol size={24} name="shield.fill" color={color} />
-                ),
-              }}
-            />
-          )}
+          <Tabs.Screen
+            name="ai-chat"
+            options={{
+              title: t("tabs.ai_chat"),
+              tabBarIcon: ({ color }) => (
+                <MessageSquare size={28} color={color} />
+              ),
+              href: shouldShowAiChat ? undefined : null,
+            }}
+          />
+          <Tabs.Screen
+            name="devices"
+            options={{
+              title: t("tabs.devices"),
+              tabBarIcon: ({ color }) => (
+                <IconSymbol size={24} name="watch.digital" color={color} />
+              ),
+              href: shouldShowDevices ? undefined : null,
+            }}
+          />
+          <Tabs.Screen
+            name="dashboard"
+            options={{
+              title: t("tabs.admin"),
+              tabBarIcon: ({ color }) => (
+                <IconSymbol size={24} name="shield.fill" color={color} />
+              ),
+              href: shouldShowDashboard ? undefined : null,
+            }}
+          />
           <Tabs.Screen
             name="profile"
             options={{

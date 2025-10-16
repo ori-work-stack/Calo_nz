@@ -82,7 +82,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user has admin access
-    if (!user || user.subscription_type !== ADMIN_PLAN) {
+    if (!user || (!user.is_admin && !user.is_super_admin)) {
       Alert.alert(
         language === 'he' ? 'גישה נדחתה' : 'Access Denied',
         language === 'he'

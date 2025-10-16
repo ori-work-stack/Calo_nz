@@ -95,6 +95,8 @@ export interface User {
   active_meal_plan_id?: string;
   active_menu_id?: string;
   meals_per_day?: number;
+  is_admin?: boolean;
+  is_super_admin?: boolean;
 }
 
 export interface Meal {
