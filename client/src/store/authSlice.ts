@@ -279,7 +279,17 @@ const authSlice = createSlice({
         currentUserData.subscription_type !== newUserData.subscription_type ||
         currentUserData.is_questionnaire_completed !==
           newUserData.is_questionnaire_completed ||
-        currentUserData.avatar_url !== newUserData.avatar_url
+        currentUserData.avatar_url !== newUserData.avatar_url ||
+        currentUserData.is_admin !== newUserData.is_admin ||
+        currentUserData.is_super_admin !== newUserData.is_super_admin ||
+        currentUserData.level !== newUserData.level ||
+        currentUserData.total_points !== newUserData.total_points ||
+        currentUserData.current_xp !== newUserData.current_xp ||
+        currentUserData.current_streak !== newUserData.current_streak ||
+        currentUserData.best_streak !== newUserData.best_streak ||
+        currentUserData.total_complete_days !== newUserData.total_complete_days ||
+        currentUserData.active_meal_plan_id !== newUserData.active_meal_plan_id ||
+        currentUserData.active_menu_id !== newUserData.active_menu_id
       ) {
         state.user = newUserData;
         state.isAuthenticated = true;

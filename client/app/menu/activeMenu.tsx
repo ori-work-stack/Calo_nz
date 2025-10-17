@@ -117,6 +117,11 @@ interface SwapRequest {
   dayName: string;
   mealTiming: string;
   preferences?: {
+    userNotes?: string;
+    targetCalories?: string;
+    targetProtein?: string;
+    targetCarbs?: string;
+    targetFat?: string;
     dietary_category?: string;
     max_prep_time?: number;
     protein_preference?: "higher" | "lower" | "same";
@@ -213,6 +218,15 @@ export default function ActiveMenu() {
 
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // Temporary inputs for swap modal
+  const [swapPreferences, setSwapPreferences] = useState({
+    userNotes: "",
+    targetCalories: "",
+    targetProtein: "",
+    targetCarbs: "",
+    targetFat: "",
+  });
 
   // Temporary inputs
   const [tempRating, setTempRating] = useState(0);
@@ -705,24 +719,30 @@ export default function ActiveMenu() {
   const handleSwapMeal = async (
     mealToSwap: PlanMeal,
     day: string,
-    mealType: string
+    mealType: string,
+    prefs?: typeof swapPreferences
   ) => {
     try {
       setIsSwapping(true);
       setSwapError(null);
 
-      console.log("🔄 Swapping meal:", { mealToSwap, day, mealType });
+      console.log("🔄 Swapping meal:", { mealToSwap, day, mealType, prefs });
 
-      // Send swap request to server
-      const response = await mealPlanAPI.swapMeal(planId as string, {
+      // Construct the swap request payload
+      const swapRequestBody: SwapRequest = {
         currentMeal: mealToSwap,
         dayName: day,
         mealTiming: mealType,
         preferences: {
-          dietary_category: mealToSwap.dietary_category,
-          max_prep_time: mealToSwap.prep_time_minutes,
+          dietary_category: mealToSwap.dietary_category, // Default to current meal's category
+          max_prep_time: mealToSwap.prep_time_minutes, // Default to current meal's prep time
+          // Include user preferences if provided
+          ...prefs,
         },
-      });
+      };
+
+      // Send swap request to server
+      const response = await mealPlanAPI.swapMeal(planId as string, swapRequestBody);
 
       if (response.success) {
         ToastService.success(
@@ -730,7 +750,17 @@ export default function ActiveMenu() {
           t("menu.mealSwapped") || "Meal swapped successfully!",
           {
             duration: 3000,
-            onHide: () => loadMealPlan(),
+            onHide: () => {
+              loadMealPlan(); // Reload the meal plan to reflect changes
+              // Reset swap preferences after successful swap
+              setSwapPreferences({
+                userNotes: "",
+                targetCalories: "",
+                targetProtein: "",
+                targetCarbs: "",
+                targetFat: "",
+              });
+            },
           }
         );
       } else {
@@ -745,7 +775,7 @@ export default function ActiveMenu() {
       );
     } finally {
       setIsSwapping(false);
-      setShowSwapModal(false);
+      setShowSwapModal(false); // Close the modal regardless of success or failure
     }
   };
 
@@ -1104,7 +1134,10 @@ export default function ActiveMenu() {
           <View style={styles.mealCardActions}>
             <TouchableOpacity
               style={[styles.swapButton, { backgroundColor: colors.surface }]}
-              onPress={() => handleSwapMeal(meal, dayName, timing)}
+              onPress={() => {
+                setSelectedMeal(meal);
+                setShowSwapModal(true);
+              }}
             >
               <RefreshCw size={14} color={colors.emerald500} />
               <Text
@@ -1642,164 +1675,228 @@ export default function ActiveMenu() {
       visible={showSwapModal}
       animationType="slide"
       transparent={true}
-      onRequestClose={() => setShowSwapModal(false)}
+      onRequestClose={() => !isSwapping && setShowSwapModal(false)}
     >
       <View style={styles.modalOverlay}>
         <View
           style={[
             styles.enhancedModalContainer,
-            { backgroundColor: colors.card },
+            { backgroundColor: colors.card, maxWidth: screenWidth > 600 ? 500 : screenWidth - 40 },
           ]}
         >
           <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setShowSwapModal(false)}
-              style={styles.modalCloseButton}
-            >
-              <X size={24} color={colors.icon} />
-            </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               {language === "he" ? "החלף ארוחה" : "Swap Meal"}
             </Text>
-            <View style={{ width: 40 }} />
+            {!isSwapping && (
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSwapModal(false);
+                  setSwapPreferences({
+                    userNotes: "",
+                    targetCalories: "",
+                    targetProtein: "",
+                    targetCarbs: "",
+                    targetFat: "",
+                  });
+                }}
+                style={styles.modalCloseButton}
+              >
+                <X size={24} color={colors.icon} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView style={styles.modalBody}>
-            <Text
-              style={[
-                styles.swapDescription,
-                { color: colors.text },
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {language === "he"
-                ? "בחר אפשרות החלפה לארוחה הנוכחית"
-                : "Choose a swap option for the current meal"}
-            </Text>
-
-            {selectedMeal && (
-              <View
-                style={[
-                  styles.currentMealCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.currentMealName, { color: colors.text }]}>
-                  {selectedMeal.name}
-                </Text>
-                <Text style={[styles.currentMealMeta, { color: colors.icon }]}>
-                  {selectedMeal.calories} cal • {selectedMeal.protein_g}g
-                  protein
+            {isSwapping ? (
+              <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                <ActivityIndicator size="large" color={colors.emerald500} />
+                <Text
+                  style={[
+                    styles.modalText,
+                    { color: colors.text, marginTop: 16 },
+                  ]}
+                >
+                  {language === "he"
+                    ? "מחפש ארוחה חלופית מתאימה..."
+                    : "Finding a suitable alternative meal..."}
                 </Text>
               </View>
-            )}
-
-            {swapError && (
-              <View
-                style={[
-                  styles.errorContainer,
-                  { backgroundColor: "#fef2f2", borderColor: "#fecaca" },
-                ]}
-              >
-                <AlertCircle size={16} color="#ef4444" />
-                <Text style={[styles.errorText, { color: "#dc2626" }]}>
+            ) : swapError ? (
+              <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                <AlertCircle size={48} color={colors.error} />
+                <Text
+                  style={[
+                    styles.modalText,
+                    { color: colors.error, marginTop: 16, textAlign: "center" },
+                  ]}
+                >
                   {swapError}
                 </Text>
               </View>
-            )}
-
-            <View style={styles.swapOptions}>
-              <Text style={[styles.optionsTitle, { color: colors.text }]}>
-                {language === "he" ? "אפשרויות החלפה:" : "Swap Options:"}
-              </Text>
-
-              <TouchableOpacity
-                style={[
-                  styles.swapOptionButton,
-                  { backgroundColor: colors.emerald500 },
-                ]}
-                onPress={() =>
-                  selectedMeal &&
-                  handleSwapMeal(
-                    selectedMeal,
-                    getDayNames()[selectedDay],
-                    selectedMeal.meal_timing
-                  )
-                }
-                disabled={isSwapping}
-              >
-                {isSwapping ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <TrendingUp size={16} color="#ffffff" />
-                )}
-                <Text style={styles.swapOptionText}>
-                  {language === "he" ? "חלבון גבוה יותר" : "Higher Protein"}
+            ) : (
+              <>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  {language === "he"
+                    ? "מה תרצה לשנות בארוחה?"
+                    : "What would you like to change?"}
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.swapOptionButton,
-                  { backgroundColor: colors.emerald500 },
-                ]}
-                onPress={() =>
-                  selectedMeal &&
-                  handleSwapMeal(
-                    selectedMeal,
-                    getDayNames()[selectedDay],
-                    selectedMeal.meal_timing
-                  )
-                }
-                disabled={isSwapping}
-              >
-                {isSwapping ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Target size={16} color="#ffffff" />
-                )}
-                <Text style={styles.swapOptionText}>
-                  {language === "he" ? "פחות קלוריות" : "Lower Calories"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.swapOptionButton,
-                  {
-                    backgroundColor: colors.surface,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() =>
-                  selectedMeal &&
-                  handleSwapMeal(
-                    selectedMeal,
-                    getDayNames()[selectedDay],
-                    selectedMeal.meal_timing
-                  )
-                }
-                disabled={isSwapping}
-              >
-                {isSwapping ? (
-                  <ActivityIndicator size="small" color={colors.text} />
-                ) : (
-                  <Clock size={16} color={colors.text} />
-                )}
-                <Text
+                <TextInput
                   style={[
-                    styles.swapOptionSecondaryText,
-                    { color: colors.text },
+                    styles.textArea,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
                   ]}
+                  placeholder={
+                    language === "he"
+                      ? "לדוגמה: יותר חלבון, פחות פחמימות, ללא גלוטן..."
+                      : "e.g., more protein, less carbs, gluten-free..."
+                  }
+                  placeholderTextColor={colors.icon}
+                  value={swapPreferences.userNotes}
+                  onChangeText={(text) =>
+                    setSwapPreferences({ ...swapPreferences, userNotes: text })
+                  }
+                  multiline
+                  numberOfLines={3}
+                />
+
+                <View style={styles.nutritionInputs}>
+                  <View style={styles.nutritionInputRow}>
+                    <View style={styles.nutritionInputItem}>
+                      <Text style={[styles.inputLabel, { color: colors.text }]}>
+                        {language === "he" ? "קלוריות" : "Calories"}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.smallInput,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                            color: colors.text,
+                          },
+                        ]}
+                        placeholder="500"
+                        placeholderTextColor={colors.icon}
+                        keyboardType="numeric"
+                        value={swapPreferences.targetCalories}
+                        onChangeText={(text) =>
+                          setSwapPreferences({
+                            ...swapPreferences,
+                            targetCalories: text,
+                          })
+                        }
+                      />
+                    </View>
+
+                    <View style={styles.nutritionInputItem}>
+                      <Text style={[styles.inputLabel, { color: colors.text }]}>
+                        {language === "he" ? "חלבון (גר')" : "Protein (g)"}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.smallInput,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                            color: colors.text,
+                          },
+                        ]}
+                        placeholder="30"
+                        placeholderTextColor={colors.icon}
+                        keyboardType="numeric"
+                        value={swapPreferences.targetProtein}
+                        onChangeText={(text) =>
+                          setSwapPreferences({
+                            ...swapPreferences,
+                            targetProtein: text,
+                          })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.nutritionInputRow}>
+                    <View style={styles.nutritionInputItem}>
+                      <Text style={[styles.inputLabel, { color: colors.text }]}>
+                        {language === "he" ? "פחמימות (גר')" : "Carbs (g)"}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.smallInput,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                            color: colors.text,
+                          },
+                        ]}
+                        placeholder="50"
+                        placeholderTextColor={colors.icon}
+                        keyboardType="numeric"
+                        value={swapPreferences.targetCarbs}
+                        onChangeText={(text) =>
+                          setSwapPreferences({
+                            ...swapPreferences,
+                            targetCarbs: text,
+                          })
+                        }
+                      />
+                    </View>
+
+                    <View style={styles.nutritionInputItem}>
+                      <Text style={[styles.inputLabel, { color: colors.text }]}>
+                        {language === "he" ? "שומן (גר')" : "Fat (g)"}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.smallInput,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                            color: colors.text,
+                          },
+                        ]}
+                        placeholder="15"
+                        placeholderTextColor={colors.icon}
+                        keyboardType="numeric"
+                        value={swapPreferences.targetFat}
+                        onChangeText={(text) =>
+                          setSwapPreferences({
+                            ...swapPreferences,
+                            targetFat: text,
+                          })
+                        }
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.swapConfirmButton,
+                    { backgroundColor: colors.emerald500 },
+                  ]}
+                  onPress={() => {
+                    if (selectedMeal) { // Use selectedMeal for clarity
+                      handleSwapMeal(
+                        selectedMeal,
+                        getDayNames()[selectedDay],
+                        selectedMeal.meal_timing,
+                        swapPreferences
+                      );
+                    }
+                  }}
                 >
-                  {language === "he" ? "הכנה מהירה" : "Quick Prep"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <RefreshCw size={20} color="#ffffff" />
+                  <Text style={styles.swapConfirmButtonText}>
+                    {language === "he" ? "החלף ארוחה" : "Swap Meal"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -2391,7 +2488,7 @@ export default function ActiveMenu() {
 
       {/* Modals */}
       {renderMealModal()}
-      {showSwapModal && renderSwapModal()}
+      {renderSwapModal()}
       {showMealCompleteModal && renderMealCompleteModal()}
 
       <MenuRatingModal
@@ -2631,19 +2728,57 @@ const styles = StyleSheet.create({
   swapButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     gap: 6,
-    elevation: 1,
-    shadowColor: "#52c1c4",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    borderWidth: 1.5,
   },
+
   swapButtonText: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  nutritionInputs: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+
+  nutritionInputRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  nutritionInputItem: {
+    flex: 1,
+  },
+
+  smallInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    marginTop: 4,
+  },
+
+  swapConfirmButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 8,
+  },
+
+  swapConfirmButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   mealCardActions: {
     flexDirection: "row",
@@ -2778,7 +2913,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalBody: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },

@@ -810,6 +810,71 @@ router.get(
   }
 );
 
+// Swap meal endpoint
+router.post(
+  "/:planId/swap-meal",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const user_id = req.user?.user_id;
+      if (!user_id) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { planId } = req.params;
+      const { currentMeal, dayName, mealTiming, preferences } = req.body;
+
+      console.log("🔄 Swap meal request:", {
+        planId,
+        currentMeal: currentMeal?.name || currentMeal?.template_id,
+        dayName,
+        mealTiming,
+        preferences,
+      });
+
+      // Convert day name to number
+      const dayMap: { [key: string]: number } = {
+        sunday: 0,
+        monday: 1,
+        tuesday: 2,
+        wednesday: 3,
+        thursday: 4,
+        friday: 5,
+        saturday: 6,
+      };
+
+      const dayOfWeek = dayMap[dayName.toLowerCase()] ?? 0;
+
+      const result = await MealPlanService.replaceMealInPlan(
+        user_id,
+        planId,
+        dayOfWeek,
+        mealTiming,
+        0,
+        {
+          ...preferences,
+          current_meal_context: currentMeal,
+        }
+      );
+
+      res.json({
+        success: true,
+        data: result.data,
+        message: "Meal swapped successfully",
+      });
+    } catch (error) {
+      console.error("💥 Error swapping meal:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to swap meal",
+      });
+    }
+  }
+);
+
 // Create new meal plan
 router.post("/create", authenticateToken, async (req: AuthRequest, res) => {
   try {

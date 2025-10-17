@@ -1,6 +1,5 @@
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 
@@ -30,25 +29,87 @@ const defaultSettings: NotificationSettings = {
   notificationFrequency: "DAILY",
 };
 
-// Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Check if we're in Expo Go before loading notifications
+const isExpoGoDirect = __DEV__ && Constants.appOwnership === "expo";
+
+// Mock notifications object for Expo Go
+const mockNotifications = {
+  setNotificationHandler: () => {},
+  getPermissionsAsync: async () => ({ status: "granted" }),
+  requestPermissionsAsync: async () => ({ status: "granted" }),
+  getExpoPushTokenAsync: async () => ({ data: null }),
+  setNotificationChannelAsync: async () => {},
+  scheduleNotificationAsync: async () => {},
+  cancelAllScheduledNotificationsAsync: async () => {},
+  getAllScheduledNotificationsAsync: async () => [],
+  cancelScheduledNotificationAsync: async () => {},
+  addNotificationReceivedListener: () => {},
+  addNotificationResponseReceivedListener: () => {},
+  AndroidImportance: { MAX: 5, HIGH: 4 },
+  AndroidNotificationPriority: { HIGH: 1 },
+  SchedulableTriggerInputTypes: { CALENDAR: "calendar" },
+};
+
+// Load notifications only if not in Expo Go
+let Notifications: any = isExpoGoDirect ? mockNotifications : null;
+
+async function getNotifications() {
+  if (isExpoGoDirect) {
+    return mockNotifications;
+  }
+
+  if (Notifications) return Notifications;
+
+  try {
+    Notifications = await import("expo-notifications");
+    return Notifications;
+  } catch (error) {
+    console.error("Failed to load expo-notifications:", error);
+    return mockNotifications;
+  }
+}
 
 export class NotificationService {
   private static isInitialized = false;
   private static expoPushToken: string | null = null;
+  private static isExpoGo = isExpoGoDirect;
+  private static notificationsAvailable = !isExpoGoDirect;
 
   static async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      console.log("🚀 Initializing push notification system...");
+      console.log("🚀 Initializing notification system...");
+
+      if (this.isExpoGo) {
+        console.log(
+          "⚠️ Running in Expo Go - remote push notifications unavailable (SDK 53+). Use a development build for push notifications."
+        );
+        this.isInitialized = true;
+        this.notificationsAvailable = false;
+        return;
+      }
+
+      // Load notifications module
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) {
+        console.warn("⚠️ Notifications module not available");
+        this.isInitialized = true;
+        this.notificationsAvailable = false;
+        return;
+      }
+
+      this.notificationsAvailable = true;
+
+      // Configure how notifications are handled when app is in foreground
+      notif.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
 
       // Request permissions
       const hasPermissions = await this.requestPermissions();
@@ -58,21 +119,24 @@ export class NotificationService {
         return;
       }
 
-      // Register for push notifications
-      const token = await this.registerForPushNotifications();
-      if (token) {
-        this.expoPushToken = token;
-        console.log("✅ Push token obtained:", token.substring(0, 20) + "...");
-
-        // Store token for backend
-        await AsyncStorage.setItem("expo_push_token", token);
+      // Register for push notifications only in production builds
+      if (!__DEV__ && Device.isDevice) {
+        const token = await this.registerForPushNotifications();
+        if (token) {
+          this.expoPushToken = token;
+          console.log(
+            "✅ Push token obtained:",
+            token.substring(0, 20) + "..."
+          );
+          await AsyncStorage.setItem("expo_push_token", token);
+        }
       }
 
       // Set up notification handlers
       this.setupNotificationHandlers();
 
       this.isInitialized = true;
-      console.log("✅ Push notification system initialized successfully");
+      console.log("✅ Notification system initialized successfully");
     } catch (error) {
       console.error("❌ Notification initialization failed:", error);
       this.isInitialized = true;
@@ -81,22 +145,27 @@ export class NotificationService {
 
   static async requestPermissions(): Promise<boolean> {
     try {
+      if (this.isExpoGo) return false;
+
       if (!Device.isDevice) {
-        console.warn("Push notifications only work on physical devices");
+        console.warn("Notifications only work on physical devices");
         return false;
       }
 
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return false;
+
       const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
+        await notif.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await notif.requestPermissionsAsync();
         finalStatus = status;
       }
 
       if (finalStatus !== "granted") {
-        console.warn("Failed to get push notification permissions");
+        console.warn("Failed to get notification permissions");
         return false;
       }
 
@@ -109,39 +178,36 @@ export class NotificationService {
 
   private static async registerForPushNotifications(): Promise<string | null> {
     try {
-      if (!Device.isDevice) {
-        console.log("⚠️ Skipping push notifications - not on physical device");
+      if (this.isExpoGo || !Device.isDevice) {
         return null;
       }
 
-      // Skip in Expo Go - push notifications require a development build
-      if (__DEV__ && Constants.appOwnership === 'expo') {
-        console.log("⚠️ Skipping push notifications in Expo Go");
-        return null;
-      }
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return null;
 
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId;
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId;
 
       if (!projectId) {
-        console.warn("⚠️ No projectId found, skipping push notification registration");
+        console.warn(
+          "⚠️ No projectId found, skipping push notification registration"
+        );
         return null;
       }
 
-      const token = await Notifications.getExpoPushTokenAsync({ projectId });
+      const token = await notif.getExpoPushTokenAsync({ projectId });
 
       // Configure channels for Android
       if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("default", {
+        await notif.setNotificationChannelAsync("default", {
           name: "Default",
-          importance: Notifications.AndroidImportance.MAX,
+          importance: notif.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: "#10b981",
         });
 
-        await Notifications.setNotificationChannelAsync("meal-reminders", {
+        await notif.setNotificationChannelAsync("meal-reminders", {
           name: "Meal Reminders",
-          importance: Notifications.AndroidImportance.HIGH,
+          importance: notif.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: "#10b981",
           sound: "default",
@@ -156,39 +222,50 @@ export class NotificationService {
   }
 
   private static setupNotificationHandlers(): void {
-    // Handle notification received while app is in foreground
-    Notifications.addNotificationReceivedListener((notification) => {
-      console.log("🔔 Notification received");
-      // Don't log full notification object to avoid dataString deprecation warning
-    });
+    if (this.isExpoGo) return;
 
-    // Handle notification tapped
-    Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log("👆 Notification tapped");
-      const data = response.notification.request.content.data;
+    getNotifications().then((notif) => {
+      if (!notif || notif === mockNotifications) return;
 
-      // Store navigation data
-      if (data && typeof data === 'object') {
-        AsyncStorage.setItem("pending_navigation", JSON.stringify(data)).catch(
-          console.error,
-        );
-      }
+      // Handle notification received while app is in foreground
+      notif.addNotificationReceivedListener((notification: any) => {
+        console.log("🔔 Notification received");
+      });
+
+      // Handle notification tapped
+      notif.addNotificationResponseReceivedListener((response: any) => {
+        console.log("👆 Notification tapped");
+        const data = response.notification.request.content.data;
+
+        // Store navigation data
+        if (data && typeof data === "object") {
+          AsyncStorage.setItem("pending_navigation", JSON.stringify(data)).catch(
+            console.error
+          );
+        }
+      });
     });
   }
 
   static async sendLocalNotification(
     title: string,
     body: string,
-    data?: any,
+    data?: any
   ): Promise<void> {
     try {
-      await Notifications.scheduleNotificationAsync({
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) {
+        console.warn("Notifications not available");
+        return;
+      }
+
+      await notif.scheduleNotificationAsync({
         content: {
           title,
           body,
           data: data || {},
           sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+          priority: notif.AndroidNotificationPriority.HIGH,
         },
         trigger: null, // Send immediately
       });
@@ -197,9 +274,51 @@ export class NotificationService {
     }
   }
 
+  static async sendPushNotification(
+    expoPushToken: string,
+    title: string,
+    body: string,
+    data?: any
+  ): Promise<void> {
+    try {
+      if (!expoPushToken) {
+        console.error("No push token provided");
+        return;
+      }
+
+      const message = {
+        to: expoPushToken,
+        sound: "default",
+        title,
+        body,
+        data: data || {},
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error("❌ Push notification error:", result.errors);
+      } else {
+        console.log("✅ Push notification sent successfully");
+      }
+    } catch (error) {
+      console.error("💥 Error sending push notification:", error);
+    }
+  }
+
   static async sendWelcomeNotification(
     userName: string,
-    userEmail: string,
+    userEmail: string
   ): Promise<void> {
     try {
       if (!this.isInitialized) {
@@ -225,7 +344,7 @@ export class NotificationService {
   static async sendInstantNotification(
     title: string,
     message: string,
-    data: any = {},
+    data: any = {}
   ): Promise<void> {
     try {
       if (!this.isInitialized) {
@@ -240,7 +359,7 @@ export class NotificationService {
 
   static async sendGoalAchievement(
     title: string,
-    message: string,
+    message: string
   ): Promise<void> {
     try {
       await this.sendLocalNotification(`🎉 ${title}`, message, {
@@ -254,16 +373,24 @@ export class NotificationService {
 
   static async scheduleMealReminder(
     mealName: string,
-    time: string,
+    time: string
   ): Promise<void> {
     try {
+      if (this.isExpoGo) {
+        console.log(`📱 [Mock Reminder] ${mealName} at ${time}`);
+        return;
+      }
+
       if (!this.isInitialized) {
         await this.initialize();
       }
 
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return;
+
       const [hours, minutes] = time.split(":").map(Number);
 
-      await Notifications.scheduleNotificationAsync({
+      await notif.scheduleNotificationAsync({
         content: {
           title: `🍽️ ${mealName} Time!`,
           body: `Don't forget to log your ${mealName.toLowerCase()} and track your nutrition!`,
@@ -273,10 +400,10 @@ export class NotificationService {
             time,
           },
           sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+          priority: notif.AndroidNotificationPriority.HIGH,
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          type: notif.SchedulableTriggerInputTypes.CALENDAR,
           repeats: true,
           hour: hours,
           minute: minutes,
@@ -291,7 +418,12 @@ export class NotificationService {
 
   static async cancelAllNotifications(): Promise<void> {
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      if (this.isExpoGo) return;
+
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return;
+
+      await notif.cancelAllScheduledNotificationsAsync();
       console.log("✅ All notifications cancelled");
     } catch (error) {
       console.error("💥 Error cancelling notifications:", error);
@@ -300,12 +432,17 @@ export class NotificationService {
 
   static async cancelMealReminders(): Promise<void> {
     try {
-      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      if (this.isExpoGo) return;
+
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return;
+
+      const scheduled = await notif.getAllScheduledNotificationsAsync();
 
       for (const notification of scheduled) {
         if (notification.content.data?.type === "meal_reminder") {
-          await Notifications.cancelScheduledNotificationAsync(
-            notification.identifier,
+          await notif.cancelScheduledNotificationAsync(
+            notification.identifier
           );
         }
       }
@@ -321,7 +458,7 @@ export class NotificationService {
       await this.sendInstantNotification(
         "🧪 Test Notification",
         "Your notification system is working perfectly!",
-        { type: "test", timestamp: Date.now() },
+        { type: "test", timestamp: Date.now() }
       );
     } catch (error) {
       console.error("💥 Error showing test notification:", error);
@@ -343,7 +480,7 @@ export class NotificationService {
     try {
       await AsyncStorage.setItem(
         "notification_settings",
-        JSON.stringify(settings),
+        JSON.stringify(settings)
       );
     } catch (error) {
       console.error("Error saving notification settings:", error);
@@ -375,28 +512,37 @@ export class NotificationService {
     initialized: boolean;
     hasPushToken: boolean;
     pushToken: string | null;
+    isExpoGo: boolean;
+    notificationsAvailable: boolean;
   } {
     return {
       initialized: this.isInitialized,
       hasPushToken: !!this.expoPushToken,
       pushToken: this.expoPushToken,
+      isExpoGo: this.isExpoGo,
+      notificationsAvailable: this.notificationsAvailable,
     };
   }
 
   static async scheduleMealReminders(
-    settings: NotificationSettings,
+    settings: NotificationSettings
   ): Promise<void> {
     if (!settings.mealReminders) {
       console.log("⏭️ Meal reminders disabled, skipping...");
       return;
     }
 
+    if (this.isExpoGo) return;
+
     await this.cancelMealReminders();
+
+    const notif = await getNotifications();
+    if (!notif || notif === mockNotifications) return;
 
     for (const time of settings.reminderTimes) {
       const [hours, minutes] = time.split(":").map(Number);
 
-      await Notifications.scheduleNotificationAsync({
+      await notif.scheduleNotificationAsync({
         content: {
           title: "Meal Reminder 🍽️",
           body: "Don't forget to log your meal!",
@@ -404,7 +550,7 @@ export class NotificationService {
           sound: true,
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          type: notif.SchedulableTriggerInputTypes.CALENDAR,
           repeats: true,
           hour: hours,
           minute: minutes,
@@ -416,22 +562,31 @@ export class NotificationService {
   }
 
   static async scheduleEndOfDayMealCheck(): Promise<void> {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Daily Check-in ⏰",
-        body: "Have you logged all your meals today? Track your nutrition before the day ends!",
-        data: { type: "end_of_day_check" },
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        repeats: true,
-        hour: 21,
-        minute: 0,
-      },
-    });
+    try {
+      if (this.isExpoGo) return;
 
-    console.log("✅ End of day check scheduled for 9:00 PM");
+      const notif = await getNotifications();
+      if (!notif || notif === mockNotifications) return;
+
+      await notif.scheduleNotificationAsync({
+        content: {
+          title: "Daily Check-in ⏰",
+          body: "Have you logged all your meals today? Track your nutrition before the day ends!",
+          data: { type: "end_of_day_check" },
+          sound: true,
+        },
+        trigger: {
+          type: notif.SchedulableTriggerInputTypes.CALENDAR,
+          repeats: true,
+          hour: 21,
+          minute: 0,
+        },
+      });
+
+      console.log("✅ End of day check scheduled for 9:00 PM");
+    } catch (error) {
+      console.error("Error scheduling end of day check:", error);
+    }
   }
 
   static getPushToken(): string | null {

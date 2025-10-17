@@ -214,15 +214,32 @@ export default function MenuDetailsScreen() {
     return dayMap[dayName.toLowerCase()] ?? 0;
   };
 
+  const [swapPreferences, setSwapPreferences] = useState({
+    userNotes: "",
+    targetCalories: "",
+    targetProtein: "",
+    targetCarbs: "",
+    targetFat: "",
+  });
+
   const handleSwapMeal = async (
     meal: Meal,
     dayName: string,
-    mealType: string
+    mealType: string,
+    userPrefs?: any
   ) => {
     try {
       setIsSwapping(true);
       setSwapError(null);
       setMealToSwap(meal);
+      
+      if (!userPrefs) {
+        // Just show the modal for user input
+        setShowSwapModal(true);
+        setIsSwapping(false);
+        return;
+      }
+
       setShowSwapModal(true);
 
       console.log("🔄 Swapping meal:", {
@@ -230,7 +247,38 @@ export default function MenuDetailsScreen() {
         dayName,
         mealType,
         dayNumber: getDayOfWeekNumber(dayName),
+        userPrefs,
       });
+
+      // Build preferences with user input
+      const preferences: any = {
+        dietary_category: meal.dietary_category || menu?.dietary_category,
+        max_prep_time: meal.prep_time_minutes || 60,
+        calories_range: {
+          min: Math.max(0, meal.calories - 100),
+          max: meal.calories + 100,
+        },
+      };
+
+      if (userPrefs.userNotes) {
+        preferences.user_notes = userPrefs.userNotes;
+      }
+
+      if (userPrefs.targetCalories) {
+        preferences.target_calories = parseInt(userPrefs.targetCalories);
+      }
+
+      if (userPrefs.targetProtein) {
+        preferences.target_protein = parseInt(userPrefs.targetProtein);
+      }
+
+      if (userPrefs.targetCarbs) {
+        preferences.target_carbs = parseInt(userPrefs.targetCarbs);
+      }
+
+      if (userPrefs.targetFat) {
+        preferences.target_fat = parseInt(userPrefs.targetFat);
+      }
 
       // Make API call to swap meal
       const response = await api.post(
@@ -239,14 +287,7 @@ export default function MenuDetailsScreen() {
           currentMealId: meal.meal_id,
           dayOfWeek: getDayOfWeekNumber(dayName),
           mealTiming: mealType,
-          preferences: {
-            dietary_category: meal.dietary_category || menu?.dietary_category,
-            max_prep_time: meal.prep_time_minutes || 60,
-            calories_range: {
-              min: Math.max(0, meal.calories - 100),
-              max: meal.calories + 100,
-            },
-          },
+          preferences,
         }
       );
 
@@ -261,7 +302,14 @@ export default function MenuDetailsScreen() {
               text: language === "he" ? "אישור" : "OK",
               onPress: () => {
                 setShowSwapModal(false);
-                loadMenuDetails(); // Reload to get updated meal
+                setSwapPreferences({
+                  userNotes: "",
+                  targetCalories: "",
+                  targetProtein: "",
+                  targetCarbs: "",
+                  targetFat: "",
+                });
+                loadMenuDetails();
               },
             },
           ]
@@ -283,10 +331,6 @@ export default function MenuDetailsScreen() {
       );
     } finally {
       setIsSwapping(false);
-      setTimeout(() => {
-        setShowSwapModal(false);
-        setMealToSwap(null);
-      }, 2000);
     }
   };
 
@@ -1509,7 +1553,6 @@ const styles = StyleSheet.create({
 
   // Modal Styles
   modalOverlay: {
-    flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",

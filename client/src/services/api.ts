@@ -261,6 +261,20 @@ export const authAPI = {
   async getStoredToken(): Promise<string | null> {
     return getStoredToken();
   },
+
+  // Added getCurrentUser function to fetch user data from /auth/me
+  async getCurrentUser(): Promise<any> {
+    try {
+      console.log("🔄 Fetching current user...");
+      const response = await api.get("/auth/me");
+      console.log("✅ Current user fetched:", response.data);
+      console.log("👤 Full user data:", JSON.stringify(response.data.user, null, 2));
+      return response.data;
+    } catch (error: any) {
+      console.error("💥 Get current user error:", error);
+      throw error.response?.data || error;
+    }
+  },
 };
 
 // Daily Goals API

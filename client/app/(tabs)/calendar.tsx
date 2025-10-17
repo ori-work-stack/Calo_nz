@@ -260,10 +260,10 @@ export default function CalendarScreen() {
       dayData.calories_goal
     );
 
-    if (caloriesProgress >= 110) return "#8B0000"; // Dark red for overeating
-    if (caloriesProgress >= 100) return "#2ECC71"; // Green for goal achieved
-    if (caloriesProgress >= 70) return "#F39C12"; // Orange for close to goal
-    return "#E74C3C"; // Red for not achieved
+    if (caloriesProgress >= 110) return colors.error; // Error color for overeating
+    if (caloriesProgress >= 100) return colors.success; // Success color for goal achieved
+    if (caloriesProgress >= 70) return colors.warning; // Warning color for close to goal
+    return colors.destructive; // Destructive color for not achieved
   };
 
   const getProgressLabel = (dayData: DayData) => {

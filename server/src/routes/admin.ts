@@ -14,6 +14,8 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
   try {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [
       totalUsers,
@@ -22,7 +24,14 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       totalMeals,
       totalMenus,
       activeSubscriptions,
-      revenueData
+      revenueData,
+      weeklySignups,
+      monthlySignups,
+      weeklyMeals,
+      monthlyMeals,
+      avgMealsPerUser,
+      topUsers,
+      completionStats
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { created_at: { gte: today } } }),
@@ -36,6 +45,37 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       prisma.subscriptionPayment.aggregate({
         _sum: { amount: true },
         _count: true,
+      }),
+      prisma.user.count({ where: { created_at: { gte: last7Days } } }),
+      prisma.user.count({ where: { created_at: { gte: last30Days } } }),
+      prisma.meal.count({ where: { created_at: { gte: last7Days } } }),
+      prisma.meal.count({ where: { created_at: { gte: last30Days } } }),
+      prisma.meal.groupBy({
+        by: ['user_id'],
+        _count: true,
+      }).then(results => results.reduce((sum, r) => sum + r._count, 0) / Math.max(results.length, 1)),
+      prisma.user.findMany({
+        take: 10,
+        orderBy: { total_points: 'desc' },
+        select: {
+          user_id: true,
+          name: true,
+          email: true,
+          level: true,
+          total_points: true,
+          current_streak: true,
+          subscription_type: true,
+        }
+      }),
+      prisma.user.aggregate({
+        _avg: {
+          current_streak: true,
+          total_complete_days: true,
+        },
+        _max: {
+          current_streak: true,
+          best_streak: true,
+        }
       })
     ]);
 
@@ -48,6 +88,11 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
           todayLogins,
           totalMeals,
           totalMenus,
+          weeklySignups,
+          monthlySignups,
+          weeklyMeals,
+          monthlyMeals,
+          avgMealsPerUser: Math.round(avgMealsPerUser),
         },
         subscriptions: activeSubscriptions.reduce((acc, sub) => {
           acc[sub.subscription_type] = sub._count;
@@ -56,7 +101,14 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
         revenue: {
           total: revenueData._sum.amount || 0,
           transactions: revenueData._count,
-        }
+        },
+        engagement: {
+          avgStreak: Math.round(completionStats._avg.current_streak || 0),
+          avgCompleteDays: Math.round(completionStats._avg.total_complete_days || 0),
+          maxStreak: completionStats._max.current_streak || 0,
+          bestStreak: completionStats._max.best_streak || 0,
+        },
+        topUsers,
       }
     });
   } catch (error) {

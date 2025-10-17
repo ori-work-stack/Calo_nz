@@ -21,6 +21,20 @@ const userSelectFields = {
   created_at: true,
   email_verified: true,
   is_questionnaire_completed: true,
+  is_admin: true,
+  is_super_admin: true,
+  level: true,
+  total_points: true,
+  current_xp: true,
+  current_streak: true,
+  best_streak: true,
+  total_complete_days: true,
+  last_complete_date: true,
+  active_meal_plan_id: true,
+  active_menu_id: true,
+  signup_date: true,
+  subscription_start: true,
+  subscription_end: true,
 };
 
 function generatePasswordResetToken(email: string) {
@@ -431,11 +445,18 @@ export class AuthService {
         email_verified: true,
         email_verification_code: null,
         email_verification_expires: null,
+        // Initialize gamification fields if null
+        level: user.level ?? 1,
+        total_points: user.total_points ?? 0,
+        current_xp: user.current_xp ?? 0,
+        current_streak: user.current_streak ?? 0,
+        best_streak: user.best_streak ?? 0,
+        total_complete_days: user.total_complete_days ?? 0,
       },
       select: userSelectFields,
     });
 
-    console.log("✅ User updated:", updatedUser);
+    console.log("✅ User updated with gamification defaults:", updatedUser);
 
     const token = generateToken({
       user_id: updatedUser.user_id,

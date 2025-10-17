@@ -257,7 +257,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
   // Animated styles
   const fabStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: fabScale.value * pulseScale.value },
+      { scale: fabScale.value -0.25 * pulseScale.value },
       { rotate: `${fabRotation.value}deg` },
     ],
   }));
@@ -644,8 +644,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonTouchable: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: 28,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

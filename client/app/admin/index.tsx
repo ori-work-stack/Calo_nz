@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@/src/context/ThemeContext";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
+import { Calendar, Flame, Target, Award, UserCheck } from "lucide-react-native";
 
 interface AdminStats {
   overview: {
@@ -31,6 +32,20 @@ interface AdminStats {
     total: number;
     transactions: number;
   };
+  engagement: {
+    avgStreak: number;
+    avgCompleteDays: number;
+    bestStreak: number;
+  };
+  topUsers: {
+    user_id: string;
+    name: string | null;
+    email: string;
+    level: number;
+    total_points: number;
+    current_streak: number;
+    subscription_type: string;
+  }[];
 }
 
 export default function AdminDashboard() {
@@ -45,13 +60,22 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    console.log("🔍 Admin access check:", {
+      user: user?.email,
+      is_admin: user?.is_admin,
+      is_super_admin: user?.is_super_admin,
+      hasAccess: user?.is_admin || user?.is_super_admin,
+    });
+
     if (!user || (!user.is_admin && !user.is_super_admin)) {
+      console.log("❌ Admin access denied");
       Alert.alert(t("admin.accessDenied"), t("admin.noPermission"), [
         { text: "OK", onPress: () => router.replace("/(tabs)") },
       ]);
       return;
     }
 
+    console.log("✅ Admin access granted");
     fetchAdminData();
   }, [user]);
 
@@ -224,6 +248,133 @@ export default function AdminDashboard() {
             </View>
           </View>
         )}
+
+        {/* Engagement Metrics */}
+        {stats && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              User Engagement
+            </Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statsContent,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
+                  <Flame size={28} color={colors.error} />
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {stats.engagement.avgStreak}
+                  </Text>
+                  <Text
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Avg Streak
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statsContent,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
+                  <Target size={28} color={colors.warning} />
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {stats.engagement.avgCompleteDays}
+                  </Text>
+                  <Text
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Avg Complete Days
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statsContent,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
+                  <Award size={28} color={colors.primary} />
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {stats.engagement.bestStreak}
+                  </Text>
+                  <Text
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Best Streak
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Top Users */}
+        {stats && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Top Users by Points
+            </Text>
+            <View
+              style={[
+                styles.topUsersContainer,
+                { backgroundColor: colors.surface },
+              ]}
+            >
+              {stats.topUsers.map((user, index) => (
+                <View key={user.user_id} style={styles.topUserItem}>
+                  <View style={styles.topUserRank}>
+                    <Text style={[styles.rankText, { color: colors.text }]}>
+                      #{index + 1}
+                    </Text>
+                  </View>
+                  <View style={styles.topUserInfo}>
+                    <Text
+                      style={[styles.topUserName, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {user.name || user.email}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.topUserEmail,
+                        { color: colors.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Level {user.level} • {user.total_points} pts •{" "}
+                      {user.current_streak} streak
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.subscriptionBadge,
+                      {
+                        backgroundColor:
+                          user.subscription_type === "PREMIUM"
+                            ? colors.warning
+                            : user.subscription_type === "GOLD"
+                            ? colors.primary
+                            : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.subscriptionText}>
+                      {user.subscription_type}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -333,5 +484,71 @@ const styles = StyleSheet.create({
   subscriptionCount: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  // New styles for engagement and top users sections
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  statsContent: {
+    padding: 20,
+    alignItems: "center",
+    borderRadius: 16,
+  },
+  topUsersContainer: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    marginHorizontal: 16,
+  },
+  topUserItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.1)",
+  },
+  topUserRank: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  rankText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  topUserInfo: {
+    flex: 1,
+  },
+  topUserName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  topUserEmail: {
+    fontSize: 12,
+  },
+  subscriptionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  subscriptionText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFF",
   },
 });

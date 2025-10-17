@@ -393,7 +393,7 @@ export class StatisticsService {
       // Return general statistics data
       const statisticsData: StatisticsData = {
         level: user.level || 1,
-        currentXP: user.current_xp || 0,
+        currentXP: user.total_points || 0, // Use total_points as the main XP display
         totalPoints: user.total_points || 0,
         currentStreak: userStats.currentStreak,
         bestStreak: userStats.bestStreak,

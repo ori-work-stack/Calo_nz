@@ -47,6 +47,10 @@ import {
   Settings,
   Heart,
   Sparkles,
+  Menu,
+  MenuIcon,
+  SquareMenuIcon,
+  ChartAreaIcon,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -111,8 +115,8 @@ const triggerHaptic = () => {
 const getIconComponent = (routeName: string) => {
   const iconMap: { [key: string]: React.ComponentType<any> } = {
     index: House, // Changed from Home to House
-    history: Clock, // Changed from History to Clock
-    camera: Video, // Changed from Camera to Video
+    history: SquareMenuIcon, // Changed from History to Clock
+    camera: Camera, // Changed from Camera to Video
     statistics: BarChart3, // Changed from TrendingUp to BarChart3
     calendar: CalendarDays, // Changed from Calendar to CalendarDays
     devices: Smartphone, // Changed from Watch to Smartphone
@@ -121,6 +125,7 @@ const getIconComponent = (routeName: string) => {
     "food-scanner": QrCode, // Changed from ScanLine to QrCode
     questionnaire: FileText, // Changed from ClipboardList to FileText
     profile: UserCircle, // Changed from User to UserCircle
+    dashboard: ChartAreaIcon
   };
   return iconMap[routeName] || House;
 };
@@ -274,6 +279,7 @@ const CameraTab = React.memo(
               color={isFocused ? "#ffffff" : colors.icon}
               strokeWidth={1.5}
             />
+            
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -654,7 +660,6 @@ const styles = StyleSheet.create({
   },
 
   cameraWrapper: {
-    marginLeft: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -665,7 +670,6 @@ const styles = StyleSheet.create({
     borderRadius: TAB_CONFIG.cameraBorderRadius,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
   },
 });
 
