@@ -228,10 +228,17 @@ export default function PaymentScreen() {
       // Update user subscription
       await userAPI.updateSubscription(planType as string);
 
+      // Calculate subscription end date (30 days from now for non-FREE plans)
+      const subscriptionEndDate = new Date();
+      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+
       // Update Redux state
       dispatch({
         type: "auth/updateSubscription",
-        payload: { subscription_type: planType },
+        payload: { 
+          subscription_type: planType,
+          subscription_end_date: planType !== "FREE" ? subscriptionEndDate.toISOString() : null
+        },
       });
 
       // Show success animation
@@ -242,19 +249,23 @@ export default function PaymentScreen() {
 
       // Delay and navigate
       setTimeout(() => {
+        const subscriptionEndDate = new Date();
+        subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+        const endDateFormatted = subscriptionEndDate.toLocaleDateString();
+
+        const message = planType !== "FREE" 
+          ? `Welcome to ${planName}! Your payment has been processed successfully.\n\n📅 Subscription expires: ${endDateFormatted}\nAfter this date, you will revert to the FREE plan.`
+          : `Welcome to ${planName}!`;
+
         Alert.alert(
           "Payment Successful! 🎉",
-          `Welcome to ${planName}! Your payment has been processed successfully.`,
+          message,
           [
             {
               text: "Continue",
               onPress: () => {
-                // Fix: Use correct route names without leading slash
                 if (planType !== "FREE") {
-                  // Use replace instead of push to prevent back navigation issues
                   router.replace("/(tabs)/questionnaire" as any);
-                  // Alternative: if questionnaire is a separate screen
-                  // router.replace("/questionnaire" as any);
                 } else {
                   router.replace("/(tabs)" as any);
                 }

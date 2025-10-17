@@ -19,7 +19,6 @@ import { useLanguage } from "@/src/i18n/context/LanguageContext";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import { Shield } from "lucide-react-native"; // Icon updated as per the changes.
-import LoadingScreen from "@/components/LoadingScreen";
 
 const ADMIN_PLAN = "ADMIN"; // Set the plan name that can access admin dashboard
 
@@ -74,12 +73,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user has admin access
+    console.log("👤 Current user:", user);
+    console.log("🔑 Is admin:", user?.is_admin);
+    console.log("🔑 Is super admin:", user?.is_super_admin);
+
     if (!user || (!user.is_admin && !user.is_super_admin)) {
       console.log("🚫 Unauthorized access attempt to admin dashboard");
-      router.replace("/(tabs)");
+      Alert.alert("Access Denied", "You do not have admin privileges", [
+        { text: "OK", onPress: () => router.replace("/(tabs)") },
+      ]);
       return;
     }
 
+    console.log("✅ Admin access granted, fetching data...");
     fetchAdminData();
   }, [user, router]);
 
@@ -88,9 +94,29 @@ export default function AdminDashboard() {
       setLoading(true);
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
+      // Get the auth token
+      const { authAPI } = await import("@/src/services/api");
+      const token = await authAPI.getStoredToken();
+
+      if (!token) {
+        console.error("❌ No auth token found");
+        Alert.alert("Error", "Please sign in again");
+        router.replace("/(auth)/welcome");
+        return;
+      }
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
       const [statsRes, usersRes] = await Promise.all([
-        axios.get(`${API_URL}/admin/stats`),
-        axios.get(`${API_URL}/admin/users?page=${currentPage}&limit=20`),
+        axios.get(`${API_URL}/admin/stats`, config),
+        axios.get(
+          `${API_URL}/admin/users?page=${currentPage}&limit=20`,
+          config
+        ),
       ]);
 
       if (statsRes.data.success) {
@@ -118,7 +144,12 @@ export default function AdminDashboard() {
   const handleUserDetails = async (userId: string) => {
     try {
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
-      const response = await axios.get(`${API_URL}/admin/users/${userId}`);
+      const { authAPI } = await import("@/src/services/api");
+      const token = await authAPI.getStoredToken();
+
+      const response = await axios.get(`${API_URL}/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (response.data.success) {
         setSelectedUser(response.data.data);
@@ -146,8 +177,14 @@ export default function AdminDashboard() {
 
     try {
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
+      const { authAPI } = await import("@/src/services/api");
+      const token = await authAPI.getStoredToken();
+
       const response = await axios.delete(
-        `${API_URL}/admin/users/${selectedUser.user_id}`
+        `${API_URL}/admin/users/${selectedUser.user_id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       if (response.data.success) {
@@ -171,8 +208,15 @@ export default function AdminDashboard() {
       u.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) {
-    return <LoadingScreen appName="" text="Loading Dashboard..." />;
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>
+          {language === "he" ? "טוען נתונים..." : "Loading..."}
+        </Text>
+      </View>
+    );
   }
 
   return (

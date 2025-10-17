@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   Dimensions,
@@ -14,6 +13,7 @@ import {
   FlatList,
   Animated,
 } from "react-native";
+import { ToastService } from "@/src/services/totastService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -344,21 +344,15 @@ export default function ActiveMenu() {
       const summary = await generateMenuCompletionSummary();
 
       // Show completion notification
-      Alert.alert(
+      ToastService.success(
         language === "he" ? "התפריט הושלם!" : "Menu Completed!",
         language === "he"
           ? `כל הכבוד! השלמת תפריט של ${menuDuration} ימים עם ${summary.totalMeals} ארוחות.`
           : `Congratulations! You've completed a ${menuDuration}-day menu with ${summary.totalMeals} meals.`,
-        [
-          {
-            text: language === "he" ? "צפה בסיכום" : "View Summary",
-            onPress: () => showDetailedSummary(summary),
-          },
-          {
-            text: language === "he" ? "אישור" : "OK",
-            style: "default",
-          },
-        ]
+        {
+          duration: 6000,
+          onPress: () => showDetailedSummary(summary),
+        }
       );
 
       // Mark as complete to prevent duplicate notifications
@@ -413,7 +407,7 @@ export default function ActiveMenu() {
         ? `📊 סיכום התפריט:\n\n• משך: ${summary.duration} ימים\n• סה"כ ארוחות: ${summary.totalMeals}\n• סה"כ קלוריות: ${summary.totalCalories}\n• ממוצע ליום: ${summary.averageCaloriesPerDay} קלוריות`
         : `📊 Menu Summary:\n\n• Duration: ${summary.duration} days\n• Total Meals: ${summary.totalMeals}\n• Total Calories: ${summary.totalCalories}\n• Average per day: ${summary.averageCaloriesPerDay} calories`;
 
-    Alert.alert(
+    ToastService.alert(
       language === "he" ? "סיכום מפורט" : "Detailed Summary",
       message
     );
@@ -430,21 +424,11 @@ export default function ActiveMenu() {
       // await api.post(`/meal-plans/${mealPlan?.plan_id}/complete`);
 
       // Optionally redirect to menu selection or generate new menu
-      Alert.alert(
+      ToastService.confirm(
         language === "he" ? "התפריט הסתיים" : "Menu Finished",
         language === "he"
-          ? "האם תרצה ליצור תפריט חדש?"
-          : "Would you like to create a new menu?",
-        [
-          {
-            text: language === "he" ? "לא עכשיו" : "Not Now",
-            style: "cancel",
-          },
-          {
-            text: language === "he" ? "צור תפריט חדש" : "Create New Menu",
-            onPress: () => router.push("/(tabs)/recommended-menus"),
-          },
-        ]
+          ? "האם תרצה ליצור תפריט חדש? לחץ כאן."
+          : "Would you like to create a new menu? Tap here."
       );
     } catch (error) {
       console.error("💥 Error finishing menu:", error);
@@ -608,21 +592,15 @@ export default function ActiveMenu() {
     } catch (error) {
       console.error("💥 Error loading meal plan:", error);
       // Don't immediately set to null, give user option to retry
-      Alert.alert(
+      ToastService.error(
         language === "he" ? "שגיאה בטעינה" : "Loading Error",
         language === "he"
-          ? "נכשל בטעינת תוכנית הארוחות. האם לנסות שוב?"
-          : "Failed to load meal plan. Would you like to retry?",
-        [
-          {
-            text: language === "he" ? "חזור לתפריטים" : "Back to Menus",
-            onPress: () => router.push("/(tabs)/recommended-menus"),
-          },
-          {
-            text: language === "he" ? "נסה שוב" : "Retry",
-            onPress: () => loadMealPlan(),
-          },
-        ]
+          ? "נכשל בטעינת תוכנית הארוחות. לחץ לנסות שוב."
+          : "Failed to load meal plan. Tap to retry.",
+        {
+          duration: 5000,
+          onPress: () => loadMealPlan(),
+        }
       );
     } finally {
       setIsLoading(false);
@@ -680,7 +658,7 @@ export default function ActiveMenu() {
         return updated;
       });
 
-      Alert.alert(
+      ToastService.error(
         language === "he" ? "שגיאה" : "Error",
         language === "he"
           ? "נכשל בשמירת הדירוג. נסה שוב."
@@ -715,7 +693,7 @@ export default function ActiveMenu() {
       // Revert optimistic update
       setMealFavorites((prev) => ({ ...prev, [key]: !newFavoriteState }));
 
-      Alert.alert(
+      ToastService.error(
         language === "he" ? "שגיאה" : "Error",
         language === "he"
           ? "נכשל בעדכון המועדפים"
@@ -724,169 +702,54 @@ export default function ActiveMenu() {
     }
   };
 
-  const handleSwapMeal = (meal: PlanMeal, dayName: string, timing: string) => {
-    setSelectedMeal(meal);
-    setSwapError(null);
-    setShowSwapModal(true);
-  };
-
-  const performMealSwap = async (swapRequest: SwapRequest) => {
-    if (!mealPlan) return;
-
-    setIsSwapping(true);
-    setSwapError(null);
-
+  const handleSwapMeal = async (
+    mealToSwap: PlanMeal,
+    day: string,
+    mealType: string
+  ) => {
     try {
-      console.log("🔄 Requesting AI-powered meal swap...");
-      console.log("📋 Swap request:", {
-        current_meal: swapRequest.currentMeal.name,
-        preferences: swapRequest.preferences,
-        day: swapRequest.dayName,
-        meal_timing: swapRequest.mealTiming,
+      setIsSwapping(true);
+      setSwapError(null);
+
+      console.log("🔄 Swapping meal:", { mealToSwap, day, mealType });
+
+      // Send swap request to server
+      const response = await mealPlanAPI.swapMeal(planId as string, {
+        currentMeal: mealToSwap,
+        dayName: day,
+        mealTiming: mealType,
+        preferences: {
+          dietary_category: mealToSwap.dietary_category,
+          max_prep_time: mealToSwap.prep_time_minutes,
+        },
       });
 
-      // Mapping day names to numerical index expected by API
-      const dayIndexMap = {
-        Sunday: 0,
-        Monday: 1,
-        Tuesday: 2,
-        Wednesday: 3,
-        Thursday: 4,
-        Friday: 5,
-        Saturday: 6,
-        ראשון: 0,
-        שני: 1,
-        שלישי: 2,
-        רביעי: 3,
-        חמישי: 4,
-        שישי: 5,
-        שבת: 6,
-      };
-      const apiDayIndex =
-        dayIndexMap[swapRequest.dayName as keyof typeof dayIndexMap];
-
-      const response = await mealPlanAPI.replaceMealInPlan(
-        mealPlan.plan_id,
-        apiDayIndex,
-        swapRequest.mealTiming,
-        {
-          ...swapRequest.preferences,
-          current_meal_context: {
-            name: swapRequest.currentMeal.name,
-            calories: swapRequest.currentMeal.calories,
-            protein_g: swapRequest.currentMeal.protein_g,
-            carbs_g: swapRequest.currentMeal.carbs_g,
-            fats_g: swapRequest.currentMeal.fats_g,
-            dietary_category: swapRequest.currentMeal.dietary_category,
-          },
-        }
-      );
-
-      if (response.success && response.data) {
-        const newMeal = response.data.data || response.data;
-        console.log("✅ AI generated new meal:", newMeal.name);
-
-        // Update the meal plan with the new meal
-        setMealPlan((prev) => {
-          if (!prev) return prev;
-
-          const updated = { ...prev };
-          updated.weekly_plan = { ...prev.weekly_plan };
-          if (!updated.weekly_plan[swapRequest.dayName]) {
-            updated.weekly_plan[swapRequest.dayName] = {};
+      if (response.success) {
+        ToastService.success(
+          t("menu.swapSuccess") || "Success",
+          t("menu.mealSwapped") || "Meal swapped successfully!",
+          {
+            duration: 3000,
+            onHide: () => loadMealPlan(),
           }
-          if (
-            !updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming]
-          ) {
-            updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming] =
-              [];
-          }
-
-          updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming] =
-            prev.weekly_plan[swapRequest.dayName][swapRequest.mealTiming].map(
-              (m) =>
-                m.template_id === swapRequest.currentMeal.template_id
-                  ? {
-                      template_id: newMeal.template_id || `new_${Date.now()}`,
-                      name: newMeal.name,
-                      description: newMeal.description || "",
-                      meal_timing: newMeal.meal_timing,
-                      dietary_category: newMeal.dietary_category || "BALANCED",
-                      prep_time_minutes: newMeal.prep_time_minutes || 30,
-                      difficulty_level: newMeal.difficulty_level || 2,
-                      calories: newMeal.calories,
-                      protein_g: newMeal.protein_g,
-                      carbs_g: newMeal.carbs_g,
-                      fats_g: newMeal.fats_g,
-                      fiber_g: newMeal.fiber_g || 0,
-                      sugar_g: newMeal.sugar_g || 0,
-                      sodium_mg: newMeal.sodium_mg || 0,
-                      ingredients: Array.isArray(newMeal.ingredients_json)
-                        ? newMeal.ingredients_json
-                        : newMeal.ingredients || [],
-                      instructions: Array.isArray(newMeal.instructions_json)
-                        ? newMeal.instructions_json
-                        : newMeal.instructions || [],
-                      allergens: Array.isArray(newMeal.allergens_json)
-                        ? newMeal.allergens_json
-                        : [],
-                      image_url: newMeal.image_url || null,
-                      user_rating: 0,
-                      user_comments: "",
-                      is_favorite: false,
-                    }
-                  : m
-            );
-
-          return updated;
-        });
-
-        setShowSwapModal(false);
-
-        Alert.alert(
-          language === "he" ? "הצלחה!" : "Success!",
-          language === "he"
-            ? `הארוחה הוחלפה ל: ${newMeal.name}`
-            : `Meal swapped to: ${newMeal.name}`,
-          [
-            {
-              text: language === "he" ? "אישור" : "OK",
-              onPress: () => console.log("✅ Meal swap completed successfully"),
-            },
-          ]
         );
       } else {
-        throw new Error(response.data.error || "Failed to swap meal");
+        throw new Error(response.error || "Failed to swap meal");
       }
     } catch (error: any) {
-      console.error("💥 Error swapping meal:", error);
-
-      let errorMessage = "Failed to swap meal";
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      setSwapError(errorMessage);
-
-      Alert.alert(
-        language === "he" ? "שגיאה" : "Error",
-        language === "he"
-          ? `נכשל בהחלפת הארוחה: ${errorMessage}`
-          : `Failed to swap meal: ${errorMessage}`
+      console.error("💥 Swap meal error:", error);
+      setSwapError(error.message || "Failed to swap meal");
+      ToastService.error(
+        t("common.error") || "Error",
+        error.message || "Failed to swap meal. Please try again."
       );
     } finally {
       setIsSwapping(false);
+      setShowSwapModal(false);
     }
   };
 
   const handleCompletePlan = async () => {
-    if (!mealPlan) return;
-    setShowMenuRatingModal(true);
-  };
-
-  const handleMenuRatingSubmit = async (rating: any) => {
     if (!mealPlan) return;
 
     setIsSubmittingRating(true);
@@ -894,32 +757,30 @@ export default function ActiveMenu() {
     try {
       const response = await mealPlanAPI.completeMealPlan(
         mealPlan.plan_id,
-        rating
+        completionFeedback
       );
 
       if (response.data.success) {
         setShowMenuRatingModal(false);
 
-        Alert.alert(
+        ToastService.success(
           language === "he" ? "תודה!" : "Thank you!",
           language === "he"
             ? "התוכנית הושלמה בהצלחה. המשוב שלך יעזור לנו לשפר!"
             : "Plan completed successfully. Your feedback will help us improve!",
-          [
-            {
-              text: language === "he" ? "אישור" : "OK",
-              onPress: () => {
-                router.push("/(tabs)/recommended-menus");
-              },
+          {
+            duration: 4000,
+            onHide: () => {
+              router.push("/(tabs)/recommended-menus");
             },
-          ]
+          }
         );
       } else {
         throw new Error(response.data.error || "Error completing menu");
       }
     } catch (error: any) {
       console.error("💥 Error completing plan:", error);
-      Alert.alert(
+      ToastService.error(
         language === "he" ? "שגיאה" : "Error",
         error.response?.data?.error ||
           error.message ||
@@ -1735,40 +1596,29 @@ export default function ActiveMenu() {
 
   const handleRemoveMeal = useCallback(
     async (mealId: string) => {
-      Alert.alert(
+      ToastService.confirm(
         language === "he" ? "מחק ארוחה" : "Delete Meal",
         language === "he"
-          ? "האם אתה בטוח שברצונך למחוק ארוחה זו?"
-          : "Are you sure you want to delete this meal?",
-        [
-          { text: language === "he" ? "ביטול" : "Cancel", style: "cancel" },
-          {
-            text: language === "he" ? "מחק" : "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                // Remove meal from plan
-                console.log("Removing meal from plan:", mealId);
-                Alert.alert(
-                  language === "he" ? "הצלחה" : "Success",
-                  language === "he"
-                    ? "הארוחה נמחקה בהצלחה"
-                    : "Meal deleted successfully"
-                );
-                await loadMealPlan(); // Reload the plan
-              } catch (error) {
-                console.error("Failed to remove meal:", error);
-                Alert.alert(
-                  language === "he" ? "שגיאה" : "Error",
-                  language === "he"
-                    ? "נכשל במחיקת הארוחה"
-                    : "Failed to delete meal"
-                );
-              }
-            },
-          },
-        ]
+          ? "האם אתה בטוח שברצונך למחוק ארוחה זו? לחץ שוב למחיקה."
+          : "Are you sure you want to delete this meal? Tap again to confirm."
       );
+
+      try {
+        // Remove meal from plan
+        console.log("Removing meal from plan:", mealId);
+        ToastService.deleteSuccess(
+          language === "he"
+            ? "הארוחה נמחקה בהצלחה"
+            : "Meal deleted successfully"
+        );
+        await loadMealPlan(); // Reload the plan
+      } catch (error) {
+        console.error("Failed to remove meal:", error);
+        ToastService.error(
+          language === "he" ? "שגיאה" : "Error",
+          language === "he" ? "נכשל במחיקת הארוחה" : "Failed to delete meal"
+        );
+      }
     },
     [loadMealPlan, language]
   );
@@ -1873,12 +1723,11 @@ export default function ActiveMenu() {
                 ]}
                 onPress={() =>
                   selectedMeal &&
-                  performMealSwap({
-                    currentMeal: selectedMeal,
-                    dayName: getDayNames()[selectedDay],
-                    mealTiming: selectedMeal.meal_timing,
-                    preferences: { protein_preference: "higher" },
-                  })
+                  handleSwapMeal(
+                    selectedMeal,
+                    getDayNames()[selectedDay],
+                    selectedMeal.meal_timing
+                  )
                 }
                 disabled={isSwapping}
               >
@@ -1899,12 +1748,11 @@ export default function ActiveMenu() {
                 ]}
                 onPress={() =>
                   selectedMeal &&
-                  performMealSwap({
-                    currentMeal: selectedMeal,
-                    dayName: getDayNames()[selectedDay],
-                    mealTiming: selectedMeal.meal_timing,
-                    preferences: { calorie_preference: "lower" },
-                  })
+                  handleSwapMeal(
+                    selectedMeal,
+                    getDayNames()[selectedDay],
+                    selectedMeal.meal_timing
+                  )
                 }
                 disabled={isSwapping}
               >
@@ -1929,12 +1777,11 @@ export default function ActiveMenu() {
                 ]}
                 onPress={() =>
                   selectedMeal &&
-                  performMealSwap({
-                    currentMeal: selectedMeal,
-                    dayName: getDayNames()[selectedDay],
-                    mealTiming: selectedMeal.meal_timing,
-                    preferences: { max_prep_time: 20 },
-                  })
+                  handleSwapMeal(
+                    selectedMeal,
+                    getDayNames()[selectedDay],
+                    selectedMeal.meal_timing
+                  )
                 }
                 disabled={isSwapping}
               >
@@ -1989,17 +1836,9 @@ export default function ActiveMenu() {
         setShowMealCompleteModal(false);
         setSelectedMealForCompletion(null);
 
-        Alert.alert(
+        ToastService.achievementUnlocked(
           language === "he" ? "הושלם!" : "Completed!",
-          language === "he"
-            ? `הארוחה הושלמה! קיבלת ${response.data.xp_gained} נקודות`
-            : `Meal completed! You earned ${response.data.xp_gained} XP`,
-          [
-            {
-              text: language === "he" ? "מעולה" : "Great!",
-              onPress: () => console.log("Meal completion confirmed"),
-            },
-          ]
+          response.data.xp_gained
         );
       } else {
         // Handle API error response
@@ -2016,7 +1855,7 @@ export default function ActiveMenu() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      Alert.alert(language === "he" ? "שגיאה" : "Error", errorMessage);
+      ToastService.error(language === "he" ? "שגיאה" : "Error", errorMessage);
     }
   };
 
@@ -2253,6 +2092,10 @@ export default function ActiveMenu() {
   }
 
   const dailyTotals = getDailyNutritionTotals();
+
+  function handleMenuRatingSubmit(rating: any): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <SafeAreaView

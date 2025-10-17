@@ -68,6 +68,7 @@ interface Meal {
   prep_time_minutes?: number;
   cooking_method?: string;
   instructions?: string;
+  dietary_category?: string;
   ingredients: Ingredient[];
 }
 
@@ -104,16 +105,13 @@ export default function MenuDetailsScreen() {
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [showStartModal, setShowStartModal] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-
-  // Feedback form
-  const [feedbackForm, setFeedbackForm] = useState({
-    rating: 0,
-    liked: "",
-    disliked: "",
-    suggestions: "",
-  });
+  
+  // Swap meal state
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [mealToSwap, setMealToSwap] = useState<Meal | null>(null);
 
   // Animations
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -196,6 +194,102 @@ export default function MenuDetailsScreen() {
     }
   };
 
+  const getDayOfWeekNumber = (dayName: string): number => {
+    const dayMap: { [key: string]: number } = {
+      sunday: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6,
+      "יום ראשון": 0,
+      "יום שני": 1,
+      "יום שלישי": 2,
+      "יום רביעי": 3,
+      "יום חמישי": 4,
+      "יום שישי": 5,
+      "יום שבת": 6,
+    };
+    return dayMap[dayName.toLowerCase()] ?? 0;
+  };
+
+  const handleSwapMeal = async (
+    meal: Meal,
+    dayName: string,
+    mealType: string
+  ) => {
+    try {
+      setIsSwapping(true);
+      setSwapError(null);
+      setMealToSwap(meal);
+      setShowSwapModal(true);
+
+      console.log("🔄 Swapping meal:", {
+        meal: meal.name,
+        dayName,
+        mealType,
+        dayNumber: getDayOfWeekNumber(dayName),
+      });
+
+      // Make API call to swap meal
+      const response = await api.post(
+        `/recommended-menus/${menu?.menu_id}/swap-meal`,
+        {
+          currentMealId: meal.meal_id,
+          dayOfWeek: getDayOfWeekNumber(dayName),
+          mealTiming: mealType,
+          preferences: {
+            dietary_category: meal.dietary_category || menu?.dietary_category,
+            max_prep_time: meal.prep_time_minutes || 60,
+            calories_range: {
+              min: Math.max(0, meal.calories - 100),
+              max: meal.calories + 100,
+            },
+          },
+        }
+      );
+
+      if (response.data.success) {
+        Alert.alert(
+          language === "he" ? "הצלחה!" : "Success!",
+          language === "he"
+            ? "הארוחה הוחלפה בהצלחה!"
+            : "Meal swapped successfully!",
+          [
+            {
+              text: language === "he" ? "אישור" : "OK",
+              onPress: () => {
+                setShowSwapModal(false);
+                loadMenuDetails(); // Reload to get updated meal
+              },
+            },
+          ]
+        );
+      } else {
+        throw new Error(response.data.error || "Failed to swap meal");
+      }
+    } catch (error: any) {
+      console.error("💥 Swap meal error:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        (language === "he" ? "נכשל בהחלפת הארוחה" : "Failed to swap meal");
+      
+      setSwapError(errorMessage);
+      Alert.alert(
+        language === "he" ? "שגיאה" : "Error",
+        errorMessage
+      );
+    } finally {
+      setIsSwapping(false);
+      setTimeout(() => {
+        setShowSwapModal(false);
+        setMealToSwap(null);
+      }, 2000);
+    }
+  };
+
   const getMealsByDay = (day: number) => {
     if (!menu) return [];
     return menu.meals.filter((meal) => meal.day_number === day);
@@ -207,44 +301,30 @@ export default function MenuDetailsScreen() {
     return Array.from(days).sort((a, b) => a - b);
   };
 
-  const getDayNames = () => {
-    const days = getDaysArray();
-    return days.map((day) => {
-      switch (day) {
-        case 1:
-          return language === "he" ? "יום ראשון" : "Sunday";
-        case 2:
-          return language === "he" ? "יום שני" : "Monday";
-        case 3:
-          return language === "he" ? "יום שלישי" : "Tuesday";
-        case 4:
-          return language === "he" ? "יום רביעי" : "Wednesday";
-        case 5:
-          return language === "he" ? "יום חמישי" : "Thursday";
-        case 6:
-          return language === "he" ? "יום שישי" : "Friday";
-        case 7:
-          return language === "he" ? "יום שבת" : "Saturday";
-        default:
-          return language === "he" ? `יום ${day}` : `Day ${day}`;
-      }
-    });
-  };
-
-  const handleSwapMeal = async (
-    mealToSwap: Meal,
-    day: string,
-    mealType: string
-  ) => {
-    // Placeholder for the actual swap logic.
-    // This would involve fetching available meals for the given day and meal type,
-    // and then allowing the user to select a replacement.
-    Alert.alert(
-      "Swap Meal",
-      `Swap ${mealToSwap.name} for ${mealType} on ${day}?`
-    );
-    // You would typically navigate to a new screen or open a modal here
-    // to allow the user to select a new meal.
+  const getDayName = (day: number): string => {
+    if (language === "he") {
+      const hebrewDays = [
+        "יום ראשון",
+        "יום שני",
+        "יום שלישי",
+        "יום רביעי",
+        "יום חמישי",
+        "יום שישי",
+        "יום שבת",
+      ];
+      return hebrewDays[day - 1] || `יום ${day}`;
+    } else {
+      const englishDays = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      return englishDays[day - 1] || `Day ${day}`;
+    }
   };
 
   const getMealTypeIcon = (mealType: string) => {
@@ -278,6 +358,70 @@ export default function MenuDetailsScreen() {
     if (level <= 3) return language === "he" ? "בינוני" : "Medium";
     return language === "he" ? "קשה" : "Hard";
   };
+
+  const renderSwapModal = () => (
+    <Modal
+      visible={showSwapModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => !isSwapping && setShowSwapModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {language === "he" ? "מחליף ארוחה..." : "Swapping Meal..."}
+            </Text>
+            {!isSwapping && (
+              <TouchableOpacity
+                onPress={() => setShowSwapModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <X size={24} color={colors.icon} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.modalContent}>
+            {isSwapping ? (
+              <>
+                <ActivityIndicator size="large" color={colors.emerald500} />
+                <Text
+                  style={[
+                    styles.modalText,
+                    { color: colors.text, marginTop: 16 },
+                  ]}
+                >
+                  {language === "he"
+                    ? "מחפש ארוחה חלופית מתאימה..."
+                    : "Finding a suitable alternative meal..."}
+                </Text>
+              </>
+            ) : swapError ? (
+              <>
+                <View
+                  style={[
+                    styles.errorIcon,
+                    { backgroundColor: colors.error + "20" },
+                  ]}
+                >
+                  <X size={32} color={colors.error} />
+                </View>
+                <Text
+                  style={[
+                    styles.modalText,
+                    { color: colors.error, marginTop: 16 },
+                  ]}
+                >
+                  {swapError}
+                </Text>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderStartModal = () => (
     <Modal
@@ -526,43 +670,28 @@ export default function MenuDetailsScreen() {
             {/* Action Buttons */}
             <View style={styles.menuActions}>
               <TouchableOpacity
-                style={[styles.viewButton, { backgroundColor: colors.surface }]}
-                onPress={() => {}} // Placeholder for onView logic
-              >
-                <Eye size={16} color={colors.icon} />
-                <Text style={[styles.viewButtonText, { color: colors.icon }]}>
-                  {language === "he" ? "צפה" : "View"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.swapButton, { backgroundColor: colors.surface }]}
+                style={[
+                  styles.swapButton,
+                  { backgroundColor: colors.surface, borderColor: colors.emerald500 },
+                ]}
                 onPress={() =>
                   handleSwapMeal(
                     meal,
-                    getDayNames()[selectedDay - 1],
+                    getDayName(selectedDay),
                     meal.meal_type
                   )
                 }
+                disabled={isSwapping}
               >
-                <RefreshCw size={16} color={colors.emerald500} />
+                {isSwapping && mealToSwap?.meal_id === meal.meal_id ? (
+                  <ActivityIndicator size="small" color={colors.emerald500} />
+                ) : (
+                  <RefreshCw size={16} color={colors.emerald500} />
+                )}
                 <Text
                   style={[styles.swapButtonText, { color: colors.emerald500 }]}
                 >
                   {language === "he" ? "החלף" : "Swap"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.startButton,
-                  { backgroundColor: colors.emerald500 },
-                ]}
-                onPress={() => {}} // Placeholder for onStart logic
-              >
-                <Play size={16} color="#ffffff" />
-                <Text style={styles.startButtonText}>
-                  {language === "he" ? "התחל" : "Start"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -712,61 +841,6 @@ export default function MenuDetailsScreen() {
                 <View
                   style={[styles.nutritionIcon, { backgroundColor: "#fef3c7" }]}
                 >
-                  <Flame size={16} color="#f59e0b" />
-                </View>
-                <Text
-                  style={[styles.nutritionGridValue, { color: colors.text }]}
-                >
-                  {avgCaloriesPerDay}
-                </Text>
-                <Text
-                  style={[styles.nutritionGridLabel, { color: colors.icon }]}
-                >
-                  {language === "he" ? "קלוריות" : "Calories"}
-                </Text>
-              </View>
-
-              <View style={styles.nutritionGridItem}>
-                <View
-                  style={[styles.nutritionIcon, { backgroundColor: "#dcfce7" }]}
-                >
-                  <TrendingUp size={16} color="#10b981" />
-                </View>
-                <Text
-                  style={[styles.nutritionGridValue, { color: colors.text }]}
-                >
-                  {avgProteinPerDay}g
-                </Text>
-                <Text
-                  style={[styles.nutritionGridLabel, { color: colors.icon }]}
-                >
-                  {language === "he" ? "חלבון" : "Protein"}
-                </Text>
-              </View>
-
-              <View style={styles.nutritionGridItem}>
-                <View
-                  style={[styles.nutritionIcon, { backgroundColor: "#f3e8ff" }]}
-                >
-                  <Target size={16} color="#8b5cf6" />
-                </View>
-                <Text
-                  style={[styles.nutritionGridValue, { color: colors.text }]}
-                >
-                  {Math.round((menu.total_carbs || 0) / (menu.days_count || 1))}
-                  g
-                </Text>
-                <Text
-                  style={[styles.nutritionGridLabel, { color: colors.icon }]}
-                >
-                  {language === "he" ? "פחמימות" : "Carbs"}
-                </Text>
-              </View>
-
-              <View style={styles.nutritionGridItem}>
-                <View
-                  style={[styles.nutritionIcon, { backgroundColor: "#fef3c7" }]}
-                >
                   <Activity size={16} color="#f59e0b" />
                 </View>
                 <Text
@@ -788,10 +862,10 @@ export default function MenuDetailsScreen() {
                 <View
                   style={[
                     styles.costBadge,
-                    { backgroundColor: colors.success + "20" },
+                    { backgroundColor: colors.emerald500 + "20" },
                   ]}
                 >
-                  <Text style={[styles.costText, { color: colors.success }]}>
+                  <Text style={[styles.costText, { color: colors.emerald500 }]}>
                     ₪{menu.estimated_cost.toFixed(0)}
                   </Text>
                 </View>
@@ -905,6 +979,7 @@ export default function MenuDetailsScreen() {
 
       {/* Modals */}
       {renderStartModal()}
+      {renderSwapModal()}
     </SafeAreaView>
   );
 }
@@ -1340,11 +1415,36 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     gap: 6,
+    marginBottom: 16,
   },
 
   cookingMethodText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+
+  // Menu Actions
+  menuActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  swapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 6,
+    borderWidth: 1.5,
+  },
+
+  swapButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   // No meals state
@@ -1447,18 +1547,21 @@ const styles = StyleSheet.create({
 
   modalContent: {
     padding: 20,
+    alignItems: "center",
+    minHeight: 120,
   },
 
   modalText: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 24,
     textAlign: "center",
   },
 
   modalActions: {
     flexDirection: "row",
     gap: 12,
+    width: "100%",
+    marginTop: 24,
   },
 
   cancelButton: {
@@ -1489,52 +1592,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Added styles for swap button
-  menuActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end", // Changed to flex-end to align buttons to the right
-    alignItems: "center",
-    marginTop: 16, // Add some space above the buttons
-    gap: 8,
-  },
-  viewButton: {
-    flexDirection: "row",
+  errorIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  viewButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  swapButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-    borderWidth: 1,
-  },
-  swapButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  startButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  startButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
 });

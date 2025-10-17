@@ -1099,9 +1099,9 @@ router.post(
           is_active: false,
           completed_at: new Date(), // Use completed_at field
           rating: rating,
-            feedback_liked: liked || "",
-            feedback_disliked: disliked || "",
-            feedback_suggestions: suggestions || "",
+          feedback_liked: liked || "",
+          feedback_disliked: disliked || "",
+          feedback_suggestions: suggestions || "",
         },
       });
 
@@ -1834,6 +1834,86 @@ router.get(
       res.status(500).json({
         error: "Failed to fetch calendar data",
         details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Swap meal in a plan
+router.post(
+  "/:planId/swap-meal",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user.user_id;
+      const { planId } = req.params;
+      const { currentMeal, dayName, mealTiming, preferences } = req.body;
+
+      console.log("🔄 Swapping meal in plan:", planId);
+
+      // Verify plan belongs to user
+      const plan = await prisma.userMealPlan.findFirst({
+        where: {
+          plan_id: planId,
+          user_id: userId,
+        },
+      });
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          error: "Meal plan not found",
+        });
+      }
+
+      // Find alternative meal from templates
+      const alternatives = await prisma.mealTemplate.findMany({
+        where: {
+          meal_timing: mealTiming as any,
+          dietary_category: preferences?.dietary_category || "BALANCED",
+          prep_time_minutes: preferences?.max_prep_time
+            ? { lte: preferences.max_prep_time }
+            : undefined,
+          template_id: { not: currentMeal.template_id },
+        },
+        take: 5,
+      });
+
+      if (alternatives.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "No alternative meals found",
+        });
+      }
+
+      // Select random alternative
+      const newMeal =
+        alternatives[Math.floor(Math.random() * alternatives.length)];
+
+      // Update the schedule
+      await prisma.mealPlanSchedule.updateMany({
+        where: {
+          plan_id: planId,
+          template_id: currentMeal.template_id,
+        },
+        data: {
+          template_id: newMeal.template_id,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Meal swapped successfully",
+        data: {
+          oldMeal: currentMeal,
+          newMeal,
+        },
+      });
+    } catch (error) {
+      console.error("💥 Swap meal error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to swap meal",
       });
     }
   }

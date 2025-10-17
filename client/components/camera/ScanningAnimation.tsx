@@ -93,13 +93,13 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
     let progressValue = 0;
     const interval = setInterval(() => {
       setProgressState((prev) => {
-        progressValue = prev + 1;
+        progressValue = prev + 2; // Faster progress increment
 
-        if (progressValue < 25) {
+        if (progressValue < 20) {
           setCurrentStep(0);
-        } else if (progressValue < 50) {
+        } else if (progressValue < 45) {
           setCurrentStep(1);
-        } else if (progressValue < 75) {
+        } else if (progressValue < 70) {
           setCurrentStep(2);
         } else {
           setCurrentStep(3);
@@ -111,7 +111,7 @@ export const ScanningAnimation: React.FC<ScanningAnimationProps> = ({
 
         return Math.min(progressValue, 100);
       });
-    }, 150);
+    }, 100); // Faster update interval
 
     return () => clearInterval(interval);
   }, [isAnalyzing]);

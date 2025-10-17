@@ -1787,7 +1787,7 @@ export default function StatisticsScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <LinearGradient
-          colors={["#10B981", "#059669", "#047857"]}
+          colors={["#ffffffff", "#fefefeff", "#ffffffff"]}
           style={styles.modernHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -1889,7 +1889,7 @@ export default function StatisticsScreen() {
                         {gamificationStats.level}
                       </Text>
                       <Text style={styles.xpText}>
-                        {gamificationStats.currentXP} /{" "}
+                        {user?.total_points?.toString()} /{" "}
                         {gamificationStats.nextLevelXP}{" "}
                         {t("statistics.xp") || "XP"}
                       </Text>
@@ -2444,7 +2444,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#000000ff",
     letterSpacing: 0.4,
     marginBottom: 4,
   },

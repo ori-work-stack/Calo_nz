@@ -1285,6 +1285,28 @@ export const mealPlanAPI = {
       throw new APIError("Network error while completing meal plan");
     }
   },
+
+  // Added swapMeal method
+  async swapMeal(planId: string, swapRequest: any): Promise<any> {
+    try {
+      console.log("🔄 Swapping meal in plan...");
+      const response = await api.post(
+        `/meal-plans/${planId}/swap-meal`,
+        swapRequest
+      );
+
+      if (response.data.success) {
+        console.log("✅ Meal swapped successfully");
+        return response.data;
+      }
+
+      throw new APIError(response.data.error || "Failed to swap meal");
+    } catch (error) {
+      console.error("💥 Swap meal error:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError("Network error while swapping meal");
+    }
+  },
 };
 
 // Export the main API instance for direct use

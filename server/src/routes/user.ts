@@ -415,6 +415,43 @@ router.delete(
   }
 );
 
+// STORE PUSH TOKEN ENDPOINT
+router.post("/push-token", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { pushToken } = req.body;
+    
+    if (!pushToken || typeof pushToken !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: "Valid push token is required",
+      });
+    }
+
+    // Validate token length (Expo push tokens are around 40-50 characters)
+    if (pushToken.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: "Push token is too long",
+      });
+    }
+
+    // Store push token in user metadata or create a separate tokens table
+    // For now, just log it (implement proper storage based on your schema)
+    console.log(`📱 Push token received for user ${req.user?.user_id}:`, pushToken.substring(0, 20) + "...");
+
+    res.json({
+      success: true,
+      message: "Push token received (local notifications only in Expo Go)",
+    });
+  } catch (error) {
+    console.error("💥 Error storing push token:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to store push token",
+    });
+  }
+});
+
 // GET USER PROFILE ENDPOINT
 router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
   try {

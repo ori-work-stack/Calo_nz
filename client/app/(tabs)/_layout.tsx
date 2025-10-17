@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { View, I18nManager } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "@/components/ProtectedRoutes";
@@ -10,6 +10,9 @@ import { MessageSquare } from "lucide-react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "@/src/store";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
+import { useOptimizedAuthSelector } from "@/hooks/useOptimizedAuthSelector";
+import { useRouter } from "expo-router";
+import { useColorScheme } from "react-native";
 
 // Enable RTL support
 I18nManager.allowRTL(true);
@@ -17,8 +20,13 @@ I18nManager.allowRTL(true);
 export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const language = useTranslation().i18n.language;
+  const { user } = useOptimizedAuthSelector();
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+
+  const canAccessDevices = user && user.subscription_type !== "FREE";
+  const canAccessAIChat = user && user.subscription_type !== "FREE";
+  const canAccessDashboard = user && (user.is_admin || user.is_super_admin);
 
   // Since your tab bar is floating, calculate the space it occupies
   // From your ScrollableTabBar config:
@@ -32,16 +40,28 @@ export default function TabLayout() {
 
   // Determine which tabs should be shown based on user permissions
   const shouldShowAiChat = useMemo(() => {
-    return user?.subscription_type === "GOLD" || user?.subscription_type === "PLATINUM";
+    return (
+      user?.subscription_type === "GOLD" ||
+      user?.subscription_type === "PLATINUM"
+    );
   }, [user?.subscription_type]);
 
   const shouldShowDevices = useMemo(() => {
-    return user?.subscription_type === "GOLD" || user?.subscription_type === "PLATINUM";
+    return (
+      user?.subscription_type === "GOLD" ||
+      user?.subscription_type === "PLATINUM"
+    );
   }, [user?.subscription_type]);
 
   const shouldShowDashboard = useMemo(() => {
     return user?.is_admin || user?.is_super_admin;
   }, [user?.is_admin, user?.is_super_admin]);
+
+  useEffect(() => {
+    if (!user) {
+      router.replace("/(auth)/welcome");
+    }
+  }, [user]);
 
   return (
     <ProtectedRoute>
@@ -148,36 +168,42 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="ai-chat"
-            options={{
-              title: t("tabs.ai_chat"),
-              tabBarIcon: ({ color }) => (
-                <MessageSquare size={28} color={color} />
-              ),
-              href: shouldShowAiChat ? undefined : null,
-            }}
-          />
-          <Tabs.Screen
-            name="devices"
-            options={{
-              title: t("tabs.devices"),
-              tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="watch.digital" color={color} />
-              ),
-              href: shouldShowDevices ? undefined : null,
-            }}
-          />
-          <Tabs.Screen
-            name="dashboard"
-            options={{
-              title: t("tabs.dashboard"),
-              href: null, // Hide from tab bar
-              tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="shield.fill" color={color} />
-              ),
-            }}
-          />
+          {canAccessAIChat && (
+            <Tabs.Screen
+              name="ai-chat"
+              options={{
+                title: t("tabs.ai_chat"),
+                tabBarIcon: ({ color }) => (
+                  <MessageSquare size={28} color={color} />
+                ),
+                href: shouldShowAiChat ? undefined : null,
+              }}
+            />
+          )}
+          {canAccessDevices && (
+            <Tabs.Screen
+              name="devices"
+              options={{
+                title: t("tabs.devices"),
+                tabBarIcon: ({ color }) => (
+                  <IconSymbol size={24} name="watch.digital" color={color} />
+                ),
+                href: shouldShowDevices ? undefined : null,
+              }}
+            />
+          )}
+          {canAccessDashboard && (
+            <Tabs.Screen
+              name="dashboard"
+              options={{
+                title: t("tabs.dashboard"),
+                href: null, // Hide from tab bar
+                tabBarIcon: ({ color }) => (
+                  <IconSymbol size={24} name="shield.fill" color={color} />
+                ),
+              }}
+            />
+          )}
           <Tabs.Screen
             name="profile"
             options={{
