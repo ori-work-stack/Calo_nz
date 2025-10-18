@@ -287,8 +287,10 @@ const authSlice = createSlice({
         currentUserData.current_xp !== newUserData.current_xp ||
         currentUserData.current_streak !== newUserData.current_streak ||
         currentUserData.best_streak !== newUserData.best_streak ||
-        currentUserData.total_complete_days !== newUserData.total_complete_days ||
-        currentUserData.active_meal_plan_id !== newUserData.active_meal_plan_id ||
+        currentUserData.total_complete_days !==
+          newUserData.total_complete_days ||
+        currentUserData.active_meal_plan_id !==
+          newUserData.active_meal_plan_id ||
         currentUserData.active_menu_id !== newUserData.active_menu_id
       ) {
         state.user = newUserData;
@@ -357,6 +359,14 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.error = null;
         console.log("✅ Sign in state updated");
+        console.log(
+          "👤 User data stored in Redux:",
+          JSON.stringify(action.payload.user, null, 2)
+        );
+        console.log("🔑 Admin fields:", {
+          is_admin: action.payload.user?.is_admin,
+          is_super_admin: action.payload.user?.is_super_admin,
+        });
       })
       .addCase(signIn.rejected, (state, action) => {
         state.isLoading = false;
