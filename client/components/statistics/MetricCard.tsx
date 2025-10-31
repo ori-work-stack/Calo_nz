@@ -158,9 +158,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   gradient: {
-    borderRadius: borderRadius.xl,
+    borderRadius: 24,
     padding: spacing.xl,
     ...shadows.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   header: {
     flexDirection: "row",
@@ -181,11 +186,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
+    fontSize: 18,
+    fontWeight: "800",
     color: colors.neutral[900],
     marginBottom: spacing.xs,
-    letterSpacing: -0.2,
+    letterSpacing: -0.4,
   },
   statusContainer: {
     flexDirection: "row",
@@ -223,11 +228,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   valueText: {
-    fontSize: typography.fontSize["2xl"],
-    fontWeight: typography.fontWeight.extrabold,
+    fontSize: 28,
+    fontWeight: "900",
     color: colors.neutral[900],
     marginBottom: spacing.xs,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   targetText: {
     fontSize: typography.fontSize.base,
@@ -241,9 +246,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   percentageText: {
-    fontSize: typography.fontSize["3xl"],
-    fontWeight: typography.fontWeight.extrabold,
-    letterSpacing: -0.5,
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: -0.8,
   },
   progressContainer: {
     marginBottom: spacing.lg,

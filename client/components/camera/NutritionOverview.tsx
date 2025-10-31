@@ -147,13 +147,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   card: {
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    padding: 28,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 10,
   },
   header: {
     flexDirection: "row",
@@ -165,11 +165,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mealName: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "900",
     color: "#1A2744",
     marginBottom: 6,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   analysisLabel: {
     fontSize: 14,
@@ -199,10 +199,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   calorieValue: {
-    fontSize: 36,
-    fontWeight: "800",
+    fontSize: 40,
+    fontWeight: "900",
     color: "#FFFFFF",
-    letterSpacing: -1,
+    letterSpacing: -1.2,
   },
   calorieLabel: {
     fontSize: 16,
@@ -241,10 +241,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   macroValue: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#1A2744",
     marginBottom: 2,
+    letterSpacing: -0.3,
   },
   macroLabel: {
     fontSize: 13,

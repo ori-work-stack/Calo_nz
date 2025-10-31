@@ -2442,10 +2442,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: "800",
+    fontSize: 36,
+    fontWeight: "900",
     color: "#000000ff",
-    letterSpacing: 0.4,
+    letterSpacing: -0.8,
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -2484,16 +2484,16 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: "#FFFFFF",
     margin: 20,
-    borderRadius: 28,
+    borderRadius: 32,
     ...Platform.select({
       ios: {
         shadowColor: "#EF4444",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
       },
       android: {
-        elevation: 8,
+        elevation: 10,
       },
     }),
   },
@@ -2637,18 +2637,18 @@ const styles = StyleSheet.create({
   mealCompletionCard: {
     marginHorizontal: 20,
     marginBottom: 24,
-    borderRadius: 24,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
-    padding: 24,
+    padding: 28,
     ...Platform.select({
       ios: {
         shadowColor: "#1E293B",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.10,
+        shadowRadius: 24,
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },
@@ -2661,20 +2661,20 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   mealCompletionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#0F172A",
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   mealCompletionContent: {
     alignItems: "center",
     gap: 20,
   },
   mealCompletionText: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "900",
     color: "#0F172A",
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   mealCompletionSubtext: {
     fontSize: 15,
@@ -2739,18 +2739,18 @@ const styles = StyleSheet.create({
 
   chartContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    padding: 28,
     marginBottom: 20,
     ...Platform.select({
       ios: {
         shadowColor: "#1E293B",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.10,
+        shadowRadius: 24,
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },
@@ -2824,11 +2824,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 30,
+    fontWeight: "900",
     color: "#0F172A",
     marginBottom: 20,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
 
   gamificationContainer: {
@@ -2867,11 +2867,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   levelText: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 36,
+    fontWeight: "900",
     color: "#0F172A",
     marginBottom: 6,
-    letterSpacing: -0.7,
+    letterSpacing: -1,
   },
   xpText: {
     fontSize: 17,
