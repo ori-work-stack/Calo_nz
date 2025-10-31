@@ -1278,18 +1278,24 @@ const styles = StyleSheet.create({
   },
 
   pageTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "900",
     marginBottom: 20,
+    letterSpacing: -0.8,
   },
 
   // Active Plan Card
   activePlanCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 24,
     position: "relative",
     overflow: "hidden",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
 
   activePlanHeader: {
@@ -1326,9 +1332,10 @@ const styles = StyleSheet.create({
 
   activePlanTitle: {
     color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 6,
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
 
   activePlanSubtitle: {
@@ -1382,22 +1389,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 18,
+    borderRadius: 20,
     marginBottom: 24,
-    gap: 8,
-    elevation: 2,
+    gap: 10,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
 
   createMenuButtonText: {
     color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
   // Quick Stats Card
@@ -1453,20 +1461,20 @@ const styles = StyleSheet.create({
 
   // Enhanced Menu Cards
   menuCard: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 2,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    marginBottom: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    marginBottom: 8,
   },
 
   menuImageHeader: {
-    height: 140,
+    height: 160,
     justifyContent: "space-between",
-    padding: 16,
+    padding: 20,
   },
 
   menuImageContent: {
@@ -1503,10 +1511,10 @@ const styles = StyleSheet.create({
   },
 
   menuTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     marginBottom: 4,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
 
   menuSubtitle: {
@@ -1537,8 +1545,8 @@ const styles = StyleSheet.create({
   },
 
   nutritionValue: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "800",
   },
 
   nutritionLabel: {

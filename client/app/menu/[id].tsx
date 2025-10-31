@@ -1082,14 +1082,14 @@ const styles = StyleSheet.create({
 
   // Hero Section
   heroCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 24,
-    elevation: 2,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
 
   heroHeader: {
@@ -1127,9 +1127,10 @@ const styles = StyleSheet.create({
   },
 
   heroTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "800",
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
 
   heroDescription: {
@@ -1232,14 +1233,14 @@ const styles = StyleSheet.create({
 
   // Day Selector
   daySelectorCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    elevation: 1,
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
 
   daySelectorTitle: {
@@ -1279,14 +1280,14 @@ const styles = StyleSheet.create({
   },
 
   mealCard: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 16,
-    elevation: 2,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
 
   mealCardHeader: {
@@ -1307,8 +1308,9 @@ const styles = StyleSheet.create({
   },
 
   mealName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
 
   mealMeta: {
@@ -1363,11 +1365,12 @@ const styles = StyleSheet.create({
   // Nutrition Preview
   nutritionPreview: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-    paddingTop: 12,
+    justifyContent: "space-around",
+    marginTop: 14,
+    paddingTop: 14,
+    paddingHorizontal: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.05)",
+    borderTopColor: "rgba(0,0,0,0.08)",
   },
 
   nutritionItem: {
@@ -1376,8 +1379,8 @@ const styles = StyleSheet.create({
   },
 
   nutritionValue: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
   },
 
   nutritionLabel: {
@@ -1479,11 +1482,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    gap: 6,
-    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 8,
+    borderWidth: 2,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
 
   swapButtonText: {

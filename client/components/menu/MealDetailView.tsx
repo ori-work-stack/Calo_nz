@@ -479,10 +479,10 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   mealName: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "900",
     marginBottom: 12,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   ratingContainer: {
     flexDirection: "row",
@@ -526,10 +526,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     marginBottom: 16,
-    letterSpacing: -0.2,
+    letterSpacing: -0.4,
   },
   description: {
     fontSize: 15,
@@ -540,13 +540,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   nutritionCard: {
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 16,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
   },
   nutritionHeader: {
     flexDirection: "row",
@@ -582,16 +582,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 14,
     borderWidth: 1,
   },
   ingredientContent: {
     flex: 1,
   },
   ingredientName: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
     marginBottom: 2,
   },
   ingredientQuantity: {

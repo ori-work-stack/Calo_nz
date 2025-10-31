@@ -315,10 +315,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "900",
     marginBottom: 4,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   headerSubtitle: {
     fontSize: 16,
@@ -333,10 +333,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1.5,
   },
   filterChipText: {
     fontSize: 13,
@@ -349,13 +349,13 @@ const styles = StyleSheet.create({
   },
   mealItem: {
     flexDirection: "row",
-    padding: 16,
-    borderRadius: 16,
+    padding: 18,
+    borderRadius: 20,
     borderWidth: 0.5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    elevation: 3,
   },
   mealImage: {
     width: 80,
@@ -383,9 +383,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mealName: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   mealDescription: {
     fontSize: 13,
